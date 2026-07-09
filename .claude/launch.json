@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "forest-rescue",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["serve.js", "8341"],
+      "port": 8341
+    }
+  ]
+}

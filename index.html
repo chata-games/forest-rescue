@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#13391f">
+  <title>Forest Rescue</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main id="app" class="app" aria-label="Forest Rescue game">
+    <section id="startScreen" class="screen screen--start">
+      <div class="start-art" aria-hidden="true">
+        <canvas id="guardianCanvas" width="180" height="180"></canvas>
+      </div>
+      <h1>Forest Rescue</h1>
+      <p class="tagline">Save the magic jungle</p>
+      <button id="playButton" class="primary-button" type="button">Play</button>
+      <p class="howto">Plant Magic Trees in the lanes. Stop loggers and bulldozers before they reach the jungle heart. Tap glowing mana flowers for bonus mana.</p>
+    </section>
+
+    <section id="gameScreen" class="game-screen" aria-label="Game board">
+      <header class="hud">
+        <div class="hud__item"><span class="hud__icon mana-dot"></span><span id="manaText">100</span></div>
+        <div class="hud__item hearts" id="heartText" aria-label="Jungle health">♥♥♥♥♥</div>
+        <div class="hud__item" id="waveText">Wave 1 / 8</div>
+        <button id="muteButton" class="icon-button" type="button" aria-label="Mute sound">🔊</button>
+        <button id="pauseButton" class="icon-button" type="button" aria-label="Pause game">Ⅱ</button>
+      </header>
+
+      <div id="canvasWrap" class="canvas-wrap">
+        <canvas id="gameCanvas" aria-label="Forest Rescue playfield"></canvas>
+        <div id="waveBanner" class="wave-banner" aria-live="polite"></div>
+      </div>
+
+      <nav class="toolbar" aria-label="Plant toolbar">
+        <button id="treeTool" class="tool-button selected" type="button">
+          <span class="tool-button__art" aria-hidden="true">✦</span>
+          <span>Magic Tree</span>
+          <small>50 mana</small>
+        </button>
+      </nav>
+    </section>
+
+    <section id="pauseOverlay" class="overlay hidden" aria-modal="true">
+      <div class="overlay__panel">
+        <h2>Paused</h2>
+        <button id="resumeButton" class="primary-button" type="button">Resume</button>
+      </div>
+    </section>
+
+    <section id="endOverlay" class="overlay hidden" aria-modal="true">
+      <div class="overlay__panel">
+        <h2 id="endTitle">Game Over</h2>
+        <p id="endMessage">The jungle was cleared into farmland.</p>
+        <button id="replayButton" class="primary-button" type="button">Replay</button>
+      </div>
+    </section>
+  </main>
+  <script src="game.js"></script>
+</body>
+</html>
