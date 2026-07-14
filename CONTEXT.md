@@ -24,6 +24,8 @@
 | **Loadout** | The limited set of unlocked defenders and Guardian spells chosen before a level and available during that battle |
 | **Challenge** | The selected battle difficulty, which changes how hard a level is to defeat |
 | **Guidance** | The independently selected amount of loadout advice, warnings, and strategic coaching shown to the player |
+| **Preferred battle layout** | The landscape presentation optimized for two-thumb play; recommended but never required |
+| **Compact portrait layout** | The fully playable portrait presentation: the complete battlefield scales down uniformly to fit while the HUD reflows with full-size controls |
 
 ## Architecture boundaries
 
