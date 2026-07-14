@@ -29,3 +29,26 @@ export function drawAtlasSprite(ctx, atlas, frame, x, y, w, h, alpha = 1) {
   ctx.globalAlpha = 1;
   return true;
 }
+
+export async function loadUnitsAtlas() {
+  const res = await fetch("assets/atlases/units.json");
+  if (!res.ok) return null;
+  const meta = await res.json();
+  const { images, ready } = loadSprites({ atlas: `assets/${meta.image}` });
+  await ready;
+  if (!images.atlas.ready) return null;
+  return { img: images.atlas.img, ready: true, frames: meta.frames };
+}
+
+export function loadCatalogSprites(catalog, predicate) {
+  const paths = {};
+  for (const asset of catalog.assets || []) {
+    if (predicate && !predicate(asset)) continue;
+    paths[asset.id] = `assets/${asset.file}`;
+  }
+  return loadSprites(paths);
+}
+
+export function catalogAsset(catalog, id) {
+  return (catalog?.assets || []).find((a) => a.id === id) || null;
+}

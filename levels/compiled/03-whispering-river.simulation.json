@@ -3,42 +3,42 @@
   "results": {
     "cheapest-dps": {
       "bot": "cheapest-dps",
-      "won": false,
-      "hearts": 0,
-      "mana": 93,
-      "ticks": 3110,
+      "won": true,
+      "hearts": 1,
+      "mana": 617,
+      "ticks": 7628,
       "defendersPlaced": 8
     },
     "best-coverage": {
       "bot": "best-coverage",
-      "won": false,
-      "hearts": 0,
-      "mana": 256,
-      "ticks": 4984,
+      "won": true,
+      "hearts": 1,
+      "mana": 731,
+      "ticks": 8942,
       "defendersPlaced": 8
     },
     "upgrade-first": {
       "bot": "upgrade-first",
-      "won": false,
-      "hearts": 0,
-      "mana": 96,
-      "ticks": 3140,
+      "won": true,
+      "hearts": 1,
+      "mana": 618,
+      "ticks": 7639,
       "defendersPlaced": 8
     },
     "defensive-gate": {
       "bot": "defensive-gate",
       "won": false,
-      "hearts": 0,
-      "mana": 375,
-      "ticks": 5832,
+      "hearts": 5,
+      "mana": 999,
+      "ticks": 28799,
       "defendersPlaced": 8
     },
     "anti-air-priority": {
       "bot": "anti-air-priority",
       "won": true,
-      "hearts": 3,
-      "mana": 999,
-      "ticks": 10842,
+      "hearts": 5,
+      "mana": 77,
+      "ticks": 4541,
       "defendersPlaced": 8
     }
   }

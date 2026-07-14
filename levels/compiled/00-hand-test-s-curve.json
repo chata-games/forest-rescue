@@ -1,8 +1,8 @@
 {
-  "id": "hand-test-s-curve",
+  "id": "00-hand-test-s-curve",
   "name": "Hand Test S-Curve",
   "compilerVersion": "1.0.0",
-  "intentHash": "776086b0e610a526",
+  "intentHash": "f7b092715ea4999b",
   "seed": "hand-test-fixed",
   "biome": "meadow-edge",
   "unlocks": [
@@ -1011,13 +1011,13 @@
       "buildRadius": 42
     },
     {
-      "id": "ring-18",
-      "x": 1174,
-      "y": 356,
+      "id": "ring-onpath-4",
+      "x": 651,
+      "y": 385,
       "role": "chokepoint",
-      "placement": "beside-path",
-      "radius": 48,
-      "buildRadius": 42
+      "placement": "on-path",
+      "radius": 40,
+      "buildRadius": 38
     }
   ],
   "landmarks": [],
@@ -1057,6 +1057,12 @@
       "x": 1190,
       "y": 534,
       "size": 18
+    },
+    {
+      "type": "fence",
+      "x": 1188,
+      "y": 381,
+      "size": 21
     },
     {
       "type": "flower",
@@ -1165,6 +1171,6 @@
     "averageRingCoverage": 0.17,
     "chokepoints": 1,
     "ringCount": 5,
-    "estimatedDifficulty": 0.83
+    "estimatedDifficulty": 0.84
   }
 }

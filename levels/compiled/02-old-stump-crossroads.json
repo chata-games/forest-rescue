@@ -2000,13 +2000,13 @@
       "buildRadius": 42
     },
     {
-      "id": "ring-59",
-      "x": 571,
-      "y": 267,
-      "role": "long-range",
-      "placement": "beside-path",
-      "radius": 48,
-      "buildRadius": 42
+      "id": "ring-onpath-7",
+      "x": 819,
+      "y": 414,
+      "role": "chokepoint",
+      "placement": "on-path",
+      "radius": 40,
+      "buildRadius": 38
     }
   ],
   "landmarks": [
@@ -2171,8 +2171,8 @@
     {
       "enemies": [
         {
-          "type": "surveyor",
-          "count": 5
+          "type": "chainsaw-brute",
+          "count": 3
         }
       ],
       "delayBefore": 0.5,
@@ -2182,8 +2182,12 @@
     {
       "enemies": [
         {
-          "type": "chainsaw-brute",
-          "count": 4
+          "type": "logger",
+          "count": 6
+        },
+        {
+          "type": "surveyor",
+          "count": 1
         }
       ],
       "delayBefore": 0.5,
@@ -2209,15 +2213,15 @@
     {
       "enemies": [
         {
-          "type": "surveyor",
-          "count": 6
+          "type": "chainsaw-brute",
+          "count": 5
         },
         {
           "type": "surveyor",
-          "count": 3
+          "count": 1
         },
         {
-          "type": "surveyor",
+          "type": "chainsaw-brute",
           "count": 1,
           "pathId": "secondary"
         }
@@ -2229,11 +2233,15 @@
     {
       "enemies": [
         {
-          "type": "chainsaw-brute",
+          "type": "logger",
           "count": 6
         },
         {
-          "type": "chainsaw-brute",
+          "type": "surveyor",
+          "count": 5
+        },
+        {
+          "type": "logger",
           "count": 1,
           "pathId": "secondary"
         }
@@ -2249,8 +2257,8 @@
           "count": 6
         },
         {
-          "type": "chainsaw-brute",
-          "count": 1
+          "type": "surveyor",
+          "count": 2
         },
         {
           "type": "chainsaw-brute",
@@ -2265,7 +2273,7 @@
     {
       "enemies": [
         {
-          "type": "surveyor",
+          "type": "logger",
           "count": 6
         },
         {
@@ -2273,11 +2281,11 @@
           "count": 6
         },
         {
-          "type": "surveyor",
+          "type": "chainsaw-brute",
           "count": 1
         },
         {
-          "type": "surveyor",
+          "type": "logger",
           "count": 1,
           "pathId": "secondary"
         }
@@ -2289,19 +2297,15 @@
     {
       "enemies": [
         {
-          "type": "logger",
+          "type": "chainsaw-brute",
           "count": 6
         },
         {
-          "type": "logger",
-          "count": 6
-        },
-        {
-          "type": "logger",
+          "type": "surveyor",
           "count": 5
         },
         {
-          "type": "logger",
+          "type": "chainsaw-brute",
           "count": 1,
           "pathId": "secondary"
         }
@@ -2313,9 +2317,9 @@
   ],
   "metrics": {
     "pathLength": 1477.7,
-    "averageRingCoverage": 0.1,
-    "chokepoints": 0,
+    "averageRingCoverage": 0.12,
+    "chokepoints": 1,
     "ringCount": 8,
-    "estimatedDifficulty": 0.77
+    "estimatedDifficulty": 0.82
   }
 }

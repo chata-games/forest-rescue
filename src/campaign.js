@@ -1,6 +1,6 @@
 import { loadLevel, loadCatalog } from "./level/loader.js";
 import { initHeartwoodGame } from "./heartwood-game.js";
-import { loadSprites } from "./rendering/sprites.js";
+import { loadSprites, loadUnitsAtlas, loadCatalogSprites } from "./rendering/sprites.js";
 
 const LEVELS = [
   { id: "01-meadows-edge", name: "Meadow's Edge", x: 0.12, y: 0.72, unlocks: ["sprig-sentinel", "thornvine-bramble"] },
@@ -19,10 +19,19 @@ export async function initCampaign(dom) {
   const levelTitle = $("levelTitle");
 
   const catalog = await loadCatalog();
-  const { images } = loadSprites({
-    guardian: "assets/guardian.png",
-    worldMap: "assets/campaign-world-map.png",
-  });
+  const [atlas, uiSprites] = await Promise.all([
+    loadUnitsAtlas(),
+    Promise.resolve(loadSprites({
+      guardian: "assets/guardian.png",
+      worldMap: "assets/campaign-world-map.png",
+    })),
+  ]);
+  const { images } = uiSprites;
+  const { images: sceneImages, ready: sceneReady } = loadCatalogSprites(
+    catalog,
+    (a) => a.tags?.some((t) => ["material", "decoration", "landmark"].includes(t)),
+  );
+  await sceneReady;
 
   let stars = JSON.parse(localStorage.getItem("heartwood-stars") || "{}");
   let activeGame = null;
@@ -88,6 +97,8 @@ export async function initCampaign(dom) {
 
     activeGame = initHeartwoodGame(dom, level, {
       catalog,
+      atlas,
+      images: sceneImages,
       onComplete(lvl, heartsRemaining) {
         const maxHearts = lvl.maxHearts || 5;
         const starCount = heartsRemaining >= maxHearts ? 3 : heartsRemaining >= maxHearts - 1 ? 2 : 1;

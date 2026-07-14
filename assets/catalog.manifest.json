@@ -166,7 +166,7 @@
         "crew",
         "ground"
       ],
-      "sourceHash": "missing"
+      "sourceHash": "8bf3fe5b845b6506"
     },
     {
       "id": "chainsaw-brute-idle",
@@ -194,7 +194,7 @@
         "ground",
         "heavy"
       ],
-      "sourceHash": "missing"
+      "sourceHash": "cc19fb57a7fe12e5"
     },
     {
       "id": "bulldozer-idle",
@@ -276,7 +276,7 @@
         "tileable",
         "meadow-edge"
       ],
-      "sourceHash": "missing"
+      "sourceHash": "dd613deef516055a"
     },
     {
       "id": "material-path-interior",
@@ -302,7 +302,7 @@
         "tileable",
         "path"
       ],
-      "sourceHash": "missing"
+      "sourceHash": "8756d85a8f1116a9"
     },
     {
       "id": "decoration-stump",
@@ -327,7 +327,7 @@
         "decoration",
         "stump-crossroads"
       ],
-      "sourceHash": "missing"
+      "sourceHash": "0b9c60a9669695ca"
     },
     {
       "id": "landmark-broken-fence",
@@ -352,7 +352,7 @@
         "landmark",
         "meadow-edge"
       ],
-      "sourceHash": "missing"
+      "sourceHash": "95008fe822283ef4"
     }
   ]
 }

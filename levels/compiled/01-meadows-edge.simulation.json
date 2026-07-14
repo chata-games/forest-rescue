@@ -6,7 +6,7 @@
       "won": true,
       "hearts": 5,
       "mana": 999,
-      "ticks": 16068,
+      "ticks": 10985,
       "defendersPlaced": 7
     },
     "best-coverage": {
@@ -14,7 +14,7 @@
       "won": true,
       "hearts": 5,
       "mana": 999,
-      "ticks": 16627,
+      "ticks": 11303,
       "defendersPlaced": 7
     },
     "upgrade-first": {
@@ -22,15 +22,15 @@
       "won": true,
       "hearts": 5,
       "mana": 999,
-      "ticks": 16242,
+      "ticks": 11081,
       "defendersPlaced": 7
     },
     "defensive-gate": {
       "bot": "defensive-gate",
       "won": false,
-      "hearts": 0,
-      "mana": 339,
-      "ticks": 5012,
+      "hearts": 5,
+      "mana": 999,
+      "ticks": 28799,
       "defendersPlaced": 7
     },
     "anti-air-priority": {
@@ -38,7 +38,7 @@
       "won": true,
       "hearts": 5,
       "mana": 999,
-      "ticks": 16149,
+      "ticks": 10960,
       "defendersPlaced": 7
     }
   }

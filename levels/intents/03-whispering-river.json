@@ -14,7 +14,7 @@
     "pathLength": 1800,
     "pathDensity": 0.38,
     "ringCount": 8,
-    "difficulty": 0.35,
+    "difficulty": 0.28,
     "durationMinutes": 9
   },
   "constraints": {
@@ -24,12 +24,12 @@
   },
   "ringRoles": ["frontline", "chokepoint", "support", "long-range", "gate-defense"],
   "waves": {
-    "count": 10,
+    "count": 7,
     "allowedEnemies": ["logger", "chainsaw-brute", "buzzsaw-drone"],
-    "budgetCurve": "gentle"
+    "budgetCurve": "tutorial"
   },
   "landmarks": ["river-bridge"],
-  "unlocks": ["dewdrop-nymph"],
+  "unlocks": ["wisp-willow", "dewdrop-nymph"],
   "levelModifiers": ["river-crossings"],
   "spellUnlock": null,
   "bossId": null,

@@ -170,11 +170,41 @@ export function generateRings(path, rng, intent) {
   }
 
   const shuffled = candidates.sort(() => rng() - 0.5);
+  const onPathSlots = intent.placementRules?.onPathDefenders?.length
+    ? Math.min(2, Math.max(1, Math.floor(targetCount * 0.2)))
+    : 0;
+  const besideTarget = targetCount - onPathSlots;
+
   for (const c of shuffled) {
     if (rings.some((r) => dist(r.x, r.y, c.x, c.y) < minSep)) continue;
     rings.push(c);
-    if (rings.length >= targetCount) break;
+    if (rings.length >= besideTarget) break;
   }
+
+  if (onPathSlots > 0) {
+    const onPathSamples = [];
+    for (let s = path.length * 0.28; s < path.length * 0.78; s += spacing * 1.6) {
+      const pos = path.positionAt(s);
+      onPathSamples.push({ x: Math.round(pos.x), y: Math.round(pos.y) });
+    }
+    const shuffledOnPath = onPathSamples.sort(() => rng() - 0.5);
+    let added = 0;
+    for (const pos of shuffledOnPath) {
+      if (rings.some((r) => dist(r.x, r.y, pos.x, pos.y) < minSep * 0.75)) continue;
+      rings.push({
+        id: `ring-onpath-${rings.length}`,
+        x: pos.x,
+        y: pos.y,
+        role: "chokepoint",
+        placement: "on-path",
+        radius: 40,
+        buildRadius: 38,
+      });
+      added += 1;
+      if (added >= onPathSlots) break;
+    }
+  }
+
   return rings;
 }
 
@@ -186,25 +216,55 @@ export function generateWaves(intent) {
     const enemies = [];
     let remaining = budget;
     const pool = [...intent.waves.allowedEnemies].sort(() => createRng(intent.seed + `-w${i}`)() - 0.5);
-    while (remaining > 0 && pool.length) {
-      const type = pool[i % pool.length];
+    let allowed = pool;
+    if (intent.learningGoal === "air-coverage" && i < intent.waves.count - 2) {
+      allowed = pool.filter((t) => t !== "buzzsaw-drone");
+      if (!allowed.length) allowed = ["logger"];
+    }
+    let pass = 0;
+    while (remaining > 0 && allowed.length) {
+      const type = allowed[pass % allowed.length];
+      pass += 1;
       const cost = ENEMY_THREAT[type] || 12;
       if (cost > remaining && enemies.length) break;
       const count = Math.max(1, Math.floor(remaining / cost));
-      const capped = Math.min(count, 6);
+      const capped = Math.min(count, type === "buzzsaw-drone" ? 2 : 6);
       enemies.push({ type, count: capped });
       remaining -= cost * capped;
-      if (capped < 1) break;
+      if (intent.learningGoal === "air-coverage" && type === "buzzsaw-drone") break;
+      if (pass >= allowed.length) break;
     }
-    if (!enemies.length) enemies.push({ type: intent.waves.allowedEnemies[0], count: 2 });
+    const merged = consolidateWaveEnemies(enemies);
+    let finalEnemies = intent.learningGoal === "air-coverage"
+      ? capAirCoverageWave(merged)
+      : merged;
+    if (!finalEnemies.length) finalEnemies = [{ type: intent.waves.allowedEnemies[0], count: 2 }];
     waves.push({
-      enemies,
+      enemies: finalEnemies,
       delayBefore: i === 0 ? 1.5 : 0.5,
       delayAfter: 3,
       spawnInterval: Math.max(0.55, 1.4 - i * 0.06),
     });
   }
   return waves;
+}
+
+function consolidateWaveEnemies(enemies) {
+  const merged = new Map();
+  for (const entry of enemies) {
+    merged.set(entry.type, (merged.get(entry.type) || 0) + entry.count);
+  }
+  return [...merged.entries()].map(([type, count]) => ({ type, count }));
+}
+
+function capAirCoverageWave(enemies) {
+  let drones = 0;
+  return enemies.map((entry) => {
+    if (entry.type !== "buzzsaw-drone") return entry;
+    const count = Math.min(2 - drones, entry.count);
+    drones += count;
+    return { ...entry, count };
+  }).filter((entry) => entry.count > 0);
 }
 
 export function computeMetrics(path, rings) {

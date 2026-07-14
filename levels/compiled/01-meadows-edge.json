@@ -1122,13 +1122,13 @@
       "buildRadius": 42
     },
     {
-      "id": "ring-91",
-      "x": 206,
-      "y": 690,
-      "role": "gate-defense",
-      "placement": "beside-path",
-      "radius": 48,
-      "buildRadius": 42
+      "id": "ring-onpath-6",
+      "x": 813,
+      "y": 386,
+      "role": "chokepoint",
+      "placement": "on-path",
+      "radius": 40,
+      "buildRadius": 38
     }
   ],
   "landmarks": [
@@ -1256,10 +1256,6 @@
         {
           "type": "logger",
           "count": 6
-        },
-        {
-          "type": "logger",
-          "count": 1
         }
       ],
       "delayBefore": 0.5,
@@ -1271,10 +1267,6 @@
         {
           "type": "logger",
           "count": 6
-        },
-        {
-          "type": "logger",
-          "count": 2
         }
       ],
       "delayBefore": 0.5,
@@ -1286,10 +1278,6 @@
         {
           "type": "logger",
           "count": 6
-        },
-        {
-          "type": "logger",
-          "count": 3
         }
       ],
       "delayBefore": 0.5,
@@ -1301,10 +1289,6 @@
         {
           "type": "logger",
           "count": 6
-        },
-        {
-          "type": "logger",
-          "count": 4
         }
       ],
       "delayBefore": 0.5,
@@ -1313,10 +1297,6 @@
     },
     {
       "enemies": [
-        {
-          "type": "logger",
-          "count": 6
-        },
         {
           "type": "logger",
           "count": 6
@@ -1329,9 +1309,9 @@
   ],
   "metrics": {
     "pathLength": 1612.8,
-    "averageRingCoverage": 0.08,
-    "chokepoints": 0,
+    "averageRingCoverage": 0.09,
+    "chokepoints": 1,
     "ringCount": 7,
-    "estimatedDifficulty": 0.83
+    "estimatedDifficulty": 0.88
   }
 }

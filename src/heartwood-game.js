@@ -46,7 +46,11 @@ export function initHeartwoodGame(dom, level, options = {}) {
   const mainPath = paths[0];
   const rings = ringsFromLevel(level);
   const ringMap = new Map(rings.map((r) => [r.id, r]));
-  const battlefield = createBattlefieldRenderer(level, options.catalog, { debug: isDebugMode() });
+  const battlefield = createBattlefieldRenderer(level, options.catalog, {
+    debug: isDebugMode(),
+    atlas: options.atlas,
+    images: options.images || {},
+  });
   const waves = levelWaves(level);
   const totalWaves = waves.length;
   const unlocked = new Set(level.unlocks || ["sprig-sentinel"]);
@@ -237,9 +241,9 @@ export function initHeartwoodGame(dom, level, options = {}) {
       drawHeartwoodGate(wctx);
       if (!state) return;
       const sorted = [...state.defenders, ...state.enemies].sort((a, b) => a.y - b.y);
-      for (const d of sorted) {
-        if (d.typeId) drawDefenderEntity(wctx, d, options.catalog, bobPhase + d.x);
-        else drawEnemyEntity(wctx, d, bobPhase + d.x);
+      for (const ent of sorted) {
+        if (ent.typeId) drawDefenderEntity(wctx, ent, options.catalog, bobPhase + ent.x, options.atlas);
+        else drawEnemyEntity(wctx, ent, options.catalog, bobPhase + ent.x, options.atlas);
       }
       for (const p of state.projectiles) drawProjectileEntity(wctx, p);
       if (isDebugMode()) drawDebugOverlay(wctx, level, paths);
@@ -265,6 +269,8 @@ export function initHeartwoodGame(dom, level, options = {}) {
     const ring = ringMap.get(ringId);
     const def = getDefender(typeId);
     if (!ring || !def || !state) return;
+    if (def.placement === "on-path" && ring.placement !== "on-path") return;
+    if (def.placement !== "on-path" && ring.placement === "on-path") return;
     if (state.mana < def.cost) return;
     if (state.defenders.some((d) => d.ringId === ringId)) return;
     const entity = createDefender(ring, typeId);

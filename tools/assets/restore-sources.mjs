@@ -15,6 +15,12 @@ const ORIGINALS = {
   "wisp-willow-idle": "/home/vfeenstr/.codex/generated_images/019f602e-6ede-76d2-bade-ded518ddda29/exec-8a731547-dbf2-4056-bcff-b559d22503c7.png",
   "dewdrop-nymph-idle": "/home/vfeenstr/.codex/generated_images/019f6024-f987-7ba0-b7a5-a331184b6c9f/exec-24d7a875-fd21-4325-9d9d-4983cf6f8314.png",
   "buzzsaw-drone-idle": "/home/vfeenstr/.codex/generated_images/019f6021-2ae1-7370-b09b-3529b272aa10/exec-4fd306e1-d08d-4ae5-b969-fda208c2f581.png",
+  "surveyor-idle": join(ROOT, "assets/source/surveyor-idle.png"),
+  "chainsaw-brute-idle": join(ROOT, "assets/source/chainsaw-brute-idle.png"),
+  "material-grass": join(ROOT, "assets/source/material-grass.png"),
+  "material-path-interior": join(ROOT, "assets/source/material-path-interior.png"),
+  "decoration-stump": join(ROOT, "assets/source/decoration-stump.png"),
+  "landmark-broken-fence": join(ROOT, "assets/source/landmark-broken-fence.png"),
 };
 
 mkdirSync(SOURCE_DIR, { recursive: true });
