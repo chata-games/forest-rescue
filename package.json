@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "serve": "node serve.js",
+    "prototype:campaign-map": "node prototypes/campaign-map-system/server.cjs",
     "compile": "node tools/levelgen/compile.mjs --all",
     "validate": "node tools/levelgen/validate.mjs",
     "preview": "node tools/levelgen/preview.mjs levels/compiled/01-meadows-edge.json",
