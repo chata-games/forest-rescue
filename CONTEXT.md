@@ -21,6 +21,8 @@
 | **CompiledLevel** | Deterministic compiler output with geometry, rings, waves, metrics |
 | **Biome** | Visual and hazard theme for a level region |
 | **Unlock** | Defender or spell made available after completing a level |
+| **Preferred battle layout** | The landscape presentation optimized for two-thumb play; recommended but never required |
+| **Compact portrait layout** | The fully playable portrait presentation: the complete battlefield scales down uniformly to fit while the HUD reflows with full-size controls |
 
 ## Architecture boundaries
 
