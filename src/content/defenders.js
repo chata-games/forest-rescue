@@ -1,0 +1,58 @@
+export const DEFENDERS = {
+  "sprig-sentinel": {
+    id: "sprig-sentinel",
+    name: "Sprig Sentinel",
+    cost: 50,
+    range: 160,
+    damage: 35,
+    cooldown: 1.15,
+    hp: 95,
+    tags: ["forest", "dps"],
+    placement: "beside-path",
+    sprite: "sprig-sentinel-idle",
+    projectile: "seed-bolt",
+  },
+  "thornvine-bramble": {
+    id: "thornvine-bramble",
+    name: "Thornvine Bramble",
+    cost: 35,
+    range: 0,
+    damage: 0,
+    cooldown: 0,
+    hp: 180,
+    tags: ["forest", "blocker"],
+    placement: "on-path",
+    sprite: "thornvine-bramble-idle",
+    blocksPath: true,
+  },
+  "wisp-willow": {
+    id: "wisp-willow",
+    name: "Wisp Willow",
+    cost: 90,
+    range: 180,
+    damage: 28,
+    cooldown: 0.85,
+    hp: 70,
+    tags: ["arcane", "anti-air", "chain"],
+    placement: "beside-path",
+    sprite: "wisp-willow-idle",
+    projectile: "chain-lightning",
+  },
+  "dewdrop-nymph": {
+    id: "dewdrop-nymph",
+    name: "Dewdrop Nymph",
+    cost: 75,
+    range: 140,
+    damage: 18,
+    cooldown: 1.4,
+    hp: 80,
+    tags: ["control", "slow", "rust"],
+    placement: "beside-path",
+    sprite: "dewdrop-nymph-idle",
+    projectile: "dew-splash",
+  },
+};
+
+export function getDefender(id) {
+  return DEFENDERS[id] || null;
+}

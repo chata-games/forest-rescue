@@ -1,0 +1,47 @@
+{
+  "image": "atlases/units.png",
+  "frames": {
+    "sprig-sentinel-idle": {
+      "x": 0,
+      "y": 0,
+      "w": 128,
+      "h": 128
+    },
+    "thornvine-bramble-idle": {
+      "x": 128,
+      "y": 0,
+      "w": 128,
+      "h": 128
+    },
+    "wisp-willow-idle": {
+      "x": 256,
+      "y": 0,
+      "w": 128,
+      "h": 128
+    },
+    "dewdrop-nymph-idle": {
+      "x": 384,
+      "y": 0,
+      "w": 128,
+      "h": 128
+    },
+    "logger-idle": {
+      "x": 0,
+      "y": 128,
+      "w": 128,
+      "h": 128
+    },
+    "bulldozer-idle": {
+      "x": 128,
+      "y": 128,
+      "w": 128,
+      "h": 128
+    },
+    "buzzsaw-drone-idle": {
+      "x": 256,
+      "y": 128,
+      "w": 128,
+      "h": 128
+    }
+  }
+}

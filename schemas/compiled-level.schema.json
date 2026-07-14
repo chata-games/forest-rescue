@@ -1,0 +1,27 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://chata-games.dev/forest-rescue/compiled-level.schema.json",
+  "title": "CompiledLevel",
+  "type": "object",
+  "required": ["id", "compilerVersion", "intentHash", "seed", "paths", "rings", "waves", "metrics"],
+  "properties": {
+    "id": { "type": "string" },
+    "name": { "type": "string" },
+    "compilerVersion": { "type": "string" },
+    "intentHash": { "type": "string" },
+    "seed": { "type": "string" },
+    "biome": { "type": "string" },
+    "unlocks": { "type": "array", "items": { "type": "string" } },
+    "startingMana": { "type": "number" },
+    "maxHearts": { "type": "integer" },
+    "paths": { "type": "array" },
+    "rings": { "type": "array" },
+    "landmarks": { "type": "array" },
+    "decorations": { "type": "array" },
+    "waterMasks": { "type": "array" },
+    "airLanes": { "type": "array" },
+    "waves": { "type": "array" },
+    "metrics": { "type": "object" },
+    "levelModifiers": { "type": "array" }
+  }
+}

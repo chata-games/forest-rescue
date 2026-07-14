@@ -1,0 +1,358 @@
+{
+  "assets": [
+    {
+      "id": "sprig-sentinel-idle",
+      "file": "sprites/defenders/sprig-sentinel-idle.png",
+      "sourceHash": "5bf175e51de0c5ba",
+      "promptFile": "prompts/sprig-sentinel-idle.md",
+      "references": [
+        "assets/guardian.png",
+        "docs/tower-defense-concept/art/towers-1.png"
+      ],
+      "nativeSize": [
+        256,
+        256
+      ],
+      "drawSize": [
+        82,
+        82
+      ],
+      "anchor": [
+        0.5,
+        0.82
+      ],
+      "shadowRadius": 23,
+      "tags": [
+        "defender",
+        "forest",
+        "tier-1"
+      ],
+      "fallback": "assets/tree.png"
+    },
+    {
+      "id": "thornvine-bramble-idle",
+      "file": "sprites/defenders/thornvine-bramble-idle.png",
+      "promptFile": "prompts/thornvine-bramble-idle.md",
+      "references": [
+        "docs/tower-defense-concept/art/towers-1.png"
+      ],
+      "nativeSize": [
+        256,
+        256
+      ],
+      "drawSize": [
+        72,
+        72
+      ],
+      "anchor": [
+        0.5,
+        0.85
+      ],
+      "shadowRadius": 20,
+      "tags": [
+        "defender",
+        "forest",
+        "blocker",
+        "tier-1"
+      ],
+      "sourceHash": "93f2257c653bbc22"
+    },
+    {
+      "id": "wisp-willow-idle",
+      "file": "sprites/defenders/wisp-willow-idle.png",
+      "promptFile": "prompts/wisp-willow-idle.md",
+      "references": [
+        "docs/tower-defense-concept/art/towers-1.png"
+      ],
+      "nativeSize": [
+        256,
+        256
+      ],
+      "drawSize": [
+        78,
+        78
+      ],
+      "anchor": [
+        0.5,
+        0.8
+      ],
+      "shadowRadius": 22,
+      "tags": [
+        "defender",
+        "arcane",
+        "anti-air",
+        "tier-1"
+      ],
+      "sourceHash": "4a580e83ea71c99b"
+    },
+    {
+      "id": "dewdrop-nymph-idle",
+      "file": "sprites/defenders/dewdrop-nymph-idle.png",
+      "promptFile": "prompts/dewdrop-nymph-idle.md",
+      "references": [
+        "docs/tower-defense-concept/art/towers-2.png"
+      ],
+      "nativeSize": [
+        256,
+        256
+      ],
+      "drawSize": [
+        76,
+        76
+      ],
+      "anchor": [
+        0.5,
+        0.82
+      ],
+      "shadowRadius": 21,
+      "tags": [
+        "defender",
+        "control",
+        "tier-1"
+      ],
+      "sourceHash": "c327daf3cb24fe58"
+    },
+    {
+      "id": "logger-idle",
+      "file": "sprites/enemies/logger-idle.png",
+      "promptFile": "prompts/logger-idle.md",
+      "references": [
+        "assets/logger.png",
+        "docs/tower-defense-concept/art/enemies-1.png"
+      ],
+      "nativeSize": [
+        256,
+        256
+      ],
+      "drawSize": [
+        54,
+        68
+      ],
+      "anchor": [
+        0.5,
+        0.9
+      ],
+      "shadowRadius": 18,
+      "tags": [
+        "enemy",
+        "crew",
+        "ground"
+      ],
+      "fallback": "assets/logger.png",
+      "sourceHash": "13207c98e8e10146"
+    },
+    {
+      "id": "surveyor-idle",
+      "file": "sprites/enemies/surveyor-idle.png",
+      "promptFile": "prompts/surveyor-idle.md",
+      "references": [
+        "docs/tower-defense-concept/art/enemies-1.png"
+      ],
+      "nativeSize": [
+        256,
+        256
+      ],
+      "drawSize": [
+        50,
+        64
+      ],
+      "anchor": [
+        0.5,
+        0.9
+      ],
+      "shadowRadius": 17,
+      "tags": [
+        "enemy",
+        "crew",
+        "ground"
+      ],
+      "sourceHash": "missing"
+    },
+    {
+      "id": "chainsaw-brute-idle",
+      "file": "sprites/enemies/chainsaw-brute-idle.png",
+      "promptFile": "prompts/chainsaw-brute-idle.md",
+      "references": [
+        "docs/tower-defense-concept/art/enemies-1.png"
+      ],
+      "nativeSize": [
+        256,
+        256
+      ],
+      "drawSize": [
+        62,
+        72
+      ],
+      "anchor": [
+        0.5,
+        0.9
+      ],
+      "shadowRadius": 20,
+      "tags": [
+        "enemy",
+        "crew",
+        "ground",
+        "heavy"
+      ],
+      "sourceHash": "missing"
+    },
+    {
+      "id": "bulldozer-idle",
+      "file": "sprites/enemies/bulldozer-idle.png",
+      "promptFile": "prompts/bulldozer-idle.md",
+      "references": [
+        "assets/dozer.png",
+        "docs/tower-defense-concept/art/enemies-2.png"
+      ],
+      "nativeSize": [
+        256,
+        256
+      ],
+      "drawSize": [
+        78,
+        58
+      ],
+      "anchor": [
+        0.5,
+        0.88
+      ],
+      "shadowRadius": 24,
+      "tags": [
+        "enemy",
+        "machine",
+        "ground"
+      ],
+      "fallback": "assets/dozer.png",
+      "sourceHash": "51f1e721aca7b9fe"
+    },
+    {
+      "id": "buzzsaw-drone-idle",
+      "file": "sprites/enemies/buzzsaw-drone-idle.png",
+      "promptFile": "prompts/buzzsaw-drone-idle.md",
+      "references": [
+        "docs/tower-defense-concept/art/enemies-2.png"
+      ],
+      "nativeSize": [
+        256,
+        256
+      ],
+      "drawSize": [
+        48,
+        48
+      ],
+      "anchor": [
+        0.5,
+        0.5
+      ],
+      "shadowRadius": 16,
+      "tags": [
+        "enemy",
+        "machine",
+        "flying"
+      ],
+      "sourceHash": "2f861094282a3c56"
+    },
+    {
+      "id": "material-grass",
+      "file": "materials/grass-tile.png",
+      "promptFile": "prompts/material-grass.md",
+      "references": [
+        "docs/tower-defense-concept/art/gameplay-mockup.png"
+      ],
+      "nativeSize": [
+        128,
+        128
+      ],
+      "drawSize": [
+        128,
+        128
+      ],
+      "anchor": [
+        0,
+        0
+      ],
+      "tags": [
+        "material",
+        "tileable",
+        "meadow-edge"
+      ],
+      "sourceHash": "missing"
+    },
+    {
+      "id": "material-path-interior",
+      "file": "materials/path-interior.png",
+      "promptFile": "prompts/material-path-interior.md",
+      "references": [
+        "docs/tower-defense-concept/art/gameplay-mockup.png"
+      ],
+      "nativeSize": [
+        128,
+        128
+      ],
+      "drawSize": [
+        128,
+        128
+      ],
+      "anchor": [
+        0,
+        0
+      ],
+      "tags": [
+        "material",
+        "tileable",
+        "path"
+      ],
+      "sourceHash": "missing"
+    },
+    {
+      "id": "decoration-stump",
+      "file": "decorations/stump.png",
+      "promptFile": "prompts/decoration-stump.md",
+      "references": [
+        "docs/tower-defense-concept/art/gameplay-mockup.png"
+      ],
+      "nativeSize": [
+        128,
+        128
+      ],
+      "drawSize": [
+        48,
+        48
+      ],
+      "anchor": [
+        0.5,
+        0.85
+      ],
+      "tags": [
+        "decoration",
+        "stump-crossroads"
+      ],
+      "sourceHash": "missing"
+    },
+    {
+      "id": "landmark-broken-fence",
+      "file": "decorations/broken-fence.png",
+      "promptFile": "prompts/landmark-broken-fence.md",
+      "references": [
+        "docs/tower-defense-concept/art/gameplay-mockup.png"
+      ],
+      "nativeSize": [
+        256,
+        256
+      ],
+      "drawSize": [
+        80,
+        80
+      ],
+      "anchor": [
+        0.5,
+        0.9
+      ],
+      "tags": [
+        "landmark",
+        "meadow-edge"
+      ],
+      "sourceHash": "missing"
+    }
+  ]
+}

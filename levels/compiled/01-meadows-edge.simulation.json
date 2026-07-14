@@ -1,0 +1,45 @@
+{
+  "levelId": "01-meadows-edge",
+  "results": {
+    "cheapest-dps": {
+      "bot": "cheapest-dps",
+      "won": true,
+      "hearts": 5,
+      "mana": 999,
+      "ticks": 16068,
+      "defendersPlaced": 7
+    },
+    "best-coverage": {
+      "bot": "best-coverage",
+      "won": true,
+      "hearts": 5,
+      "mana": 999,
+      "ticks": 16627,
+      "defendersPlaced": 7
+    },
+    "upgrade-first": {
+      "bot": "upgrade-first",
+      "won": true,
+      "hearts": 5,
+      "mana": 999,
+      "ticks": 16242,
+      "defendersPlaced": 7
+    },
+    "defensive-gate": {
+      "bot": "defensive-gate",
+      "won": false,
+      "hearts": 0,
+      "mana": 339,
+      "ticks": 5012,
+      "defendersPlaced": 7
+    },
+    "anti-air-priority": {
+      "bot": "anti-air-priority",
+      "won": true,
+      "hearts": 5,
+      "mana": 999,
+      "ticks": 16149,
+      "defendersPlaced": 7
+    }
+  }
+}

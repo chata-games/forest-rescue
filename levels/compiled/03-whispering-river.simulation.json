@@ -1,0 +1,45 @@
+{
+  "levelId": "03-whispering-river",
+  "results": {
+    "cheapest-dps": {
+      "bot": "cheapest-dps",
+      "won": false,
+      "hearts": 0,
+      "mana": 93,
+      "ticks": 3110,
+      "defendersPlaced": 8
+    },
+    "best-coverage": {
+      "bot": "best-coverage",
+      "won": false,
+      "hearts": 0,
+      "mana": 256,
+      "ticks": 4984,
+      "defendersPlaced": 8
+    },
+    "upgrade-first": {
+      "bot": "upgrade-first",
+      "won": false,
+      "hearts": 0,
+      "mana": 96,
+      "ticks": 3140,
+      "defendersPlaced": 8
+    },
+    "defensive-gate": {
+      "bot": "defensive-gate",
+      "won": false,
+      "hearts": 0,
+      "mana": 375,
+      "ticks": 5832,
+      "defendersPlaced": 8
+    },
+    "anti-air-priority": {
+      "bot": "anti-air-priority",
+      "won": true,
+      "hearts": 3,
+      "mana": 999,
+      "ticks": 10842,
+      "defendersPlaced": 8
+    }
+  }
+}

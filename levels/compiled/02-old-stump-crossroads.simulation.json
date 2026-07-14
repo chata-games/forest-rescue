@@ -1,0 +1,45 @@
+{
+  "levelId": "02-old-stump-crossroads",
+  "results": {
+    "cheapest-dps": {
+      "bot": "cheapest-dps",
+      "won": true,
+      "hearts": 5,
+      "mana": 999,
+      "ticks": 19785,
+      "defendersPlaced": 8
+    },
+    "best-coverage": {
+      "bot": "best-coverage",
+      "won": true,
+      "hearts": 5,
+      "mana": 999,
+      "ticks": 20440,
+      "defendersPlaced": 8
+    },
+    "upgrade-first": {
+      "bot": "upgrade-first",
+      "won": true,
+      "hearts": 5,
+      "mana": 999,
+      "ticks": 19730,
+      "defendersPlaced": 8
+    },
+    "defensive-gate": {
+      "bot": "defensive-gate",
+      "won": true,
+      "hearts": 5,
+      "mana": 999,
+      "ticks": 20640,
+      "defendersPlaced": 8
+    },
+    "anti-air-priority": {
+      "bot": "anti-air-priority",
+      "won": true,
+      "hearts": 5,
+      "mana": 999,
+      "ticks": 19840,
+      "defendersPlaced": 8
+    }
+  }
+}

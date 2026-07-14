@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "03-whispering-river",
+  "name": "Whispering River",
+  "seed": "heartwood-river-v1",
+  "biome": "whispering-river",
+  "learningGoal": "air-coverage",
+  "topology": {
+    "archetype": "river-crossings",
+    "entrances": 1,
+    "exits": 1
+  },
+  "targets": {
+    "pathLength": 1800,
+    "pathDensity": 0.38,
+    "ringCount": 8,
+    "difficulty": 0.35,
+    "durationMinutes": 9
+  },
+  "constraints": {
+    "pathWidth": 92,
+    "minimumTurnRadius": 110,
+    "minimumParallelGap": 170
+  },
+  "ringRoles": ["frontline", "chokepoint", "support", "long-range", "gate-defense"],
+  "waves": {
+    "count": 10,
+    "allowedEnemies": ["logger", "chainsaw-brute", "buzzsaw-drone"],
+    "budgetCurve": "gentle"
+  },
+  "landmarks": ["river-bridge"],
+  "unlocks": ["dewdrop-nymph"],
+  "levelModifiers": ["river-crossings"],
+  "spellUnlock": null,
+  "bossId": null,
+  "placementRules": {
+    "onPathDefenders": ["thornvine-bramble"]
+  }
+}

@@ -66,6 +66,22 @@ button {
   display: none;
 }
 
+.screen--campaign {
+  gap: 12px;
+}
+
+.screen--campaign canvas {
+  width: min(92vw, 640px);
+  height: auto;
+  border-radius: 16px;
+  border: 2px solid rgba(255, 249, 215, 0.2);
+  cursor: pointer;
+}
+
+.howto a {
+  color: var(--gold);
+}
+
 .start-art {
   width: min(36vw, 180px);
   aspect-ratio: 1;

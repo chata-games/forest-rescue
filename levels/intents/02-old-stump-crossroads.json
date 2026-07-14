@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "02-old-stump-crossroads",
+  "name": "Old Stump Crossroads",
+  "seed": "heartwood-stump-v1",
+  "biome": "stump-crossroads",
+  "learningGoal": "split-pressure",
+  "topology": {
+    "archetype": "two-path-merge",
+    "entrances": 2,
+    "exits": 1
+  },
+  "targets": {
+    "pathLength": 1750,
+    "pathDensity": 0.36,
+    "ringCount": 8,
+    "difficulty": 0.28,
+    "durationMinutes": 8
+  },
+  "constraints": {
+    "pathWidth": 92,
+    "minimumTurnRadius": 110,
+    "minimumParallelGap": 170
+  },
+  "ringRoles": ["frontline", "chokepoint", "support", "long-range", "gate-defense"],
+  "waves": {
+    "count": 9,
+    "allowedEnemies": ["logger", "surveyor", "chainsaw-brute"],
+    "budgetCurve": "gentle"
+  },
+  "landmarks": ["ancient-stump"],
+  "unlocks": ["wisp-willow"],
+  "levelModifiers": [],
+  "spellUnlock": null,
+  "bossId": null,
+  "placementRules": {
+    "onPathDefenders": ["thornvine-bramble"]
+  }
+}

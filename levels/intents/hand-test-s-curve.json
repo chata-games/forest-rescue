@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "id": "00-hand-test-s-curve",
+  "name": "Hand Test S-Curve",
+  "seed": "hand-test-fixed",
+  "biome": "meadow-edge",
+  "learningGoal": "path-mechanics-test",
+  "topology": {
+    "archetype": "single-s-curve",
+    "entrances": 1,
+    "exits": 1
+  },
+  "targets": {
+    "pathLength": 1400,
+    "pathDensity": 0.3,
+    "ringCount": 5,
+    "difficulty": 0.15,
+    "durationMinutes": 5
+  },
+  "constraints": {
+    "pathWidth": 92,
+    "minimumTurnRadius": 110,
+    "minimumParallelGap": 170
+  },
+  "waves": {
+    "count": 3,
+    "allowedEnemies": ["logger"],
+    "budgetCurve": "tutorial"
+  },
+  "unlocks": ["sprig-sentinel"],
+  "landmarks": [],
+  "placementRules": {
+    "onPathDefenders": ["thornvine-bramble"]
+  }
+}

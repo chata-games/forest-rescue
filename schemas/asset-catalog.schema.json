@@ -1,0 +1,27 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AssetCatalog",
+  "type": "object",
+  "required": ["assets"],
+  "properties": {
+    "assets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "file", "nativeSize", "drawSize", "anchor"],
+        "properties": {
+          "id": { "type": "string" },
+          "file": { "type": "string" },
+          "sourceHash": { "type": "string" },
+          "promptFile": { "type": "string" },
+          "references": { "type": "array", "items": { "type": "string" } },
+          "nativeSize": { "type": "array", "items": { "type": "integer" }, "minItems": 2, "maxItems": 2 },
+          "drawSize": { "type": "array", "items": { "type": "integer" }, "minItems": 2, "maxItems": 2 },
+          "anchor": { "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2 },
+          "shadowRadius": { "type": "number" },
+          "tags": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    }
+  }
+}

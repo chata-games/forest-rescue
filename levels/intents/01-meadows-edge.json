@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "01-meadows-edge",
+  "name": "Meadow's Edge",
+  "seed": "heartwood-meadow-v1",
+  "biome": "meadow-edge",
+  "learningGoal": "placement-and-chopping",
+  "topology": {
+    "archetype": "single-s-curve",
+    "entrances": 1,
+    "exits": 1
+  },
+  "targets": {
+    "pathLength": 1680,
+    "pathDensity": 0.34,
+    "ringCount": 7,
+    "difficulty": 0.18,
+    "durationMinutes": 7
+  },
+  "constraints": {
+    "pathWidth": 92,
+    "minimumTurnRadius": 110,
+    "minimumParallelGap": 170
+  },
+  "ringRoles": ["frontline", "chokepoint", "support", "long-range", "gate-defense"],
+  "waves": {
+    "count": 8,
+    "allowedEnemies": ["logger"],
+    "budgetCurve": "tutorial"
+  },
+  "landmarks": ["broken-fence", "clearance-notice"],
+  "unlocks": ["sprig-sentinel", "thornvine-bramble"],
+  "levelModifiers": ["tutorial-chopping"],
+  "spellUnlock": null,
+  "bossId": null,
+  "placementRules": {
+    "onPathDefenders": ["thornvine-bramble"]
+  }
+}

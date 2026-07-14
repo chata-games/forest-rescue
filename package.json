@@ -1,0 +1,22 @@
+{
+  "name": "forest-rescue",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "serve": "node serve.js",
+    "compile": "node tools/levelgen/compile.mjs --all",
+    "validate": "node tools/levelgen/validate.mjs",
+    "preview": "node tools/levelgen/preview.mjs levels/compiled/01-meadows-edge.json",
+    "author": "node tools/levelgen/validate.mjs levels/intents && node tools/levelgen/compile.mjs --all && node tools/levelgen/validate.mjs",
+    "test": "node --test tests/**/*.test.mjs",
+    "simulate": "node tools/simulation/run.mjs",
+    "restore-sources": "node tools/assets/restore-sources.mjs",
+    "process": "node tools/assets/process.mjs",
+    "process:force": "node tools/assets/process.mjs --force",
+    "atlas": "node tools/assets/build-atlas.mjs"
+  },
+  "devDependencies": {
+    "ajv": "^8.17.1",
+    "sharp": "^0.33.5"
+  }
+}

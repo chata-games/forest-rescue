@@ -13,14 +13,22 @@
       <div class="start-art" aria-hidden="true">
         <canvas id="guardianCanvas" width="180" height="180"></canvas>
       </div>
-      <h1>Forest Rescue</h1>
-      <p class="tagline">Save the magic jungle</p>
-      <button id="playButton" class="primary-button" type="button">Play</button>
-      <p class="howto">Plant Magic Trees in the lanes. Stop loggers and bulldozers before they reach the jungle heart. Tap glowing mana flowers for bonus mana.</p>
+      <h1>Forest Rescue: Heartwood</h1>
+      <p class="tagline">Defend the grove</p>
+      <button id="playButton" class="primary-button" type="button">Campaign</button>
+      <p class="howto">Plant defenders on fairy rings beside the trail. Stop ChopCo crews and machines before they reach the Heartwood. Tap mana flowers for bonus mana. <a href="?mode=legacy">Play classic lane mode</a>.</p>
     </section>
 
-    <section id="gameScreen" class="game-screen" aria-label="Game board">
+    <section id="campaignScreen" class="screen screen--campaign hidden" aria-label="Campaign map">
+      <h2>Campaign Map</h2>
+      <canvas id="campaignMap" width="640" height="400" aria-label="World map with level markers"></canvas>
+      <p class="howto">Tap a level marker to begin. Earn stars by keeping jungle hearts.</p>
+    </section>
+
+    <section id="gameScreen" class="game-screen hidden" aria-label="Game board">
       <header class="hud">
+        <button id="backToMapButton" class="icon-button" type="button" aria-label="Back to map">←</button>
+        <div class="hud__item" id="levelTitle">Level</div>
         <div class="hud__item"><span class="hud__icon mana-dot"></span><span id="manaText">100</span></div>
         <div class="hud__item hearts" id="heartText" aria-label="Jungle health">♥♥♥♥♥</div>
         <div class="hud__item" id="waveText">Wave 1 / 8</div>
@@ -57,6 +65,6 @@
       </div>
     </section>
   </main>
-  <script src="game.js"></script>
+  <script type="module" src="src/main.js"></script>
 </body>
 </html>
