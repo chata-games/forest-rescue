@@ -21,6 +21,9 @@
 | **CompiledLevel** | Deterministic compiler output with geometry, rings, waves, metrics |
 | **Biome** | Visual and hazard theme for a level region |
 | **Unlock** | Defender or spell made available after completing a level |
+| **Loadout** | The limited set of unlocked defenders and Guardian spells chosen before a level and available during that battle |
+| **Challenge** | The selected battle difficulty, which changes how hard a level is to defeat |
+| **Guidance** | The independently selected amount of loadout advice, warnings, and strategic coaching shown to the player |
 
 ## Architecture boundaries
 
@@ -31,14 +34,13 @@
 
 ## Campaign structure
 
-10 levels across 3 acts. First vertical slice: levels 1–3 (Meadow's Edge, Old Stump Crossroads, Whispering River).
+The first release is a 10-level Heartwood campaign across 3 acts. Later campaigns may expand the game toward a much larger level catalog; that expansion is a design horizon, not first-release scope.
 
 ## Technical constraints
 
-- Browser runtime: vanilla ES modules, Canvas 2D, no npm dependencies.
-- Dev tools: Node.js for compile, validate, asset processing, simulation.
-- Logical battlefield: 1536 × 1024 world units, scaled to canvas.
-- Fixed timestep: 1/60 second.
+- Browser game deployed through GitHub Pages.
+- Landscape-first touch gameplay on phones and tablets, with desktop support.
+- Build tooling, TypeScript, and third-party libraries are allowed when they provide proven building blocks and reduce bespoke engine work.
 
 ## Related documents
 
