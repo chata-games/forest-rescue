@@ -393,6 +393,60 @@
       "sourceHash": "0f6bbb224bcb119e"
     },
     {
+      "id": "arsonist-idle",
+      "file": "sprites/enemies/arsonist-idle.png",
+      "promptFile": "prompts/arsonist-idle.md",
+      "references": [
+        "docs/tower-defense-concept/art/enemies-1.png"
+      ],
+      "nativeSize": [
+        256,
+        256
+      ],
+      "drawSize": [
+        54,
+        66
+      ],
+      "anchor": [
+        0.5,
+        0.9
+      ],
+      "shadowRadius": 18,
+      "tags": [
+        "enemy",
+        "crew",
+        "ground"
+      ],
+      "sourceHash": "f968e5cf767e7c8a"
+    },
+    {
+      "id": "diesel-hauler-idle",
+      "file": "sprites/enemies/diesel-hauler-idle.png",
+      "promptFile": "prompts/diesel-hauler-idle.md",
+      "references": [
+        "docs/tower-defense-concept/art/enemies-2.png"
+      ],
+      "nativeSize": [
+        256,
+        256
+      ],
+      "drawSize": [
+        72,
+        58
+      ],
+      "anchor": [
+        0.5,
+        0.88
+      ],
+      "shadowRadius": 22,
+      "tags": [
+        "enemy",
+        "machine",
+        "ground"
+      ],
+      "sourceHash": "89f624066da52381"
+    },
+    {
       "id": "material-grass",
       "file": "materials/grass-tile.png",
       "promptFile": "prompts/material-grass.md",
@@ -469,6 +523,32 @@
         "sawmill"
       ],
       "sourceHash": "11b9fdaab587a130"
+    },
+    {
+      "id": "material-ashfall-floor",
+      "file": "materials/ashfall-floor.png",
+      "promptFile": "prompts/material-ashfall-floor.md",
+      "references": [
+        "docs/tower-defense-concept/art/gameplay-mockup.png"
+      ],
+      "nativeSize": [
+        128,
+        128
+      ],
+      "drawSize": [
+        128,
+        128
+      ],
+      "anchor": [
+        0,
+        0
+      ],
+      "tags": [
+        "material",
+        "tileable",
+        "ashfall-scar"
+      ],
+      "sourceHash": "a084d2421dce9231"
     },
     {
       "id": "material-path-interior",

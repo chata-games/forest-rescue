@@ -6,6 +6,16 @@ import { pathsFromLevel } from "./level/path.js";
 import { hitTestRing, ringsFromLevel } from "./level/rings.js";
 import { levelStartingMana, levelMaxHearts, levelWaves } from "./level/loader.js";
 import { fireflyBuff } from "./level/light.js";
+import {
+  createFireState,
+  douseArea,
+  douseNeighbors,
+  hasFireSpread,
+  isRingBurning,
+  canPlantOnRing,
+  tickFire,
+  FIRE,
+} from "./level/fire.js";
 import { getDefender } from "./content/defenders.js";
 import { getSpell } from "./content/spells.js";
 import { createDefender } from "./entities/defender.js";
@@ -19,6 +29,7 @@ import {
   drawProjectileEntity,
   drawHeartwoodGate,
   drawDarknessOverlay,
+  drawFireOverlay,
 } from "./rendering/battlefield.js";
 import { drawDebugOverlay, isDebugMode } from "./rendering/debug.js";
 
@@ -60,7 +71,9 @@ export function initHeartwoodGame(dom, level, options = {}) {
   const spellId = level.spellUnlock || null;
   let selectedDefender = [...unlocked][0] || "sprig-sentinel";
   let spellSelected = false;
-  let state = null;
+  const fireEnabled = hasFireSpread(level);
+  let fireState = fireEnabled ? createFireState(rings) : null;
+  let fireClock = 0;
   let pointerDown = false;
   let bobPhase = 0;
   const onComplete = options.onComplete || (() => {});
@@ -123,6 +136,8 @@ export function initHeartwoodGame(dom, level, options = {}) {
       return new Projectile(d.x, d.y - 10, t, d.damage * damageMul, opts);
     },
     level,
+    get fireState() { return fireState; },
+    get fireClock() { return fireClock; },
     onFlowerStolen(enemy, flower) {
       burst(state, flower.x, flower.y, "#ff88cc", 12);
       state.floatTexts.push(new FloatText(flower.x, flower.y, "-20", "#ff7056"));
@@ -177,7 +192,8 @@ export function initHeartwoodGame(dom, level, options = {}) {
         btn.type = "button";
         btn.className = `tool-button tool-button--spell${spellSelected ? " selected" : ""}`;
         const cd = state?.spellCooldown > 0 ? ` (${Math.ceil(state.spellCooldown)}s)` : "";
-        btn.innerHTML = `<span class="tool-button__art">🌿</span><span>${spell.name}</span><small>${spell.cost} mana${cd}</small>`;
+        const icon = spellId === "cleansing-rain" ? "🌧" : "🌿";
+        btn.innerHTML = `<span class="tool-button__art">${icon}</span><span>${spell.name}</span><small>${spell.cost} mana${cd}</small>`;
         btn.disabled = state?.spellCooldown > 0;
         btn.addEventListener("click", () => {
           spellSelected = true;
@@ -216,6 +232,18 @@ export function initHeartwoodGame(dom, level, options = {}) {
   function update(dt) {
     if (!state || state.state !== "playing") return;
     bobPhase += dt;
+    fireClock += dt;
+    if (fireState) {
+      tickFire(dt, fireState, fireClock);
+      for (const d of state.defenders) {
+        if (d.dead || !isRingBurning(d.ringId, fireState)) continue;
+        d.hp -= FIRE.defenderBurnDps * dt;
+        if (d.hp <= 0) {
+          d.dead = true;
+          burst(state, d.x, d.y, "#ff8844", 16);
+        }
+      }
+    }
     state.mana = Math.min(999, state.mana + dt * 5.2);
     state.spellCooldown = Math.max(0, (state.spellCooldown || 0) - dt);
     state.flowerTimer -= dt;
@@ -298,7 +326,11 @@ export function initHeartwoodGame(dom, level, options = {}) {
       }
       for (const p of state.projectiles) drawProjectileEntity(wctx, p);
       for (const fx of state.snareFx || []) {
-        wctx.strokeStyle = `rgba(106,212,90,${fx.life * 0.55})`;
+        const color = fx.color || "#6ad45a";
+        const alpha = fx.life * 0.55;
+        wctx.strokeStyle = color.startsWith("#")
+          ? `rgba(${parseInt(color.slice(1, 3), 16)},${parseInt(color.slice(3, 5), 16)},${parseInt(color.slice(5, 7), 16)},${alpha})`
+          : color;
         wctx.lineWidth = 3;
         wctx.beginPath();
         wctx.arc(fx.x, fx.y, fx.r * (1.1 - fx.life * 0.3), 0, Math.PI * 2);
@@ -306,6 +338,9 @@ export function initHeartwoodGame(dom, level, options = {}) {
       }
       if (level.levelModifiers?.includes("darkness")) {
         drawDarknessOverlay(wctx, level, state.defenders);
+      }
+      if (fireState) {
+        drawFireOverlay(wctx, level.rings, fireState, bobPhase);
       }
       if (isDebugMode()) drawDebugOverlay(wctx, level, paths);
     });
@@ -333,6 +368,7 @@ export function initHeartwoodGame(dom, level, options = {}) {
     if (def.placement === "on-path" && ring.placement !== "on-path") return;
     if (def.placement !== "on-path" && ring.placement === "on-path") return;
     if (state.mana < def.cost) return;
+    if (fireState && !canPlantOnRing(ringId, fireState)) return;
     if (state.defenders.some((d) => d.ringId === ringId)) return;
     const entity = createDefender(ring, typeId);
     if (!entity) return;
@@ -342,22 +378,31 @@ export function initHeartwoodGame(dom, level, options = {}) {
     audio.plant();
   }
 
-  function castRootSnare(wx, wy) {
+  function castSpell(wx, wy) {
     const spell = getSpell(spellId);
     if (!spell || !state || state.mana < spell.cost || state.spellCooldown > 0) return false;
     state.mana -= spell.cost;
     state.spellCooldown = spell.cooldown;
-    let rooted = 0;
-    for (const enemy of state.enemies) {
-      if (enemy.dead) continue;
-      if (Math.hypot(enemy.x - wx, enemy.y - wy) <= spell.radius) {
-        enemy.applyRoot?.(spell.rootDuration);
-        rooted += 1;
+
+    if (spellId === "root-snare") {
+      let rooted = 0;
+      for (const enemy of state.enemies) {
+        if (enemy.dead) continue;
+        if (Math.hypot(enemy.x - wx, enemy.y - wy) <= spell.radius) {
+          enemy.applyRoot?.(spell.rootDuration);
+          rooted += 1;
+        }
       }
+      state.snareFx.push({ x: wx, y: wy, r: spell.radius, life: 1 });
+      burst(state, wx, wy, spell.color, 24);
+      state.floatTexts.push(new FloatText(wx, wy - 16, rooted ? "Rooted!" : "Snare", spell.color));
+    } else if (spellId === "cleansing-rain") {
+      const doused = douseArea(wx, wy, spell.radius, rings, fireState, fireClock);
+      state.snareFx.push({ x: wx, y: wy, r: spell.radius, life: 1.2, color: spell.color });
+      burst(state, wx, wy, spell.color, 28);
+      state.floatTexts.push(new FloatText(wx, wy - 16, doused ? "Doused!" : "Rain", spell.color));
     }
-    state.snareFx.push({ x: wx, y: wy, r: spell.radius, life: 1 });
-    burst(state, wx, wy, spell.color, 24);
-    state.floatTexts.push(new FloatText(wx, wy - 16, rooted ? "Rooted!" : "Snare", spell.color));
+
     audio.plant();
     buildToolbar();
     return true;
@@ -388,7 +433,7 @@ export function initHeartwoodGame(dom, level, options = {}) {
       plant(ring.id, selectedDefender);
       return;
     }
-    if (spellSelected && spellId) castRootSnare(wx, wy);
+    if (spellSelected && spellId) castSpell(wx, wy);
   }
 
   function finish(won) {
@@ -403,6 +448,8 @@ export function initHeartwoodGame(dom, level, options = {}) {
 
   function startLevel() {
     audio.ensure();
+    fireClock = 0;
+    if (fireEnabled) fireState = createFireState(rings);
     state = createGameState();
     gameScreen.classList.remove("hidden");
     pauseOverlay.classList.add("hidden");

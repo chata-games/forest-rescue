@@ -6,13 +6,25 @@ import { getSpell } from "../../src/content/spells.js";
 import { pathsFromLevel } from "../../src/level/path.js";
 import { ringsFromLevel } from "../../src/level/rings.js";
 import { canTargetEnemy, fireflyBuff, hasDarkness } from "../../src/level/light.js";
+import {
+  createFireState,
+  douseArea,
+  douseNeighbors,
+  hasFireSpread,
+  igniteRing,
+  isRingBurning,
+  nearestRing,
+  smokeRangeMul,
+  tickFire,
+  FIRE,
+} from "../../src/level/fire.js";
 
 const STEP = 1 / 60;
 
 export const BOTS = {
   "cheapest-dps": { prefer: "sprig-sentinel", upgrade: false },
   "best-coverage": { prefer: "sprig-sentinel", upgrade: false, spread: true, lightFirst: true },
-  "upgrade-first": { prefer: "sprig-sentinel", upgrade: true },
+  "upgrade-first": { prefer: "sprig-sentinel", upgrade: true, fireFirst: true },
   "defensive-gate": { prefer: "thornvine-bramble", gateFocus: true },
   "anti-air-priority": { prefer: "wisp-willow", antiAir: true },
 };
@@ -23,6 +35,7 @@ const CAMPAIGN_UNLOCKS = {
   "03-whispering-river": ["sprig-sentinel", "thornvine-bramble", "wisp-willow", "dewdrop-nymph"],
   "04-mushroom-hollow": ["sprig-sentinel", "thornvine-bramble", "wisp-willow", "dewdrop-nymph", "firefly-beacon", "mushroom-shaman"],
   "05-sawmill-clearing": ["sprig-sentinel", "thornvine-bramble", "wisp-willow", "dewdrop-nymph", "firefly-beacon", "mushroom-shaman"],
+  "06-ashfall-scar": ["sprig-sentinel", "thornvine-bramble", "wisp-willow", "dewdrop-nymph", "firefly-beacon", "mushroom-shaman"],
 };
 
 export function runSimulation(level, botName = "cheapest-dps", options = {}) {
@@ -32,6 +45,10 @@ export function runSimulation(level, botName = "cheapest-dps", options = {}) {
   const mainPath = paths[0];
   const rings = ringsFromLevel(level);
   const rng = createRng(options.seed || `${level.seed}-sim-${botName}`);
+
+  const fireEnabled = hasFireSpread(level);
+  let fireState = fireEnabled ? createFireState(rings) : null;
+  let fireClock = 0;
 
   const state = {
     mana: level.startingMana || 150,
@@ -65,6 +82,12 @@ export function runSimulation(level, botName = "cheapest-dps", options = {}) {
     if (!empty.length) return;
 
     let typeId = preferType;
+    if (bot.fireFirst && fireEnabled && unlocked.has("dewdrop-nymph")) {
+      const burning = rings.filter((r) => isRingBurning(r.id, fireState)).length;
+      const dewdrops = state.defenders.filter((d) => d.typeId === "dewdrop-nymph").length;
+      const sprigs = state.defenders.filter((d) => d.typeId === "sprig-sentinel").length;
+      if (burning > 0 && dewdrops < 2) typeId = "dewdrop-nymph";
+    }
     if (bot.lightFirst && hasDarkness(level) && unlocked.has("firefly-beacon")) {
       const beacons = state.defenders.filter((d) => d.typeId === "firefly-beacon").length;
       const sprigs = state.defenders.filter((d) => d.typeId === "sprig-sentinel").length;
@@ -81,16 +104,20 @@ export function runSimulation(level, botName = "cheapest-dps", options = {}) {
 
     const def = getDefender(typeId);
     if (!def || state.mana < def.cost) return;
-    let pick = empty[0];
+    const emptyFiltered = fireState
+      ? empty.filter((r) => !isRingBurning(r.id, fireState))
+      : empty;
+    if (!emptyFiltered.length) return;
+    let pick = emptyFiltered[0];
     if (bot.gateFocus) {
-      pick = empty.reduce((a, b) => (a.x < b.x ? a : b));
+      pick = emptyFiltered.reduce((a, b) => (a.x < b.x ? a : b));
     } else if (typeId === "firefly-beacon") {
-      const sorted = [...empty].sort((a, b) => a.x - b.x);
-      pick = sorted[Math.floor(sorted.length / 2)] || empty[0];
+      const sorted = [...emptyFiltered].sort((a, b) => a.x - b.x);
+      pick = sorted[Math.floor(sorted.length / 2)] || emptyFiltered[0];
     } else if (bot.spread && !hasDarkness(level)) {
-      pick = empty[Math.floor(rng() * empty.length)];
+      pick = emptyFiltered[Math.floor(rng() * emptyFiltered.length)];
     } else {
-      pick = empty.reduce((a, b) => (a.x > b.x ? a : b));
+      pick = emptyFiltered.reduce((a, b) => (a.x > b.x ? a : b));
     }
     state.defenders.push({
       ringId: pick.id,
@@ -110,15 +137,28 @@ export function runSimulation(level, botName = "cheapest-dps", options = {}) {
     state.mana -= def.cost;
   }
 
-  function tryCastRootSnare() {
+  function tryCastSpell() {
     if (!bot.upgrade || !level.spellUnlock || state.spellCooldown > 0) return;
-    const boss = state.enemies.find((e) => e.type === "the-grinder" && !e.dead);
-    if (!boss) return;
     const spell = getSpell(level.spellUnlock);
     if (!spell || state.mana < spell.cost) return;
-    state.mana -= spell.cost;
-    state.spellCooldown = spell.cooldown;
-    boss.rootTime = Math.max(boss.rootTime || 0, spell.rootDuration);
+
+    if (level.spellUnlock === "root-snare") {
+      const boss = state.enemies.find((e) => e.type === "the-grinder" && !e.dead);
+      if (!boss) return;
+      state.mana -= spell.cost;
+      state.spellCooldown = spell.cooldown;
+      boss.rootTime = Math.max(boss.rootTime || 0, spell.rootDuration);
+      return;
+    }
+
+    if (level.spellUnlock === "cleansing-rain" && fireState) {
+      const burning = rings.filter((r) => isRingBurning(r.id, fireState));
+      if (burning.length < 2) return;
+      const center = burning[Math.floor(burning.length / 2)];
+      state.mana -= spell.cost;
+      state.spellCooldown = spell.cooldown;
+      douseArea(center.x, center.y, spell.radius, rings, fireState, fireClock);
+    }
   }
 
   function grinderPhase(enemy) {
@@ -193,7 +233,16 @@ export function runSimulation(level, botName = "cheapest-dps", options = {}) {
     state.spellCooldown = Math.max(0, state.spellCooldown - STEP);
 
     if (t % 120 === 0) plantOnBestRing();
-    tryCastRootSnare();
+    tryCastSpell();
+    fireClock += STEP;
+    if (fireState) {
+      tickFire(STEP, fireState, fireClock);
+      for (const d of state.defenders) {
+        if (d.dead || !isRingBurning(d.ringId, fireState)) continue;
+        d.hp -= FIRE.defenderBurnDps * STEP;
+        if (d.hp <= 0) { d.dead = true; d.hp = 0; }
+      }
+    }
 
     if (state.spawnQueue.length) {
       state.spawnTimer -= STEP;
@@ -242,6 +291,12 @@ export function runSimulation(level, botName = "cheapest-dps", options = {}) {
         if (enemy.hp <= 0) enemy.dead = true;
       }
       if (enemy.dead) continue;
+
+      const enemyStats = getEnemy(enemy.type);
+      if (enemyStats?.tags?.includes("ignites-rings") && fireState) {
+        const ring = nearestRing(enemy.x, enemy.y, rings);
+        if (ring) igniteRing(ring.id, fireState, fireClock);
+      }
 
       if (enemy.boss) {
         if (updateGrinder(enemy)) {
@@ -294,7 +349,13 @@ export function runSimulation(level, botName = "cheapest-dps", options = {}) {
       if (d.cooldown > 0) continue;
       const defStats = getDefender(d.typeId);
       const { rangeMul, damageMul } = fireflyBuff(d, state.defenders);
-      const range = d.range * rangeMul;
+      const smokeMul = smokeRangeMul({ x: d.x, y: d.y }, state.enemies.map((e) => ({
+        dead: e.dead,
+        x: e.x,
+        y: e.y,
+        stats: getEnemy(e.type),
+      })));
+      const range = d.range * rangeMul * smokeMul;
       const target = state.enemies
         .filter((e) => {
           if (e.dead) return false;
@@ -306,6 +367,9 @@ export function runSimulation(level, botName = "cheapest-dps", options = {}) {
       if (target) {
         target.hp -= d.damage * damageMul;
         d.cooldown = d.cooldownMax;
+        if (d.typeId === "dewdrop-nymph" && fireState) {
+          douseNeighbors(d.ringId, fireState, fireClock);
+        }
         if (d.poisonDps > 0) {
           target.poisonDps = Math.max(target.poisonDps || 0, d.poisonDps);
           target.poisonTime = Math.max(target.poisonTime || 0, d.poisonDuration);

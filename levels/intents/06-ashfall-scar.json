@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "id": "06-ashfall-scar",
+  "name": "Ashfall Scar",
+  "seed": "heartwood-ashfall-v1",
+  "biome": "ashfall-scar",
+  "learningGoal": "fire-management",
+  "topology": {
+    "archetype": "fork-and-rejoin",
+    "entrances": 1,
+    "exits": 1
+  },
+  "targets": {
+    "pathLength": 1800,
+    "pathDensity": 0.4,
+    "ringCount": 9,
+    "difficulty": 0.52,
+    "durationMinutes": 10
+  },
+  "constraints": {
+    "pathWidth": 92,
+    "minimumTurnRadius": 110,
+    "minimumParallelGap": 160
+  },
+  "ringRoles": ["frontline", "chokepoint", "support", "gate-defense"],
+  "waves": {
+    "count": 10,
+    "allowedEnemies": ["arsonist", "diesel-hauler"],
+    "budgetCurve": "moderate"
+  },
+  "landmarks": [],
+  "unlocks": [],
+  "levelModifiers": ["fire-spread"],
+  "spellUnlock": "cleansing-rain"
+}

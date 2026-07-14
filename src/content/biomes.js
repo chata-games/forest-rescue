@@ -52,6 +52,17 @@ export const BIOMES = {
     waterColor: null,
     grassMaterial: "material-sawmill-floor",
   },
+  "ashfall-scar": {
+    id: "ashfall-scar",
+    name: "Ashfall Scar",
+    baseColor: "#2a2420",
+    accentColor: "#6a5040",
+    pathColor: "#8a7868",
+    pathEdgeColor: "#5a4a3a",
+    noiseTint: "rgba(180,80,40,0.14)",
+    waterColor: null,
+    grassMaterial: "material-ashfall-floor",
+  },
 };
 
 export function getBiome(id) {

@@ -1,5 +1,6 @@
 import { getDefender } from "../content/defenders.js";
 import { canTargetEnemy, fireflyBuff } from "../level/light.js";
+import { smokeRangeMul, douseNeighbors } from "../level/fire.js";
 
 export class DefenderEntity {
   constructor(ringId, typeId, ring, stats) {
@@ -30,6 +31,9 @@ export class DefenderEntity {
         opts.poisonDuration = this.stats.poisonDuration;
         opts.color = "#b8ff70";
       }
+      if (this.stats.tags?.includes("douses-fire") && game.fireState) {
+        douseNeighbors(this.ringId, game.fireState, game.fireClock || 0);
+      }
       game.projectiles.push(game.createProjectile(this, target, opts));
       this.cooldown = this.cooldownMax;
       game.audio.shoot();
@@ -38,8 +42,9 @@ export class DefenderEntity {
 }
 
 function findTarget(defender, game) {
-  const { rangeMul } = fireflyBuff(defender, game.defenders);
-  const range = defender.range * rangeMul;
+  const { rangeMul, damageMul } = fireflyBuff(defender, game.defenders);
+  const smokeMul = smokeRangeMul(defender, game.enemies);
+  const range = defender.range * rangeMul * smokeMul;
   let best = null;
   let bestS = -1;
   for (const enemy of game.enemies) {

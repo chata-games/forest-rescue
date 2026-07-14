@@ -8,6 +8,7 @@ const LEVELS = [
   { id: "03-whispering-river", name: "Whispering River", x: 0.44, y: 0.48, unlocks: ["dewdrop-nymph"] },
   { id: "04-mushroom-hollow", name: "Mushroom Hollow", x: 0.58, y: 0.38, unlocks: ["firefly-beacon", "mushroom-shaman"] },
   { id: "05-sawmill-clearing", name: "Sawmill Clearing", x: 0.72, y: 0.32, unlocks: [], spellUnlock: "root-snare" },
+  { id: "06-ashfall-scar", name: "Ashfall Scar", x: 0.82, y: 0.42, unlocks: [], spellUnlock: "cleansing-rain" },
 ];
 
 export async function initCampaign(dom) {

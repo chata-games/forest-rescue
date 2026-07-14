@@ -1,5 +1,6 @@
 import { getEnemy } from "../content/enemies.js";
 import { inGlow, glowSources } from "../level/light.js";
+import { igniteRing, nearestRing } from "../level/fire.js";
 import { createBoss, isBossType } from "./boss.js";
 
 export class EnemyEntity {
@@ -26,6 +27,7 @@ export class EnemyEntity {
     this.poisonDps = 0;
     this.stealCooldown = 0;
     this.rootTime = 0;
+    this.igniteCooldown = 0;
     this.x = 0;
     this.y = 0;
     this.facing = -1;
@@ -51,6 +53,7 @@ export class EnemyEntity {
   update(dt, game) {
     this.flash = Math.max(0, this.flash - dt);
     this.stealCooldown = Math.max(0, this.stealCooldown - dt);
+    this.igniteCooldown = Math.max(0, this.igniteCooldown - dt);
     if (this.poisonTime > 0) {
       this.poisonTime -= dt;
       this.hp -= this.poisonDps * dt;
@@ -68,6 +71,14 @@ export class EnemyEntity {
         this.stealCooldown = 2.5;
         game.onFlowerStolen?.(this, flower);
         return;
+      }
+    }
+
+    if (this.stats.tags?.includes("ignites-rings") && game.fireState && this.igniteCooldown <= 0) {
+      const ring = nearestRing(this.x, this.y, game.level.rings || []);
+      if (ring) {
+        igniteRing(ring.id, game.fireState, game.fireClock || 0);
+        this.igniteCooldown = 2.2;
       }
     }
 

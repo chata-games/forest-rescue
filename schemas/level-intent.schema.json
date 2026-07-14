@@ -65,7 +65,7 @@
     },
     "landmarks": { "type": "array", "items": { "type": "string" } },
     "unlocks": { "type": "array", "items": { "type": "string" } },
-    "levelModifiers": { "type": "array", "items": { "type": "string", "enum": ["tutorial-chopping", "river-crossings", "darkness"] } },
+    "levelModifiers": { "type": "array", "items": { "type": "string", "enum": ["tutorial-chopping", "river-crossings", "darkness", "fire-spread"] } },
     "spellUnlock": { "type": ["string", "null"] },
     "bossId": { "type": ["string", "null"] },
     "waveOverrides": { "type": ["array", "null"] },

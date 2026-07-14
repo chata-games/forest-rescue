@@ -21,6 +21,8 @@ export const ENEMY_THREAT = {
   bulldozer: 28,
   "buzzsaw-drone": 18,
   poacher: 16,
+  arsonist: 18,
+  "diesel-hauler": 20,
   "the-grinder": 0,
 };
 
@@ -230,6 +232,12 @@ export function generateWaves(intent) {
       allowed = pool.filter((t) => t !== "logger");
       if (!allowed.length) allowed = ["surveyor", "chainsaw-brute"];
     }
+    if (intent.learningGoal === "fire-management" && i === 2) {
+      allowed = pool.includes("arsonist") ? ["arsonist"] : pool;
+    }
+    if (intent.learningGoal === "fire-management" && i >= 4) {
+      allowed = pool.includes("arsonist") ? ["arsonist", "diesel-hauler"] : pool;
+    }
     let pass = 0;
     while (remaining > 0 && allowed.length) {
       const type = allowed[pass % allowed.length];
@@ -237,7 +245,13 @@ export function generateWaves(intent) {
       const cost = ENEMY_THREAT[type] || 12;
       if (cost > remaining && enemies.length) break;
       const count = Math.max(1, Math.floor(remaining / cost));
-      const capped = Math.min(count, type === "buzzsaw-drone" ? 2 : 6);
+      const capped = Math.min(
+        count,
+        type === "buzzsaw-drone" ? 2
+          : type === "arsonist" ? 4
+            : type === "diesel-hauler" ? 2
+              : 6,
+      );
       enemies.push({ type, count: capped });
       remaining -= cost * capped;
       if (intent.learningGoal === "air-coverage" && type === "buzzsaw-drone") break;

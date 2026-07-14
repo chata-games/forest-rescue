@@ -2,6 +2,7 @@ import { WORLD_W, WORLD_H } from "../engine/canvas.js";
 import { getBiome } from "../content/biomes.js";
 import { pathsFromLevel } from "../level/path.js";
 import { glowSources } from "../level/light.js";
+import { isRingBurning } from "../level/fire.js";
 import { drawHp } from "./draw-utils.js";
 import { drawAtlasSprite, catalogAsset } from "./sprites.js";
 
@@ -290,4 +291,30 @@ export function drawDarknessOverlay(ctx, level, defenders) {
     ctx.fill();
   }
   ctx.restore();
+}
+
+export function drawFireOverlay(ctx, rings, fireState, phase = 0) {
+  if (!fireState) return;
+  for (const ring of rings) {
+    if (!isRingBurning(ring.id, fireState)) continue;
+    const pulse = Math.sin(phase * 6 + ring.x * 0.01) * 4;
+    const r = (ring.buildRadius || 42) + pulse;
+    const g = ctx.createRadialGradient(ring.x, ring.y, 0, ring.x, ring.y, r + 18);
+    g.addColorStop(0, "rgba(255,200,80,0.55)");
+    g.addColorStop(0.45, "rgba(255,120,40,0.35)");
+    g.addColorStop(1, "rgba(255,60,20,0)");
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(ring.x, ring.y, r + 18, 0, Math.PI * 2);
+    ctx.fill();
+    for (let i = 0; i < 5; i++) {
+      const a = phase * 8 + i * 1.3;
+      const fx = ring.x + Math.cos(a) * (r * 0.5);
+      const fy = ring.y - 12 - Math.abs(Math.sin(a * 1.7)) * 22;
+      ctx.fillStyle = `rgba(255,${140 + i * 20},40,${0.5 + Math.sin(phase * 10 + i) * 0.2})`;
+      ctx.beginPath();
+      ctx.arc(fx, fy, 4 + (i % 2), 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
 }

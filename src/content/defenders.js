@@ -46,7 +46,7 @@ export const DEFENDERS = {
     damage: 18,
     cooldown: 1.4,
     hp: 80,
-    tags: ["control", "slow", "rust"],
+    tags: ["control", "slow", "rust", "douses-fire"],
     placement: "beside-path",
     sprite: "dewdrop-nymph-idle",
     projectile: "dew-splash",
