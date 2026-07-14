@@ -4,6 +4,8 @@
   "type": "module",
   "scripts": {
     "serve": "node serve.js",
+    "prototype:composition": "vite --config vite.composition-prototype.config.ts",
+    "prototype:composition:build": "tsc -p tsconfig.composition-prototype.json --noEmit && vite build --config vite.composition-prototype.config.ts",
     "prototype:mobile": "vite --config vite.prototype.config.ts",
     "prototype:mobile:build": "tsc -p tsconfig.prototype.json --noEmit && vite build --config vite.prototype.config.ts",
     "prototype:mobile:preview": "vite preview --config vite.prototype.config.ts",

@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#071b19" />
+    <title>Forest Rescue — Battlefield composition prototype</title>
+    <script type="module" src="./main.ts"></script>
+  </head>
+  <body>
+    <main class="prototype-shell">
+      <header class="prototype-header">
+        <div>
+          <p class="prototype-status">Throwaway visual system study</p>
+          <h1>One battlefield, three composition systems</h1>
+        </div>
+        <button class="inspect-toggle" type="button" aria-pressed="false">
+          <span class="inspect-dot" aria-hidden="true"></span>
+          Inspect geometry
+        </button>
+      </header>
+
+      <section class="comparison" aria-labelledby="variant-name">
+        <div class="device-wrap">
+          <div class="device-stage">
+            <canvas width="1688" height="780" aria-label="Forest Rescue battlefield composition"></canvas>
+            <div class="code-hud" aria-hidden="true">
+              <div class="mana"><span>◆</span> 215</div>
+              <div class="hearts">♥ ♥ ♥ ♥ ♥</div>
+              <div class="wave">3 <small>/ 7</small></div>
+            </div>
+            <div class="tap-note" aria-hidden="true">Tap ring</div>
+          </div>
+        </div>
+
+        <aside class="variant-notes" aria-live="polite">
+          <p class="variant-index"></p>
+          <h2 id="variant-name"></h2>
+          <p class="variant-summary"></p>
+          <dl class="layer-list"></dl>
+          <p class="tradeoff"></p>
+        </aside>
+      </section>
+
+      <footer class="evaluation-note">
+        Compare painterly continuity, trail clarity, ring legibility, unit silhouette, and whether the visible art can survive new geometry.
+      </footer>
+    </main>
+
+    <nav class="variant-switcher" aria-label="Prototype variants">
+      <button class="previous" type="button" aria-label="Previous variant">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>
+      </button>
+      <div><span class="switcher-key"></span><strong class="switcher-name"></strong></div>
+      <button class="next" type="button" aria-label="Next variant">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
+      </button>
+    </nav>
+  </body>
+</html>
