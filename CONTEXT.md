@@ -15,6 +15,12 @@
 | **Fairy ring** | A build spot beside the enemy trail where defenders are planted |
 | **Trail / path** | The spline enemies follow from entrance to Heartwood |
 | **Defender** | A forest ally planted on a ring (formerly "Magic Tree") |
+| **Selected Defender** | The Defender chosen for repeated placement on compatible empty Fairy rings |
+| **Inspected Defender** | A planted Defender whose details and contextual actions are currently shown |
+| **Context Panel** | The modeless view of an Inspected Defender's details and available actions |
+| **Remove Defender** | The action that frees a Fairy ring and returns 70% of all mana invested in its Defender, rounded to the nearest whole mana |
+| **Selected Guardian spell** | The Guardian spell currently waiting for a battlefield target |
+| **Planning Pause** | A frozen battle state in which the Guardian may inspect waves and manage Defenders but may not cast spells or collect mana flowers |
 | **Ring** | Circular placement zone with a strategic role |
 | **Wave** | A scripted group of enemies with spawn timing |
 | **LevelIntent** | LLM-authored creative brief + targets; never contains coordinates |
