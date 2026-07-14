@@ -246,6 +246,15 @@ h2 {
   outline: 4px solid var(--gold);
 }
 
+.tool-button--spell .tool-button__art {
+  background: #3d7a32;
+}
+
+.tool-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .tool-button__art {
   grid-row: 1 / span 2;
   display: grid;

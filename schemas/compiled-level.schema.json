@@ -22,6 +22,8 @@
     "airLanes": { "type": "array" },
     "waves": { "type": "array" },
     "metrics": { "type": "object" },
-    "levelModifiers": { "type": "array" }
+    "levelModifiers": { "type": "array" },
+    "spellUnlock": { "type": ["string", "null"] },
+    "bossId": { "type": ["string", "null"] }
   }
 }

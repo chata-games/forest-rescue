@@ -47,6 +47,28 @@
       "tags": ["defender", "control", "tier-1"]
     },
     {
+      "id": "firefly-beacon-idle",
+      "file": "sprites/defenders/firefly-beacon-idle.png",
+      "promptFile": "prompts/firefly-beacon-idle.md",
+      "references": ["docs/tower-defense-concept/art/towers-1.png"],
+      "nativeSize": [256, 256],
+      "drawSize": [74, 74],
+      "anchor": [0.5, 0.82],
+      "shadowRadius": 20,
+      "tags": ["defender", "support", "light", "tier-1"]
+    },
+    {
+      "id": "mushroom-shaman-idle",
+      "file": "sprites/defenders/mushroom-shaman-idle.png",
+      "promptFile": "prompts/mushroom-shaman-idle.md",
+      "references": ["docs/tower-defense-concept/art/towers-2.png"],
+      "nativeSize": [256, 256],
+      "drawSize": [78, 78],
+      "anchor": [0.5, 0.82],
+      "shadowRadius": 22,
+      "tags": ["defender", "poison", "tier-1"]
+    },
+    {
       "id": "logger-idle",
       "file": "sprites/enemies/logger-idle.png",
       "promptFile": "prompts/logger-idle.md",
@@ -104,6 +126,39 @@
       "tags": ["enemy", "machine", "flying"]
     },
     {
+      "id": "poacher-idle",
+      "file": "sprites/enemies/poacher-idle.png",
+      "promptFile": "prompts/poacher-idle.md",
+      "references": ["docs/tower-defense-concept/art/enemies-1.png"],
+      "nativeSize": [256, 256],
+      "drawSize": [52, 66],
+      "anchor": [0.5, 0.9],
+      "shadowRadius": 18,
+      "tags": ["enemy", "crew", "ground", "cloaked"]
+    },
+    {
+      "id": "the-grinder-idle",
+      "file": "sprites/enemies/the-grinder-idle.png",
+      "promptFile": "prompts/the-grinder-idle.md",
+      "references": ["docs/tower-defense-concept/art/enemies-2.png", "sprites/enemies/bulldozer-idle.png"],
+      "nativeSize": [256, 256],
+      "drawSize": [96, 80],
+      "anchor": [0.5, 0.88],
+      "shadowRadius": 28,
+      "tags": ["enemy", "machine", "ground", "boss"]
+    },
+    {
+      "id": "the-grinder-damaged",
+      "file": "sprites/enemies/the-grinder-damaged.png",
+      "promptFile": "prompts/the-grinder-damaged.md",
+      "references": ["sprites/enemies/the-grinder-idle.png"],
+      "nativeSize": [256, 256],
+      "drawSize": [96, 80],
+      "anchor": [0.5, 0.88],
+      "shadowRadius": 28,
+      "tags": ["enemy", "machine", "ground", "boss"]
+    },
+    {
       "id": "material-grass",
       "file": "materials/grass-tile.png",
       "promptFile": "prompts/material-grass.md",
@@ -112,6 +167,26 @@
       "drawSize": [128, 128],
       "anchor": [0, 0],
       "tags": ["material", "tileable", "meadow-edge"]
+    },
+    {
+      "id": "material-mushroom-floor",
+      "file": "materials/mushroom-floor.png",
+      "promptFile": "prompts/material-mushroom-floor.md",
+      "references": ["docs/tower-defense-concept/art/gameplay-mockup.png"],
+      "nativeSize": [128, 128],
+      "drawSize": [128, 128],
+      "anchor": [0, 0],
+      "tags": ["material", "tileable", "mushroom-hollow"]
+    },
+    {
+      "id": "material-sawmill-floor",
+      "file": "materials/sawmill-floor.png",
+      "promptFile": "prompts/material-sawmill-floor.md",
+      "references": ["docs/tower-defense-concept/art/gameplay-mockup.png"],
+      "nativeSize": [128, 128],
+      "drawSize": [128, 128],
+      "anchor": [0, 0],
+      "tags": ["material", "tileable", "sawmill"]
     },
     {
       "id": "material-path-interior",
@@ -142,6 +217,26 @@
       "drawSize": [80, 80],
       "anchor": [0.5, 0.9],
       "tags": ["landmark", "meadow-edge"]
+    },
+    {
+      "id": "landmark-glow-mushroom",
+      "file": "decorations/glow-mushroom-cluster.png",
+      "promptFile": "prompts/landmark-glow-mushroom.md",
+      "references": ["docs/tower-defense-concept/art/gameplay-mockup.png"],
+      "nativeSize": [256, 256],
+      "drawSize": [88, 88],
+      "anchor": [0.5, 0.88],
+      "tags": ["landmark", "mushroom-hollow", "light"]
+    },
+    {
+      "id": "landmark-sawmill-debris",
+      "file": "decorations/sawmill-debris.png",
+      "promptFile": "prompts/landmark-sawmill-debris.md",
+      "references": ["decorations/broken-fence.png"],
+      "nativeSize": [256, 256],
+      "drawSize": [92, 92],
+      "anchor": [0.5, 0.9],
+      "tags": ["landmark", "sawmill"]
     }
   ]
 }

@@ -1,0 +1,45 @@
+{
+  "levelId": "05-sawmill-clearing",
+  "results": {
+    "cheapest-dps": {
+      "bot": "cheapest-dps",
+      "won": true,
+      "hearts": 3,
+      "mana": 936,
+      "ticks": 19870,
+      "defendersPlaced": 6
+    },
+    "best-coverage": {
+      "bot": "best-coverage",
+      "won": true,
+      "hearts": 3,
+      "mana": 929,
+      "ticks": 20395,
+      "defendersPlaced": 6
+    },
+    "upgrade-first": {
+      "bot": "upgrade-first",
+      "won": true,
+      "hearts": 2,
+      "mana": 634,
+      "ticks": 18961,
+      "defendersPlaced": 6
+    },
+    "defensive-gate": {
+      "bot": "defensive-gate",
+      "won": false,
+      "hearts": 5,
+      "mana": 999,
+      "ticks": 28799,
+      "defendersPlaced": 6
+    },
+    "anti-air-priority": {
+      "bot": "anti-air-priority",
+      "won": true,
+      "hearts": 2,
+      "mana": 809,
+      "ticks": 17812,
+      "defendersPlaced": 6
+    }
+  }
+}

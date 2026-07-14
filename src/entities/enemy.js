@@ -1,4 +1,6 @@
 import { getEnemy } from "../content/enemies.js";
+import { inGlow, glowSources } from "../level/light.js";
+import { createBoss, isBossType } from "./boss.js";
 
 export class EnemyEntity {
   constructor(typeId, path, pathId = "main", options = {}) {
@@ -20,6 +22,10 @@ export class EnemyEntity {
     this.dead = false;
     this.flying = stats.flying || false;
     this.airLane = options.airLane || null;
+    this.poisonTime = 0;
+    this.poisonDps = 0;
+    this.stealCooldown = 0;
+    this.rootTime = 0;
     this.x = 0;
     this.y = 0;
     this.facing = -1;
@@ -44,7 +50,28 @@ export class EnemyEntity {
 
   update(dt, game) {
     this.flash = Math.max(0, this.flash - dt);
-    const blocker = findBlocker(this, game);
+    this.stealCooldown = Math.max(0, this.stealCooldown - dt);
+    if (this.poisonTime > 0) {
+      this.poisonTime -= dt;
+      this.hp -= this.poisonDps * dt;
+      if (this.hp <= 0) {
+        this.dead = true;
+        game.onEnemyHit(this);
+      }
+    }
+
+    if (this.stats.tags?.includes("steals-flowers") && game.flowers?.length && this.stealCooldown <= 0) {
+      const flower = nearestFlower(this, game.flowers);
+      if (flower && Math.hypot(flower.x - this.x, flower.y - this.y) < flower.r + 30) {
+        flower.life = 0;
+        game.mana = Math.max(0, game.mana - 20);
+        this.stealCooldown = 2.5;
+        game.onFlowerStolen?.(this, flower);
+        return;
+      }
+    }
+
+    const blocker = this.stats.ignoresBlockers ? null : findBlocker(this, game);
     if (blocker) {
       this.attackTimer -= dt;
       if (this.attackTimer <= 0) {
@@ -53,6 +80,11 @@ export class EnemyEntity {
         this.attackTimer = this.attackInterval;
         game.onDefenderHit(blocker, this);
       }
+      return;
+    }
+
+    if (this.rootTime > 0) {
+      this.rootTime -= dt;
       return;
     }
 
@@ -73,6 +105,26 @@ export class EnemyEntity {
       game.onLeak(this);
     }
   }
+
+  isVisible(level, defenders) {
+    if (!this.stats.cloaked) return true;
+    return inGlow(this.x, this.y, glowSources(level, defenders));
+  }
+
+  applyRoot(duration) {
+    this.rootTime = Math.max(this.rootTime || 0, duration);
+  }
+}
+
+function nearestFlower(enemy, flowers) {
+  let best = null;
+  let bestD = Infinity;
+  for (const f of flowers) {
+    if (f.life <= 0) continue;
+    const d = Math.hypot(f.x - enemy.x, f.y - enemy.y);
+    if (d < bestD) { bestD = d; best = f; }
+  }
+  return best;
 }
 
 function findBlocker(enemy, game) {
@@ -91,5 +143,6 @@ function findBlocker(enemy, game) {
 }
 
 export function createEnemy(typeId, path, options) {
+  if (isBossType(typeId)) return createBoss(typeId, path, options);
   return new EnemyEntity(typeId, path, options?.pathId, options);
 }

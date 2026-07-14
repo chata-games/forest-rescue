@@ -20,6 +20,8 @@ export const ENEMY_THREAT = {
   "chainsaw-brute": 22,
   bulldozer: 28,
   "buzzsaw-drone": 18,
+  poacher: 16,
+  "the-grinder": 0,
 };
 
 export const BUDGET_CURVES = {
@@ -221,6 +223,13 @@ export function generateWaves(intent) {
       allowed = pool.filter((t) => t !== "buzzsaw-drone");
       if (!allowed.length) allowed = ["logger"];
     }
+    if (intent.learningGoal === "light-management" && i >= 3) {
+      allowed = pool.includes("poacher") ? ["poacher", "logger"] : pool;
+    }
+    if (intent.learningGoal === "anti-bramble" && i >= 4) {
+      allowed = pool.filter((t) => t !== "logger");
+      if (!allowed.length) allowed = ["surveyor", "chainsaw-brute"];
+    }
     let pass = 0;
     while (remaining > 0 && allowed.length) {
       const type = allowed[pass % allowed.length];
@@ -246,7 +255,32 @@ export function generateWaves(intent) {
       spawnInterval: Math.max(0.55, 1.4 - i * 0.06),
     });
   }
-  return waves;
+  return applyWaveOverrides(waves, intent);
+}
+
+export function applyWaveOverrides(waves, intent) {
+  if (!intent.waveOverrides?.length) return waves;
+  const result = [...waves];
+  for (const override of intent.waveOverrides) {
+    const wave = {
+      enemies: override.enemies || [],
+      delayBefore: override.delayBefore ?? 1.5,
+      delayAfter: override.delayAfter ?? 3,
+      spawnInterval: override.spawnInterval ?? 1,
+      scripted: true,
+      bossId: override.bossId || intent.bossId || null,
+    };
+    const idx = override.waveIndex;
+    if (idx >= result.length) {
+      while (result.length < idx) {
+        result.push({ enemies: [], delayBefore: 0.5, delayAfter: 3, spawnInterval: 1 });
+      }
+      result.push(wave);
+    } else {
+      result[idx] = { ...result[idx], ...wave };
+    }
+  }
+  return result;
 }
 
 function consolidateWaveEnemies(enemies) {
@@ -350,6 +384,8 @@ export function compileIntent(intent, options = {}) {
     seed: intent.seed,
     biome: intent.biome,
     unlocks: intent.unlocks || [],
+    spellUnlock: intent.spellUnlock || null,
+    bossId: intent.bossId || null,
     startingMana: 150,
     maxHearts: 5,
     levelModifiers: intent.levelModifiers || [],

@@ -29,6 +29,29 @@ export const BIOMES = {
     noiseTint: "rgba(60,140,120,0.14)",
     waterColor: "rgba(40,120,160,0.55)",
   },
+  "mushroom-hollow": {
+    id: "mushroom-hollow",
+    name: "Mushroom Hollow",
+    baseColor: "#1a2838",
+    accentColor: "#6a4a9a",
+    pathColor: "#8a7a68",
+    pathEdgeColor: "#5a4a3a",
+    noiseTint: "rgba(120,80,200,0.18)",
+    waterColor: null,
+    grassMaterial: "material-mushroom-floor",
+    darkness: true,
+  },
+  sawmill: {
+    id: "sawmill",
+    name: "Sawmill Clearing",
+    baseColor: "#3a3428",
+    accentColor: "#8a6a48",
+    pathColor: "#9a8870",
+    pathEdgeColor: "#6a5a44",
+    noiseTint: "rgba(140,100,60,0.16)",
+    waterColor: null,
+    grassMaterial: "material-sawmill-floor",
+  },
 };
 
 export function getBiome(id) {

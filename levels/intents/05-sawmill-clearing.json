@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "id": "05-sawmill-clearing",
+  "name": "Sawmill Clearing",
+  "seed": "heartwood-sawmill-v1",
+  "biome": "sawmill",
+  "learningGoal": "anti-bramble",
+  "topology": {
+    "archetype": "short-boss-assault",
+    "entrances": 1,
+    "exits": 1
+  },
+  "targets": {
+    "pathLength": 920,
+    "pathDensity": 0.38,
+    "ringCount": 6,
+    "difficulty": 0.58,
+    "durationMinutes": 9
+  },
+  "constraints": {
+    "pathWidth": 92,
+    "minimumTurnRadius": 110,
+    "minimumParallelGap": 150
+  },
+  "ringRoles": ["frontline", "chokepoint", "support", "gate-defense"],
+  "waves": {
+    "count": 10,
+    "allowedEnemies": ["logger", "surveyor", "chainsaw-brute"],
+    "budgetCurve": "moderate"
+  },
+  "landmarks": ["sawmill-debris"],
+  "unlocks": [],
+  "spellUnlock": "root-snare",
+  "bossId": "the-grinder",
+  "waveOverrides": [
+    {
+      "waveIndex": 10,
+      "enemies": [{ "type": "the-grinder", "count": 1 }],
+      "delayBefore": 2.5,
+      "delayAfter": 0,
+      "spawnInterval": 1
+    }
+  ],
+  "placementRules": {
+    "onPathDefenders": ["thornvine-bramble"]
+  }
+}

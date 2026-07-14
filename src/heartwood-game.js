@@ -5,7 +5,9 @@ import { createRng } from "./engine/rng.js";
 import { pathsFromLevel } from "./level/path.js";
 import { hitTestRing, ringsFromLevel } from "./level/rings.js";
 import { levelStartingMana, levelMaxHearts, levelWaves } from "./level/loader.js";
+import { fireflyBuff } from "./level/light.js";
 import { getDefender } from "./content/defenders.js";
+import { getSpell } from "./content/spells.js";
 import { createDefender } from "./entities/defender.js";
 import { createEnemy } from "./entities/enemy.js";
 import { Projectile } from "./entities/projectile.js";
@@ -16,6 +18,7 @@ import {
   drawEnemyEntity,
   drawProjectileEntity,
   drawHeartwoodGate,
+  drawDarknessOverlay,
 } from "./rendering/battlefield.js";
 import { drawDebugOverlay, isDebugMode } from "./rendering/debug.js";
 
@@ -54,7 +57,9 @@ export function initHeartwoodGame(dom, level, options = {}) {
   const waves = levelWaves(level);
   const totalWaves = waves.length;
   const unlocked = new Set(level.unlocks || ["sprig-sentinel"]);
+  const spellId = level.spellUnlock || null;
   let selectedDefender = [...unlocked][0] || "sprig-sentinel";
+  let spellSelected = false;
   let state = null;
   let pointerDown = false;
   let bobPhase = 0;
@@ -93,6 +98,8 @@ export function initHeartwoodGame(dom, level, options = {}) {
       bannerTimer: 0,
       state: "playing",
       shake: 0,
+      spellCooldown: 0,
+      snareFx: [],
       rng: createRng(level.seed || level.id),
     };
   }
@@ -111,10 +118,23 @@ export function initHeartwoodGame(dom, level, options = {}) {
     get shake() { return state.shake; },
     set shake(v) { state.shake = v; },
     get rng() { return state.rng; },
-    createProjectile: (d, t) => new Projectile(d.x, d.y - 10, t, d.damage),
+    createProjectile: (d, t, opts = {}) => {
+      const { damageMul } = fireflyBuff(d, state.defenders);
+      return new Projectile(d.x, d.y - 10, t, d.damage * damageMul, opts);
+    },
+    level,
+    onFlowerStolen(enemy, flower) {
+      burst(state, flower.x, flower.y, "#ff88cc", 12);
+      state.floatTexts.push(new FloatText(flower.x, flower.y, "-20", "#ff7056"));
+    },
     onDefenderHit(defender, enemy) {
       burst(state, defender.x, defender.y, "#b8a079", 10);
       audio.hit();
+    },
+    onBrambleEaten(boss, defender) {
+      burst(state, defender.x, defender.y, "#8a5a30", 22);
+      state.floatTexts.push(new FloatText(defender.x, defender.y - 20, "Crunch!", "#d4a060"));
+      state.shake = 0.15;
     },
     onEnemyHit(enemy) {
       burst(state, enemy.x, enemy.y, "#9cf7ff", 8);
@@ -141,13 +161,30 @@ export function initHeartwoodGame(dom, level, options = {}) {
       if (!def) continue;
       const btn = dom.createElement("button");
       btn.type = "button";
-      btn.className = `tool-button${id === selectedDefender ? " selected" : ""}`;
+      btn.className = `tool-button${!spellSelected && id === selectedDefender ? " selected" : ""}`;
       btn.innerHTML = `<span class="tool-button__art">✦</span><span>${def.name}</span><small>${def.cost} mana</small>`;
       btn.addEventListener("click", () => {
         selectedDefender = id;
+        spellSelected = false;
         buildToolbar();
       });
       toolbar.appendChild(btn);
+    }
+    if (spellId) {
+      const spell = getSpell(spellId);
+      if (spell) {
+        const btn = dom.createElement("button");
+        btn.type = "button";
+        btn.className = `tool-button tool-button--spell${spellSelected ? " selected" : ""}`;
+        const cd = state?.spellCooldown > 0 ? ` (${Math.ceil(state.spellCooldown)}s)` : "";
+        btn.innerHTML = `<span class="tool-button__art">🌿</span><span>${spell.name}</span><small>${spell.cost} mana${cd}</small>`;
+        btn.disabled = state?.spellCooldown > 0;
+        btn.addEventListener("click", () => {
+          spellSelected = true;
+          buildToolbar();
+        });
+        toolbar.appendChild(btn);
+      }
     }
   }
 
@@ -166,7 +203,12 @@ export function initHeartwoodGame(dom, level, options = {}) {
     state.wave += 1;
     state.waveActive = true;
     state.bannerTimer = 2;
-    waveBanner.textContent = `Wave ${state.wave}`;
+    const wave = waves[state.wave - 1];
+    if (wave?.scripted && (wave.bossId || level.bossId)) {
+      waveBanner.textContent = "The Grinder approaches!";
+    } else {
+      waveBanner.textContent = `Wave ${state.wave}`;
+    }
     waveBanner.classList.add("show");
     queueWave(state.wave - 1);
   }
@@ -175,6 +217,7 @@ export function initHeartwoodGame(dom, level, options = {}) {
     if (!state || state.state !== "playing") return;
     bobPhase += dt;
     state.mana = Math.min(999, state.mana + dt * 5.2);
+    state.spellCooldown = Math.max(0, (state.spellCooldown || 0) - dt);
     state.flowerTimer -= dt;
     state.bannerTimer -= dt;
     if (state.bannerTimer <= 0) waveBanner.classList.remove("show");
@@ -216,7 +259,13 @@ export function initHeartwoodGame(dom, level, options = {}) {
     state.particles = state.particles.filter((p) => p.life > 0);
     state.flowers = state.flowers.filter((f) => f.life > 0);
     state.floatTexts = state.floatTexts.filter((f) => f.life > 0);
+    state.snareFx = (state.snareFx || []).filter((fx) => {
+      fx.life -= dt;
+      return fx.life > 0;
+    });
     state.shake = Math.max(0, state.shake - dt);
+
+    if (spellId && state.spellCooldown <= 0.05) buildToolbar();
 
     manaText.textContent = Math.floor(state.mana);
     heartText.textContent = "♥".repeat(Math.max(0, state.hearts))
@@ -243,9 +292,21 @@ export function initHeartwoodGame(dom, level, options = {}) {
       const sorted = [...state.defenders, ...state.enemies].sort((a, b) => a.y - b.y);
       for (const ent of sorted) {
         if (ent.typeId) drawDefenderEntity(wctx, ent, options.catalog, bobPhase + ent.x, options.atlas);
-        else drawEnemyEntity(wctx, ent, options.catalog, bobPhase + ent.x, options.atlas);
+        else if (!ent.isVisible || ent.isVisible(level, state.defenders)) {
+          drawEnemyEntity(wctx, ent, options.catalog, bobPhase + ent.x, options.atlas);
+        }
       }
       for (const p of state.projectiles) drawProjectileEntity(wctx, p);
+      for (const fx of state.snareFx || []) {
+        wctx.strokeStyle = `rgba(106,212,90,${fx.life * 0.55})`;
+        wctx.lineWidth = 3;
+        wctx.beginPath();
+        wctx.arc(fx.x, fx.y, fx.r * (1.1 - fx.life * 0.3), 0, Math.PI * 2);
+        wctx.stroke();
+      }
+      if (level.levelModifiers?.includes("darkness")) {
+        drawDarknessOverlay(wctx, level, state.defenders);
+      }
       if (isDebugMode()) drawDebugOverlay(wctx, level, paths);
     });
     if (state) {
@@ -281,6 +342,27 @@ export function initHeartwoodGame(dom, level, options = {}) {
     audio.plant();
   }
 
+  function castRootSnare(wx, wy) {
+    const spell = getSpell(spellId);
+    if (!spell || !state || state.mana < spell.cost || state.spellCooldown > 0) return false;
+    state.mana -= spell.cost;
+    state.spellCooldown = spell.cooldown;
+    let rooted = 0;
+    for (const enemy of state.enemies) {
+      if (enemy.dead) continue;
+      if (Math.hypot(enemy.x - wx, enemy.y - wy) <= spell.radius) {
+        enemy.applyRoot?.(spell.rootDuration);
+        rooted += 1;
+      }
+    }
+    state.snareFx.push({ x: wx, y: wy, r: spell.radius, life: 1 });
+    burst(state, wx, wy, spell.color, 24);
+    state.floatTexts.push(new FloatText(wx, wy - 16, rooted ? "Rooted!" : "Snare", spell.color));
+    audio.plant();
+    buildToolbar();
+    return true;
+  }
+
   function handlePointer(ev) {
     if (!state || state.state !== "playing") return;
     const rect = canvas.getBoundingClientRect();
@@ -302,7 +384,11 @@ export function initHeartwoodGame(dom, level, options = {}) {
       }
     }
     const ring = hitTestRing(rings, wx, wy);
-    if (ring) plant(ring.id, selectedDefender);
+    if (ring) {
+      plant(ring.id, selectedDefender);
+      return;
+    }
+    if (spellSelected && spellId) castRootSnare(wx, wy);
   }
 
   function finish(won) {

@@ -1,6 +1,7 @@
 import { WORLD_W, WORLD_H } from "../engine/canvas.js";
 import { getBiome } from "../content/biomes.js";
 import { pathsFromLevel } from "../level/path.js";
+import { glowSources } from "../level/light.js";
 import { drawHp } from "./draw-utils.js";
 import { drawAtlasSprite, catalogAsset } from "./sprites.js";
 
@@ -55,10 +56,15 @@ export function createBattlefieldRenderer(level, catalog, options = {}) {
 }
 
 function drawGround(ctx, biome, catalog, images) {
-  const grass = images["material-grass"];
+  const grassId = biome.grassMaterial || "material-grass";
+  const grass = images[grassId] || images["material-grass"];
   if (grass?.ready) {
     ctx.fillStyle = ctx.createPattern(grass.img, "repeat");
     ctx.fillRect(0, 0, WORLD_W, WORLD_H);
+    if (biome.darkness) {
+      ctx.fillStyle = "rgba(8,12,28,0.35)";
+      ctx.fillRect(0, 0, WORLD_W, WORLD_H);
+    }
     return;
   }
   ctx.fillStyle = biome.baseColor;
@@ -120,6 +126,8 @@ function drawRingSpot(ctx, ring) {
 
 const LANDMARK_SPRITES = {
   "broken-fence": "landmark-broken-fence",
+  "glow-mushroom-cluster": "landmark-glow-mushroom",
+  "sawmill-debris": "landmark-sawmill-debris",
 };
 
 const DECORATION_SPRITES = {
@@ -143,8 +151,23 @@ function drawSpriteProp(ctx, img, x, y, w, h) {
 function drawLandmark(ctx, lm, catalog, images) {
   const spriteId = LANDMARK_SPRITES[lm.type];
   if (drawCatalogProp(ctx, spriteId, lm.x, lm.y, catalog, images)) return;
-  const colors = { "broken-fence": "#8b6914", "clearance-notice": "#d4c4a0" };
+  const colors = {
+    "broken-fence": "#8b6914",
+    "clearance-notice": "#d4c4a0",
+    "glow-mushroom-cluster": "#88ffcc",
+    "sawmill-debris": "#a07040",
+  };
   ctx.fillStyle = colors[lm.type] || "#888";
+  if (lm.type === "glow-mushroom-cluster") {
+    ctx.beginPath();
+    ctx.arc(lm.x, lm.y, 28, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "rgba(180,255,220,0.25)";
+    ctx.beginPath();
+    ctx.arc(lm.x, lm.y, 55, 0, Math.PI * 2);
+    ctx.fill();
+    return;
+  }
   ctx.fillRect(lm.x - 20, lm.y - 30, 40, 60);
 }
 
@@ -219,7 +242,10 @@ export function drawDefenderEntity(ctx, d, catalog, bob = 0, atlas = null) {
 }
 
 export function drawEnemyEntity(ctx, e, catalog, bob = 0, atlas = null) {
-  const spriteId = e.stats?.sprite;
+  let spriteId = e.stats?.sprite;
+  if (e.stats?.damagedSprite && e.hp < e.maxHp * 0.5) {
+    spriteId = e.stats.damagedSprite;
+  }
   const yOff = e.flying ? Math.sin(bob * 2) * 5 : Math.sin(bob) * 3;
   if (spriteId && drawEntitySprite(ctx, spriteId, e.x, e.y + (e.flying ? yOff : 0), catalog, atlas, bob, e.flash)) {
     const w = e.stats.width;
@@ -246,4 +272,22 @@ export function drawHeartwoodGate(ctx) {
   ctx.fillStyle = "#ffd765";
   ctx.font = "bold 28px system-ui";
   ctx.fillText("♥", 28, 520);
+}
+
+export function drawDarknessOverlay(ctx, level, defenders) {
+  ctx.save();
+  ctx.fillStyle = "rgba(4,8,18,0.72)";
+  ctx.fillRect(0, 0, WORLD_W, WORLD_H);
+  ctx.globalCompositeOperation = "destination-out";
+  for (const src of glowSources(level, defenders)) {
+    const g = ctx.createRadialGradient(src.x, src.y, 0, src.x, src.y, src.r);
+    g.addColorStop(0, "rgba(255,255,255,0.95)");
+    g.addColorStop(0.55, "rgba(255,255,255,0.35)");
+    g.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(src.x, src.y, src.r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
 }

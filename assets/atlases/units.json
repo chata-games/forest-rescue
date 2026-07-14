@@ -25,33 +25,63 @@
       "w": 128,
       "h": 128
     },
-    "logger-idle": {
+    "firefly-beacon-idle": {
       "x": 0,
       "y": 128,
       "w": 128,
       "h": 128
     },
-    "surveyor-idle": {
+    "mushroom-shaman-idle": {
       "x": 128,
       "y": 128,
       "w": 128,
       "h": 128
     },
-    "chainsaw-brute-idle": {
+    "logger-idle": {
       "x": 256,
       "y": 128,
       "w": 128,
       "h": 128
     },
-    "bulldozer-idle": {
+    "surveyor-idle": {
       "x": 384,
       "y": 128,
       "w": 128,
       "h": 128
     },
-    "buzzsaw-drone-idle": {
+    "chainsaw-brute-idle": {
       "x": 0,
       "y": 256,
+      "w": 128,
+      "h": 128
+    },
+    "bulldozer-idle": {
+      "x": 128,
+      "y": 256,
+      "w": 128,
+      "h": 128
+    },
+    "buzzsaw-drone-idle": {
+      "x": 256,
+      "y": 256,
+      "w": 128,
+      "h": 128
+    },
+    "poacher-idle": {
+      "x": 384,
+      "y": 256,
+      "w": 128,
+      "h": 128
+    },
+    "the-grinder-idle": {
+      "x": 0,
+      "y": 384,
+      "w": 128,
+      "h": 128
+    },
+    "the-grinder-damaged": {
+      "x": 128,
+      "y": 384,
       "w": 128,
       "h": 128
     }

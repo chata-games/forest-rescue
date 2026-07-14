@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "04-mushroom-hollow",
+  "name": "Mushroom Hollow",
+  "seed": "heartwood-mushroom-v1",
+  "biome": "mushroom-hollow",
+  "learningGoal": "light-management",
+  "topology": {
+    "archetype": "single-s-curve",
+    "entrances": 1,
+    "exits": 1
+  },
+  "targets": {
+    "pathLength": 1900,
+    "pathDensity": 0.4,
+    "ringCount": 9,
+    "difficulty": 0.52,
+    "durationMinutes": 10
+  },
+  "constraints": {
+    "pathWidth": 92,
+    "minimumTurnRadius": 110,
+    "minimumParallelGap": 170
+  },
+  "ringRoles": ["frontline", "chokepoint", "support", "long-range", "gate-defense"],
+  "waves": {
+    "count": 10,
+    "allowedEnemies": ["logger", "poacher"],
+    "budgetCurve": "moderate"
+  },
+  "landmarks": ["glow-mushroom-cluster"],
+  "unlocks": ["firefly-beacon", "mushroom-shaman"],
+  "levelModifiers": ["darkness"],
+  "spellUnlock": null,
+  "bossId": null,
+  "placementRules": {
+    "onPathDefenders": ["thornvine-bramble"]
+  }
+}

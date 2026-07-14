@@ -6,6 +6,8 @@ const LEVELS = [
   { id: "01-meadows-edge", name: "Meadow's Edge", x: 0.12, y: 0.72, unlocks: ["sprig-sentinel", "thornvine-bramble"] },
   { id: "02-old-stump-crossroads", name: "Old Stump Crossroads", x: 0.28, y: 0.58, unlocks: ["wisp-willow"] },
   { id: "03-whispering-river", name: "Whispering River", x: 0.44, y: 0.48, unlocks: ["dewdrop-nymph"] },
+  { id: "04-mushroom-hollow", name: "Mushroom Hollow", x: 0.58, y: 0.38, unlocks: ["firefly-beacon", "mushroom-shaman"] },
+  { id: "05-sawmill-clearing", name: "Sawmill Clearing", x: 0.72, y: 0.32, unlocks: [], spellUnlock: "root-snare" },
 ];
 
 export async function initCampaign(dom) {
@@ -90,7 +92,9 @@ export async function initCampaign(dom) {
     const level = await loadLevel(levelId);
     const levelIndex = LEVELS.findIndex((l) => l.id === levelId);
     const cumulativeUnlocks = LEVELS.slice(0, levelIndex + 1).flatMap((l) => l.unlocks);
+    const spellUnlock = LEVELS.slice(0, levelIndex + 1).map((l) => l.spellUnlock).filter(Boolean).at(-1);
     level.unlocks = [...new Set([...(level.unlocks || []), ...cumulativeUnlocks])];
+    if (spellUnlock) level.spellUnlock = spellUnlock;
     campaignScreen?.classList.add("hidden");
     gameScreen?.classList.remove("hidden");
     if (levelTitle) levelTitle.textContent = level.name || levelId;

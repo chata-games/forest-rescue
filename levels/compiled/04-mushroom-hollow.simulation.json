@@ -1,0 +1,45 @@
+{
+  "levelId": "04-mushroom-hollow",
+  "results": {
+    "cheapest-dps": {
+      "bot": "cheapest-dps",
+      "won": true,
+      "hearts": 4,
+      "mana": 999,
+      "ticks": 13890,
+      "defendersPlaced": 9
+    },
+    "best-coverage": {
+      "bot": "best-coverage",
+      "won": true,
+      "hearts": 3,
+      "mana": 999,
+      "ticks": 15363,
+      "defendersPlaced": 9
+    },
+    "upgrade-first": {
+      "bot": "upgrade-first",
+      "won": true,
+      "hearts": 5,
+      "mana": 999,
+      "ticks": 12433,
+      "defendersPlaced": 9
+    },
+    "defensive-gate": {
+      "bot": "defensive-gate",
+      "won": false,
+      "hearts": 2,
+      "mana": 999,
+      "ticks": 28799,
+      "defendersPlaced": 9
+    },
+    "anti-air-priority": {
+      "bot": "anti-air-priority",
+      "won": true,
+      "hearts": 1,
+      "mana": 999,
+      "ticks": 13794,
+      "defendersPlaced": 9
+    }
+  }
+}

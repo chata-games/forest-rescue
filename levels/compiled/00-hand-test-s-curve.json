@@ -8,6 +8,8 @@
   "unlocks": [
     "sprig-sentinel"
   ],
+  "spellUnlock": null,
+  "bossId": null,
   "startingMana": 150,
   "maxHearts": 5,
   "levelModifiers": [],

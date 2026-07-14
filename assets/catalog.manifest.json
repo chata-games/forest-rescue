@@ -113,6 +113,61 @@
       "sourceHash": "c327daf3cb24fe58"
     },
     {
+      "id": "firefly-beacon-idle",
+      "file": "sprites/defenders/firefly-beacon-idle.png",
+      "promptFile": "prompts/firefly-beacon-idle.md",
+      "references": [
+        "docs/tower-defense-concept/art/towers-1.png"
+      ],
+      "nativeSize": [
+        256,
+        256
+      ],
+      "drawSize": [
+        74,
+        74
+      ],
+      "anchor": [
+        0.5,
+        0.82
+      ],
+      "shadowRadius": 20,
+      "tags": [
+        "defender",
+        "support",
+        "light",
+        "tier-1"
+      ],
+      "sourceHash": "cac306ab82cace6e"
+    },
+    {
+      "id": "mushroom-shaman-idle",
+      "file": "sprites/defenders/mushroom-shaman-idle.png",
+      "promptFile": "prompts/mushroom-shaman-idle.md",
+      "references": [
+        "docs/tower-defense-concept/art/towers-2.png"
+      ],
+      "nativeSize": [
+        256,
+        256
+      ],
+      "drawSize": [
+        78,
+        78
+      ],
+      "anchor": [
+        0.5,
+        0.82
+      ],
+      "shadowRadius": 22,
+      "tags": [
+        "defender",
+        "poison",
+        "tier-1"
+      ],
+      "sourceHash": "fcb33abb659efacb"
+    },
+    {
       "id": "logger-idle",
       "file": "sprites/enemies/logger-idle.png",
       "promptFile": "prompts/logger-idle.md",
@@ -253,6 +308,91 @@
       "sourceHash": "2f861094282a3c56"
     },
     {
+      "id": "poacher-idle",
+      "file": "sprites/enemies/poacher-idle.png",
+      "promptFile": "prompts/poacher-idle.md",
+      "references": [
+        "docs/tower-defense-concept/art/enemies-1.png"
+      ],
+      "nativeSize": [
+        256,
+        256
+      ],
+      "drawSize": [
+        52,
+        66
+      ],
+      "anchor": [
+        0.5,
+        0.9
+      ],
+      "shadowRadius": 18,
+      "tags": [
+        "enemy",
+        "crew",
+        "ground",
+        "cloaked"
+      ],
+      "sourceHash": "54942c3b9ca85321"
+    },
+    {
+      "id": "the-grinder-idle",
+      "file": "sprites/enemies/the-grinder-idle.png",
+      "promptFile": "prompts/the-grinder-idle.md",
+      "references": [
+        "docs/tower-defense-concept/art/enemies-2.png",
+        "sprites/enemies/bulldozer-idle.png"
+      ],
+      "nativeSize": [
+        256,
+        256
+      ],
+      "drawSize": [
+        96,
+        80
+      ],
+      "anchor": [
+        0.5,
+        0.88
+      ],
+      "shadowRadius": 28,
+      "tags": [
+        "enemy",
+        "machine",
+        "ground",
+        "boss"
+      ],
+      "sourceHash": "1f520076ac19898b"
+    },
+    {
+      "id": "the-grinder-damaged",
+      "file": "sprites/enemies/the-grinder-damaged.png",
+      "promptFile": "prompts/the-grinder-damaged.md",
+      "references": [
+        "sprites/enemies/the-grinder-idle.png"
+      ],
+      "nativeSize": [
+        256,
+        256
+      ],
+      "drawSize": [
+        96,
+        80
+      ],
+      "anchor": [
+        0.5,
+        0.88
+      ],
+      "shadowRadius": 28,
+      "tags": [
+        "enemy",
+        "machine",
+        "ground",
+        "boss"
+      ],
+      "sourceHash": "0f6bbb224bcb119e"
+    },
+    {
       "id": "material-grass",
       "file": "materials/grass-tile.png",
       "promptFile": "prompts/material-grass.md",
@@ -277,6 +417,58 @@
         "meadow-edge"
       ],
       "sourceHash": "dd613deef516055a"
+    },
+    {
+      "id": "material-mushroom-floor",
+      "file": "materials/mushroom-floor.png",
+      "promptFile": "prompts/material-mushroom-floor.md",
+      "references": [
+        "docs/tower-defense-concept/art/gameplay-mockup.png"
+      ],
+      "nativeSize": [
+        128,
+        128
+      ],
+      "drawSize": [
+        128,
+        128
+      ],
+      "anchor": [
+        0,
+        0
+      ],
+      "tags": [
+        "material",
+        "tileable",
+        "mushroom-hollow"
+      ],
+      "sourceHash": "1dbfb3fc131b658e"
+    },
+    {
+      "id": "material-sawmill-floor",
+      "file": "materials/sawmill-floor.png",
+      "promptFile": "prompts/material-sawmill-floor.md",
+      "references": [
+        "docs/tower-defense-concept/art/gameplay-mockup.png"
+      ],
+      "nativeSize": [
+        128,
+        128
+      ],
+      "drawSize": [
+        128,
+        128
+      ],
+      "anchor": [
+        0,
+        0
+      ],
+      "tags": [
+        "material",
+        "tileable",
+        "sawmill"
+      ],
+      "sourceHash": "11b9fdaab587a130"
     },
     {
       "id": "material-path-interior",
@@ -353,6 +545,57 @@
         "meadow-edge"
       ],
       "sourceHash": "95008fe822283ef4"
+    },
+    {
+      "id": "landmark-glow-mushroom",
+      "file": "decorations/glow-mushroom-cluster.png",
+      "promptFile": "prompts/landmark-glow-mushroom.md",
+      "references": [
+        "docs/tower-defense-concept/art/gameplay-mockup.png"
+      ],
+      "nativeSize": [
+        256,
+        256
+      ],
+      "drawSize": [
+        88,
+        88
+      ],
+      "anchor": [
+        0.5,
+        0.88
+      ],
+      "tags": [
+        "landmark",
+        "mushroom-hollow",
+        "light"
+      ],
+      "sourceHash": "f68a2510dd3d277e"
+    },
+    {
+      "id": "landmark-sawmill-debris",
+      "file": "decorations/sawmill-debris.png",
+      "promptFile": "prompts/landmark-sawmill-debris.md",
+      "references": [
+        "decorations/broken-fence.png"
+      ],
+      "nativeSize": [
+        256,
+        256
+      ],
+      "drawSize": [
+        92,
+        92
+      ],
+      "anchor": [
+        0.5,
+        0.9
+      ],
+      "tags": [
+        "landmark",
+        "sawmill"
+      ],
+      "sourceHash": "babea11585f5ad7e"
     }
   ]
 }

@@ -1,4 +1,5 @@
 import { getDefender } from "../content/defenders.js";
+import { canTargetEnemy, fireflyBuff } from "../level/light.js";
 
 export class DefenderEntity {
   constructor(ringId, typeId, ring, stats) {
@@ -19,12 +20,17 @@ export class DefenderEntity {
 
   update(dt, game) {
     this.flash = Math.max(0, this.flash - dt);
-    this.cooldown -= dt;
-    if (this.stats.blocksPath || this.cooldown > 0) return;
+    if (this.stats.supportOnly || this.stats.blocksPath || this.cooldown > 0) return;
 
     const target = findTarget(this, game);
     if (target) {
-      game.projectiles.push(game.createProjectile(this, target));
+      const opts = {};
+      if (this.stats.poisonDps) {
+        opts.poisonDps = this.stats.poisonDps;
+        opts.poisonDuration = this.stats.poisonDuration;
+        opts.color = "#b8ff70";
+      }
+      game.projectiles.push(game.createProjectile(this, target, opts));
       this.cooldown = this.cooldownMax;
       game.audio.shoot();
     }
@@ -32,13 +38,16 @@ export class DefenderEntity {
 }
 
 function findTarget(defender, game) {
+  const { rangeMul } = fireflyBuff(defender, game.defenders);
+  const range = defender.range * rangeMul;
   let best = null;
   let bestS = -1;
   for (const enemy of game.enemies) {
     if (enemy.dead) continue;
     if (enemy.flying && !defender.stats.tags.includes("anti-air")) continue;
+    if (!canTargetEnemy(defender, enemy, game.level, game.defenders)) continue;
     const d = Math.hypot(enemy.x - defender.x, enemy.y - defender.y);
-    if (d > defender.range) continue;
+    if (d > range) continue;
     if (enemy.pathProgress > bestS) {
       bestS = enemy.pathProgress;
       best = enemy;
