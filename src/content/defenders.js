@@ -80,6 +80,20 @@ export const DEFENDERS = {
     poisonDps: 10,
     poisonDuration: 4,
   },
+  "mossback-golem": {
+    id: "mossback-golem",
+    name: "Mossback Golem",
+    cost: 100,
+    range: 115,
+    damage: 46,
+    cooldown: 1.35,
+    hp: 290,
+    tags: ["forest", "heavy", "armor-pierce"],
+    placement: "beside-path",
+    sprite: "mossback-golem-idle",
+    projectile: "stone-fist",
+    armorPierce: 3,
+  },
 };
 
 export function getDefender(id) {

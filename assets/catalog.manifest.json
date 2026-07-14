@@ -168,6 +168,34 @@
       "sourceHash": "fcb33abb659efacb"
     },
     {
+      "id": "mossback-golem-idle",
+      "file": "sprites/defenders/mossback-golem-idle.png",
+      "promptFile": "prompts/mossback-golem-idle.md",
+      "references": [
+        "docs/tower-defense-concept/art/towers-2.png"
+      ],
+      "nativeSize": [
+        256,
+        256
+      ],
+      "drawSize": [
+        84,
+        84
+      ],
+      "anchor": [
+        0.5,
+        0.85
+      ],
+      "shadowRadius": 26,
+      "tags": [
+        "defender",
+        "forest",
+        "heavy",
+        "tier-2"
+      ],
+      "sourceHash": "244dc5fbbd4a85e1"
+    },
+    {
       "id": "logger-idle",
       "file": "sprites/enemies/logger-idle.png",
       "promptFile": "prompts/logger-idle.md",
@@ -447,6 +475,63 @@
       "sourceHash": "89f624066da52381"
     },
     {
+      "id": "tunnel-borer-idle",
+      "file": "sprites/enemies/tunnel-borer-idle.png",
+      "promptFile": "prompts/tunnel-borer-idle.md",
+      "references": [
+        "docs/tower-defense-concept/art/enemies-2.png"
+      ],
+      "nativeSize": [
+        256,
+        256
+      ],
+      "drawSize": [
+        58,
+        52
+      ],
+      "anchor": [
+        0.5,
+        0.88
+      ],
+      "shadowRadius": 18,
+      "tags": [
+        "enemy",
+        "machine",
+        "ground",
+        "burrows"
+      ],
+      "sourceHash": "f73468ba166a4007"
+    },
+    {
+      "id": "excavator-idle",
+      "file": "sprites/enemies/excavator-idle.png",
+      "promptFile": "prompts/excavator-idle.md",
+      "references": [
+        "docs/tower-defense-concept/art/enemies-2.png",
+        "sprites/enemies/bulldozer-idle.png"
+      ],
+      "nativeSize": [
+        256,
+        256
+      ],
+      "drawSize": [
+        88,
+        72
+      ],
+      "anchor": [
+        0.5,
+        0.9
+      ],
+      "shadowRadius": 28,
+      "tags": [
+        "enemy",
+        "machine",
+        "ground",
+        "mini-boss"
+      ],
+      "sourceHash": "98c0ae5950c7e7dd"
+    },
+    {
       "id": "material-grass",
       "file": "materials/grass-tile.png",
       "promptFile": "prompts/material-grass.md",
@@ -549,6 +634,32 @@
         "ashfall-scar"
       ],
       "sourceHash": "a084d2421dce9231"
+    },
+    {
+      "id": "material-boulder-floor",
+      "file": "materials/boulder-floor.png",
+      "promptFile": "prompts/material-boulder-floor.md",
+      "references": [
+        "docs/tower-defense-concept/art/gameplay-mockup.png"
+      ],
+      "nativeSize": [
+        128,
+        128
+      ],
+      "drawSize": [
+        128,
+        128
+      ],
+      "anchor": [
+        0,
+        0
+      ],
+      "tags": [
+        "material",
+        "tileable",
+        "boulder-pass"
+      ],
+      "sourceHash": "4c3ba0e2697c916a"
     },
     {
       "id": "material-path-interior",

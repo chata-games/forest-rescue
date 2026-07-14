@@ -9,6 +9,7 @@ const LEVELS = [
   { id: "04-mushroom-hollow", name: "Mushroom Hollow", x: 0.58, y: 0.38, unlocks: ["firefly-beacon", "mushroom-shaman"] },
   { id: "05-sawmill-clearing", name: "Sawmill Clearing", x: 0.72, y: 0.32, unlocks: [], spellUnlock: "root-snare" },
   { id: "06-ashfall-scar", name: "Ashfall Scar", x: 0.82, y: 0.42, unlocks: [], spellUnlock: "cleansing-rain" },
+  { id: "07-boulder-pass", name: "Boulder Pass", x: 0.9, y: 0.55, unlocks: ["mossback-golem"] },
 ];
 
 export async function initCampaign(dom) {

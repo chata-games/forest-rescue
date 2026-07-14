@@ -63,6 +63,17 @@ export const BIOMES = {
     waterColor: null,
     grassMaterial: "material-ashfall-floor",
   },
+  "boulder-pass": {
+    id: "boulder-pass",
+    name: "Boulder Pass",
+    baseColor: "#3a3830",
+    accentColor: "#6a6458",
+    pathColor: "#a09078",
+    pathEdgeColor: "#6a5e4a",
+    noiseTint: "rgba(120,110,90,0.16)",
+    waterColor: null,
+    grassMaterial: "material-boulder-floor",
+  },
 };
 
 export function getBiome(id) {

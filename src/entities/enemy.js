@@ -28,6 +28,8 @@ export class EnemyEntity {
     this.stealCooldown = 0;
     this.rootTime = 0;
     this.igniteCooldown = 0;
+    this.burrowTime = 0;
+    this.burrowCooldown = stats.burrow ? 1.6 : 0;
     this.x = 0;
     this.y = 0;
     this.facing = -1;
@@ -82,6 +84,8 @@ export class EnemyEntity {
       }
     }
 
+    if (this._updateBurrow(dt, game)) return;
+
     const blocker = this.stats.ignoresBlockers ? null : findBlocker(this, game);
     if (blocker) {
       this.attackTimer -= dt;
@@ -118,8 +122,38 @@ export class EnemyEntity {
   }
 
   isVisible(level, defenders) {
+    if (this.burrowTime > 0) return true;
     if (!this.stats.cloaked) return true;
     return inGlow(this.x, this.y, glowSources(level, defenders));
+  }
+
+  isTargetable() {
+    return this.burrowTime <= 0;
+  }
+
+  _updateBurrow(dt, game) {
+    const cfg = this.stats.burrow;
+    if (!cfg) return false;
+
+    this.burrowCooldown = Math.max(0, this.burrowCooldown - dt);
+
+    if (this.burrowTime > 0) {
+      this.burrowTime -= dt;
+      this.s += this.speed * 0.42 * dt;
+      this._syncPosition();
+      return true;
+    }
+
+    if (this.burrowCooldown <= 0 && this.s > 60 && this.s < this.path.length - 100) {
+      this.s = Math.min(this.path.length - 20, this.s + cfg.jumpDistance);
+      this.burrowTime = cfg.duration;
+      this.burrowCooldown = cfg.cooldown;
+      this._syncPosition();
+      game.onEnemyBurrow?.(this);
+      return true;
+    }
+
+    return false;
   }
 
   applyRoot(duration) {

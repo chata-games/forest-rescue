@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "id": "07-boulder-pass",
+  "name": "Boulder Pass",
+  "seed": "heartwood-boulder-v1",
+  "biome": "boulder-pass",
+  "learningGoal": "burrow-counterplay",
+  "topology": {
+    "archetype": "switchbacks",
+    "entrances": 1,
+    "exits": 1
+  },
+  "targets": {
+    "pathLength": 1700,
+    "pathDensity": 0.42,
+    "ringCount": 9,
+    "difficulty": 0.56,
+    "durationMinutes": 10
+  },
+  "startingMana": 145,
+  "constraints": {
+    "pathWidth": 92,
+    "minimumTurnRadius": 110,
+    "minimumParallelGap": 160
+  },
+  "ringRoles": ["frontline", "chokepoint", "support", "gate-defense"],
+  "waves": {
+    "count": 10,
+    "allowedEnemies": ["tunnel-borer"],
+    "budgetCurve": "moderate"
+  },
+  "landmarks": [],
+  "unlocks": ["mossback-golem"],
+  "bossId": "excavator",
+  "waveOverrides": [
+    {
+      "waveIndex": 9,
+      "enemies": [
+        { "type": "tunnel-borer", "count": 2 },
+        { "type": "excavator", "count": 1 }
+      ],
+      "delayBefore": 2.5,
+      "delayAfter": 0,
+      "spawnInterval": 0.85
+    }
+  ]
+}

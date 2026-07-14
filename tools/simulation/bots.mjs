@@ -3,6 +3,7 @@ import { createRng } from "../../src/engine/rng.js";
 import { getDefender } from "../../src/content/defenders.js";
 import { getEnemy } from "../../src/content/enemies.js";
 import { getSpell } from "../../src/content/spells.js";
+import { applyArmor } from "../../src/combat/damage.js";
 import { pathsFromLevel } from "../../src/level/path.js";
 import { ringsFromLevel } from "../../src/level/rings.js";
 import { canTargetEnemy, fireflyBuff, hasDarkness } from "../../src/level/light.js";
@@ -36,6 +37,7 @@ const CAMPAIGN_UNLOCKS = {
   "04-mushroom-hollow": ["sprig-sentinel", "thornvine-bramble", "wisp-willow", "dewdrop-nymph", "firefly-beacon", "mushroom-shaman"],
   "05-sawmill-clearing": ["sprig-sentinel", "thornvine-bramble", "wisp-willow", "dewdrop-nymph", "firefly-beacon", "mushroom-shaman"],
   "06-ashfall-scar": ["sprig-sentinel", "thornvine-bramble", "wisp-willow", "dewdrop-nymph", "firefly-beacon", "mushroom-shaman"],
+  "07-boulder-pass": ["sprig-sentinel", "thornvine-bramble", "wisp-willow", "dewdrop-nymph", "firefly-beacon", "mushroom-shaman", "mossback-golem"],
 };
 
 export function runSimulation(level, botName = "cheapest-dps", options = {}) {
@@ -98,7 +100,11 @@ export function runSimulation(level, botName = "cheapest-dps", options = {}) {
       const sprigs = state.defenders.filter((d) => d.typeId === "sprig-sentinel").length;
       const wisps = state.defenders.filter((d) => d.typeId === "wisp-willow").length;
       const shamans = state.defenders.filter((d) => d.typeId === "mushroom-shaman").length;
-      if (unlocked.has("mushroom-shaman") && sprigs >= 3 && shamans < 2) typeId = "mushroom-shaman";
+      const golems = state.defenders.filter((d) => d.typeId === "mossback-golem").length;
+      if (unlocked.has("mossback-golem") && level.bossId === "excavator") {
+        if (state.wave >= 8 && golems < 2) typeId = "mossback-golem";
+        else if (sprigs < 5) typeId = "sprig-sentinel";
+      } else if (unlocked.has("mushroom-shaman") && sprigs >= 3 && shamans < 2) typeId = "mushroom-shaman";
       else if (unlocked.has("wisp-willow") && sprigs >= 2 && wisps < 2) typeId = "wisp-willow";
     }
 
@@ -262,6 +268,9 @@ export function runSimulation(level, botName = "cheapest-dps", options = {}) {
           cloaked: stats.cloaked || false,
           ignoresBlockers: stats.ignoresBlockers || false,
           boss: stats.boss || false,
+          burrow: stats.burrow || null,
+          burrowTime: 0,
+          burrowCooldown: stats.burrow ? 1.6 : 0,
           shrapnelTimer: 2,
           rootTime: 0,
           poisonTime: 0,
@@ -307,6 +316,26 @@ export function runSimulation(level, botName = "cheapest-dps", options = {}) {
         continue;
       }
 
+      if (enemy.burrow) {
+        enemy.burrowCooldown = Math.max(0, (enemy.burrowCooldown || 0) - STEP);
+        if (enemy.burrowTime > 0) {
+          enemy.burrowTime -= STEP;
+          enemy.s += enemy.speed * 0.42 * STEP;
+          const pos = enemy.path.positionAt(Math.min(enemy.s, enemy.path.length));
+          enemy.x = pos.x;
+          enemy.y = pos.y;
+          enemy.pathProgress = enemy.path.length > 0 ? enemy.s / enemy.path.length : 0;
+        } else if (enemy.burrowCooldown <= 0 && enemy.s > 60 && enemy.s < enemy.path.length - 100) {
+          enemy.s = Math.min(enemy.path.length - 20, enemy.s + enemy.burrow.jumpDistance);
+          enemy.burrowTime = enemy.burrow.duration;
+          enemy.burrowCooldown = enemy.burrow.cooldown;
+          const pos = enemy.path.positionAt(Math.min(enemy.s, enemy.path.length));
+          enemy.x = pos.x;
+          enemy.y = pos.y;
+          enemy.pathProgress = enemy.path.length > 0 ? enemy.s / enemy.path.length : 0;
+        }
+      }
+
       let blocked = false;
       if (!enemy.ignoresBlockers) {
         for (const d of state.defenders) {
@@ -315,7 +344,7 @@ export function runSimulation(level, botName = "cheapest-dps", options = {}) {
           if (dd < 50 && getDefender(d.typeId)?.blocksPath) blocked = true;
         }
       }
-      if (!blocked) {
+      if (!blocked && !(enemy.burrowTime > 0)) {
         if (enemy.flying && enemy.airLane) {
           const laneLen = Math.hypot(
             enemy.airLane.to.x - enemy.airLane.from.x,
@@ -359,13 +388,16 @@ export function runSimulation(level, botName = "cheapest-dps", options = {}) {
       const target = state.enemies
         .filter((e) => {
           if (e.dead) return false;
+          if (e.burrowTime > 0) return false;
           if (e.flying && defStats && !defStats.tags.includes("anti-air")) return false;
           if (!canTargetEnemy(d, { x: e.x, y: e.y, stats: getEnemy(e.type) }, level, state.defenders)) return false;
           return Math.hypot(e.x - d.x, e.y - d.y) <= range;
         })
         .sort((a, b) => b.x - a.x)[0];
       if (target) {
-        target.hp -= d.damage * damageMul;
+        const defFull = getDefender(d.typeId);
+        const dmg = applyArmor(d.damage * damageMul, getEnemy(target.type), defFull || {});
+        target.hp -= dmg;
         d.cooldown = d.cooldownMax;
         if (d.typeId === "dewdrop-nymph" && fireState) {
           douseNeighbors(d.ringId, fireState, fireClock);

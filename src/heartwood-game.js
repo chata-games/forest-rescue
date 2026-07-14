@@ -160,6 +160,9 @@ export function initHeartwoodGame(dom, level, options = {}) {
         state.mana = Math.min(999, state.mana + (enemy.stats.manaBounty || 8));
       }
     },
+    onEnemyBurrow(enemy) {
+      burst(state, enemy.x, enemy.y, "#b8a070", 14);
+    },
     onLeak() {
       state.hearts -= 1;
       state.shake = 0.2;
@@ -221,7 +224,10 @@ export function initHeartwoodGame(dom, level, options = {}) {
     state.bannerTimer = 2;
     const wave = waves[state.wave - 1];
     if (wave?.scripted && (wave.bossId || level.bossId)) {
-      waveBanner.textContent = "The Grinder approaches!";
+      const bossId = wave.bossId || level.bossId;
+      waveBanner.textContent = bossId === "excavator"
+        ? "The Excavator rolls in!"
+        : "The Grinder approaches!";
     } else {
       waveBanner.textContent = `Wave ${state.wave}`;
     }

@@ -243,6 +243,23 @@ export function drawDefenderEntity(ctx, d, catalog, bob = 0, atlas = null) {
 }
 
 export function drawEnemyEntity(ctx, e, catalog, bob = 0, atlas = null) {
+  const yOff = e.flying ? Math.sin(bob * 2) * 5 : Math.sin(bob) * 3;
+  if (e.burrowTime > 0) {
+    const w = e.stats.width;
+    ctx.fillStyle = "rgba(70,55,40,0.55)";
+    ctx.beginPath();
+    ctx.ellipse(e.x, e.y + 6, w * 0.45, 12, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "rgba(180,150,110,0.45)";
+    for (let i = 0; i < 4; i++) {
+      const fx = e.x + Math.cos(bob * 3 + i * 1.6) * (w * 0.25);
+      const fy = e.y - 6 - Math.abs(Math.sin(bob * 4 + i)) * 10;
+      ctx.beginPath();
+      ctx.arc(fx, fy, 3 + (i % 2), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    return;
+  }
   let spriteId = e.stats?.sprite;
   if (e.stats?.damagedSprite && e.hp < e.maxHp * 0.5) {
     spriteId = e.stats.damagedSprite;

@@ -11,6 +11,8 @@
     "seed": { "type": "string", "minLength": 1 },
     "biome": { "type": "string" },
     "name": { "type": "string" },
+    "startingMana": { "type": "number", "minimum": 80 },
+    "maxHearts": { "type": "integer", "minimum": 1, "maximum": 10 },
     "learningGoal": { "type": "string" },
     "topology": {
       "type": "object",

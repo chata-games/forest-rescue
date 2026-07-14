@@ -23,6 +23,8 @@ export const ENEMY_THREAT = {
   poacher: 16,
   arsonist: 18,
   "diesel-hauler": 20,
+  "tunnel-borer": 16,
+  excavator: 0,
   "the-grinder": 0,
 };
 
@@ -238,19 +240,26 @@ export function generateWaves(intent) {
     if (intent.learningGoal === "fire-management" && i >= 4) {
       allowed = pool.includes("arsonist") ? ["arsonist", "diesel-hauler"] : pool;
     }
+    if (intent.learningGoal === "burrow-counterplay" && i === 2) {
+      allowed = pool.includes("tunnel-borer") ? ["tunnel-borer"] : pool;
+    }
+    if (intent.learningGoal === "burrow-counterplay" && i >= 5) {
+      allowed = pool.includes("tunnel-borer") ? ["tunnel-borer"] : pool;
+    }
     let pass = 0;
     while (remaining > 0 && allowed.length) {
       const type = allowed[pass % allowed.length];
       pass += 1;
       const cost = ENEMY_THREAT[type] || 12;
-      if (cost > remaining && enemies.length) break;
+      if (cost <= 0 || (cost > remaining && enemies.length)) break;
       const count = Math.max(1, Math.floor(remaining / cost));
       const capped = Math.min(
         count,
         type === "buzzsaw-drone" ? 2
           : type === "arsonist" ? 4
             : type === "diesel-hauler" ? 2
-              : 6,
+              : type === "tunnel-borer" ? 6
+                : 6,
       );
       enemies.push({ type, count: capped });
       remaining -= cost * capped;
@@ -400,8 +409,8 @@ export function compileIntent(intent, options = {}) {
     unlocks: intent.unlocks || [],
     spellUnlock: intent.spellUnlock || null,
     bossId: intent.bossId || null,
-    startingMana: 150,
-    maxHearts: 5,
+    startingMana: intent.startingMana ?? 150,
+    maxHearts: intent.maxHearts ?? 5,
     levelModifiers: intent.levelModifiers || [],
     paths: [best.path.toJSON()],
     rings: best.rings,

@@ -1379,6 +1379,10 @@
         {
           "type": "diesel-hauler",
           "count": 2
+        },
+        {
+          "type": "arsonist",
+          "count": 1
         }
       ],
       "delayBefore": 1.5,

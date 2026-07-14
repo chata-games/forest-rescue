@@ -1,3 +1,5 @@
+import { applyArmor } from "../combat/damage.js";
+
 export class Projectile {
   constructor(x, y, target, damage, options = {}) {
     this.x = x;
@@ -11,10 +13,11 @@ export class Projectile {
     this.r = options.r || 9;
     this.poisonDps = options.poisonDps || 0;
     this.poisonDuration = options.poisonDuration || 0;
+    this.armorPierce = options.armorPierce || 0;
   }
 
   update(dt, game) {
-    if (!this.target || this.target.dead) {
+    if (!this.target || this.target.dead || !this.target.isTargetable?.()) {
       this.dead = true;
       return;
     }
@@ -22,14 +25,15 @@ export class Projectile {
     const dy = this.target.y - this.y;
     const d = Math.hypot(dx, dy);
     if (d < this.r + 12) {
-      this.target.hp -= this.damage;
+      const dmg = applyArmor(this.damage, this.target.stats, { armorPierce: this.armorPierce });
+      this.target.hp -= dmg;
       this.target.flash = 0.1;
       if (this.poisonDps > 0) {
         this.target.poisonDps = Math.max(this.target.poisonDps || 0, this.poisonDps);
         this.target.poisonTime = Math.max(this.target.poisonTime || 0, this.poisonDuration);
       }
       this.dead = true;
-      game.onEnemyHit(this.target, this.damage);
+      game.onEnemyHit(this.target, dmg);
       return;
     }
     const step = this.speed * dt;

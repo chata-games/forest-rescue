@@ -34,6 +34,7 @@ export class DefenderEntity {
       if (this.stats.tags?.includes("douses-fire") && game.fireState) {
         douseNeighbors(this.ringId, game.fireState, game.fireClock || 0);
       }
+      if (this.stats.armorPierce) opts.armorPierce = this.stats.armorPierce;
       game.projectiles.push(game.createProjectile(this, target, opts));
       this.cooldown = this.cooldownMax;
       game.audio.shoot();
@@ -49,6 +50,7 @@ function findTarget(defender, game) {
   let bestS = -1;
   for (const enemy of game.enemies) {
     if (enemy.dead) continue;
+    if (enemy.burrowTime > 0 || enemy.isTargetable?.() === false) continue;
     if (enemy.flying && !defender.stats.tags.includes("anti-air")) continue;
     if (!canTargetEnemy(defender, enemy, game.level, game.defenders)) continue;
     const d = Math.hypot(enemy.x - defender.x, enemy.y - defender.y);

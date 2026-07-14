@@ -37,63 +37,81 @@
       "w": 128,
       "h": 128
     },
-    "logger-idle": {
+    "mossback-golem-idle": {
       "x": 256,
+      "y": 128,
+      "w": 128,
+      "h": 128
+    },
+    "logger-idle": {
+      "x": 384,
       "y": 128,
       "w": 128,
       "h": 128
     },
     "surveyor-idle": {
-      "x": 384,
-      "y": 128,
+      "x": 0,
+      "y": 256,
       "w": 128,
       "h": 128
     },
     "chainsaw-brute-idle": {
-      "x": 0,
+      "x": 128,
       "y": 256,
       "w": 128,
       "h": 128
     },
     "bulldozer-idle": {
-      "x": 128,
+      "x": 256,
       "y": 256,
       "w": 128,
       "h": 128
     },
     "buzzsaw-drone-idle": {
-      "x": 256,
+      "x": 384,
       "y": 256,
       "w": 128,
       "h": 128
     },
     "poacher-idle": {
-      "x": 384,
-      "y": 256,
-      "w": 128,
-      "h": 128
-    },
-    "the-grinder-idle": {
       "x": 0,
       "y": 384,
       "w": 128,
       "h": 128
     },
-    "the-grinder-damaged": {
+    "the-grinder-idle": {
       "x": 128,
       "y": 384,
       "w": 128,
       "h": 128
     },
-    "arsonist-idle": {
+    "the-grinder-damaged": {
       "x": 256,
       "y": 384,
       "w": 128,
       "h": 128
     },
-    "diesel-hauler-idle": {
+    "arsonist-idle": {
       "x": 384,
       "y": 384,
+      "w": 128,
+      "h": 128
+    },
+    "diesel-hauler-idle": {
+      "x": 0,
+      "y": 512,
+      "w": 128,
+      "h": 128
+    },
+    "tunnel-borer-idle": {
+      "x": 128,
+      "y": 512,
+      "w": 128,
+      "h": 128
+    },
+    "excavator-idle": {
+      "x": 256,
+      "y": 512,
       "w": 128,
       "h": 128
     }
