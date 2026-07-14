@@ -19,6 +19,10 @@ Open http://localhost:8341
 - **Debug overlays** — add `?debug=1`
 - **Direct level** — `?level=01-meadows-edge`
 
+## GitHub Pages
+
+Play at https://chata-games.github.io/forest-rescue/. For the first deployment, set **Settings → Pages → Source** to **GitHub Actions**.
+
 ## Level pipeline
 
 Levels are authored as **LevelIntent** (creative brief) and compiled to **CompiledLevel** (geometry, rings, waves):
