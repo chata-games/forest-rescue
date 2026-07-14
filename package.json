@@ -4,6 +4,11 @@
   "type": "module",
   "scripts": {
     "serve": "node serve.js",
+    "prototype:mobile": "vite --config vite.prototype.config.ts",
+    "prototype:mobile:build": "tsc -p tsconfig.prototype.json --noEmit && vite build --config vite.prototype.config.ts",
+    "prototype:mobile:preview": "vite preview --config vite.prototype.config.ts",
+    "prototype:mobile:test": "vitest run --config vitest.prototype.config.ts",
+    "prototype:mobile:e2e": "playwright test --config playwright.prototype.config.ts",
     "compile": "node tools/levelgen/compile.mjs --all",
     "validate": "node tools/levelgen/validate.mjs",
     "preview": "node tools/levelgen/preview.mjs levels/compiled/01-meadows-edge.json",
@@ -16,7 +21,15 @@
     "atlas": "node tools/assets/build-atlas.mjs"
   },
   "devDependencies": {
+    "@playwright/test": "1.61.1",
+    "@types/node": "24.10.13",
     "ajv": "^8.17.1",
-    "sharp": "^0.33.5"
+    "sharp": "^0.33.5",
+    "typescript": "7.0.2",
+    "vite": "8.1.4",
+    "vitest": "4.1.10"
+  },
+  "dependencies": {
+    "phaser": "4.1.0"
   }
 }

@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
+    <meta name="theme-color" content="#0b1715" />
+    <title>Forest Rescue — Phaser mobile proof</title>
+  </head>
+  <body>
+    <main class="proof-shell">
+      <header class="proof-header">
+        <div>
+          <p class="prototype-label">Throwaway device proof · Phaser 4.1.0</p>
+          <h1>Forest Rescue mobile stack check</h1>
+        </div>
+        <output id="overall" class="overall" aria-live="polite">Waiting for WebGL…</output>
+      </header>
+
+      <section class="stage-panel" aria-labelledby="touch-heading">
+        <div class="stage-copy">
+          <h2 id="touch-heading">Touch field</h2>
+          <p>Hold one thumb on each half. Rotate to portrait and back while touching to provoke cancellation.</p>
+        </div>
+        <div id="game" class="game" aria-label="Animated Phaser test field with left and right touch zones"></div>
+      </section>
+
+      <section class="controls" aria-label="Manual device checks">
+        <button id="audio-button" type="button">Resume audio + beep</button>
+        <button id="soak-button" type="button">Start 60s performance run</button>
+        <button id="copy-button" type="button" class="quiet">Copy device report</button>
+      </section>
+
+      <section class="results" aria-label="Live proof results">
+        <article>
+          <h2>Input</h2>
+          <dl>
+            <div><dt>Active</dt><dd id="active-pointers">0</dd></div>
+            <div><dt>Maximum</dt><dd id="max-pointers">0</dd></div>
+            <div><dt>Cancellation</dt><dd id="cancellations">Not seen</dd></div>
+          </dl>
+        </article>
+        <article>
+          <h2>Lifecycle</h2>
+          <dl>
+            <div><dt>Orientation</dt><dd id="orientation">—</dd></div>
+            <div><dt>Recovered</dt><dd id="orientation-recovery">Not yet</dd></div>
+            <div><dt>Background return</dt><dd id="visibility-recovery">0</dd></div>
+          </dl>
+        </article>
+        <article>
+          <h2>Media</h2>
+          <dl>
+            <div><dt>Renderer</dt><dd id="renderer">—</dd></div>
+            <div><dt>Atlas</dt><dd id="atlas">—</dd></div>
+            <div><dt>Audio</dt><dd id="audio">—</dd></div>
+          </dl>
+        </article>
+        <article>
+          <h2>Performance</h2>
+          <dl>
+            <div><dt>Run</dt><dd id="soak-progress">Not run</dd></div>
+            <div><dt>Result</dt><dd id="performance-result">—</dd></div>
+            <div><dt>Budget</dt><dd>≥50 fps · p95 ≤25ms · drops ≤5%</dd></div>
+          </dl>
+        </article>
+      </section>
+
+      <section class="event-panel" aria-labelledby="event-heading">
+        <h2 id="event-heading">Latest device events</h2>
+        <ol id="events" aria-live="polite"></ol>
+      </section>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

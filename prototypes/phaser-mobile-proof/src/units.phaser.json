@@ -1,0 +1,24 @@
+{
+  "frames": {
+    "sprig-sentinel-idle": { "frame": { "x": 0, "y": 0, "w": 128, "h": 128 }, "rotated": false, "trimmed": false },
+    "thornvine-bramble-idle": { "frame": { "x": 128, "y": 0, "w": 128, "h": 128 }, "rotated": false, "trimmed": false },
+    "wisp-willow-idle": { "frame": { "x": 256, "y": 0, "w": 128, "h": 128 }, "rotated": false, "trimmed": false },
+    "dewdrop-nymph-idle": { "frame": { "x": 384, "y": 0, "w": 128, "h": 128 }, "rotated": false, "trimmed": false },
+    "firefly-beacon-idle": { "frame": { "x": 0, "y": 128, "w": 128, "h": 128 }, "rotated": false, "trimmed": false },
+    "mushroom-shaman-idle": { "frame": { "x": 128, "y": 128, "w": 128, "h": 128 }, "rotated": false, "trimmed": false },
+    "mossback-golem-idle": { "frame": { "x": 256, "y": 128, "w": 128, "h": 128 }, "rotated": false, "trimmed": false },
+    "logger-idle": { "frame": { "x": 384, "y": 128, "w": 128, "h": 128 }, "rotated": false, "trimmed": false },
+    "surveyor-idle": { "frame": { "x": 0, "y": 256, "w": 128, "h": 128 }, "rotated": false, "trimmed": false },
+    "chainsaw-brute-idle": { "frame": { "x": 128, "y": 256, "w": 128, "h": 128 }, "rotated": false, "trimmed": false },
+    "bulldozer-idle": { "frame": { "x": 256, "y": 256, "w": 128, "h": 128 }, "rotated": false, "trimmed": false },
+    "buzzsaw-drone-idle": { "frame": { "x": 384, "y": 256, "w": 128, "h": 128 }, "rotated": false, "trimmed": false },
+    "poacher-idle": { "frame": { "x": 0, "y": 384, "w": 128, "h": 128 }, "rotated": false, "trimmed": false },
+    "the-grinder-idle": { "frame": { "x": 128, "y": 384, "w": 128, "h": 128 }, "rotated": false, "trimmed": false },
+    "the-grinder-damaged": { "frame": { "x": 256, "y": 384, "w": 128, "h": 128 }, "rotated": false, "trimmed": false },
+    "arsonist-idle": { "frame": { "x": 384, "y": 384, "w": 128, "h": 128 }, "rotated": false, "trimmed": false },
+    "diesel-hauler-idle": { "frame": { "x": 0, "y": 512, "w": 128, "h": 128 }, "rotated": false, "trimmed": false },
+    "tunnel-borer-idle": { "frame": { "x": 128, "y": 512, "w": 128, "h": 128 }, "rotated": false, "trimmed": false },
+    "excavator-idle": { "frame": { "x": 256, "y": 512, "w": 128, "h": 128 }, "rotated": false, "trimmed": false }
+  },
+  "meta": { "app": "Forest Rescue Phaser mobile proof", "image": "units.png", "scale": "1" }
+}
