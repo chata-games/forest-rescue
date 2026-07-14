@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Forest Rescue: Heartwood — Tower Defense Concept</title>
+<style>
+  :root {
+    --bg: #0b1f14;
+    --bg2: #122c1c;
+    --panel: #16351f;
+    --panel2: #1c4028;
+    --ink: #eaf6e6;
+    --ink-dim: #b9d4b4;
+    --teal: #5fe8d8;
+    --teal-dim: #2fa89b;
+    --purple: #b98aff;
+    --gold: #ffd765;
+    --orange: #ff9a4d;
+    --red: #ff694d;
+    --line: rgba(95, 232, 216, 0.18);
+    font-size: 16px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background:
+      radial-gradient(1200px 600px at 80% -10%, rgba(185,138,255,.10), transparent 60%),
+      radial-gradient(900px 500px at 10% 10%, rgba(95,232,216,.08), transparent 60%),
+      var(--bg);
+    color: var(--ink);
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    line-height: 1.6;
+  }
+  main { max-width: 1080px; margin: 0 auto; padding: 0 24px 120px; }
+  a { color: var(--teal); }
+
+  /* ---------- nav ---------- */
+  nav {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(11, 31, 20, .92);
+    backdrop-filter: blur(6px);
+    border-bottom: 1px solid var(--line);
+    padding: 10px 24px;
+    display: flex; flex-wrap: wrap; gap: 4px 18px; justify-content: center;
+    font-size: .88rem;
+  }
+  nav a { color: var(--ink-dim); text-decoration: none; padding: 2px 4px; }
+  nav a:hover { color: var(--teal); }
+
+  /* ---------- hero ---------- */
+  header.hero { text-align: center; padding: 48px 0 8px; }
+  header.hero img {
+    width: 100%; border-radius: 18px;
+    border: 1px solid var(--line);
+    box-shadow: 0 24px 60px rgba(0,0,0,.5);
+  }
+  .kicker {
+    letter-spacing: .28em; text-transform: uppercase;
+    color: var(--teal); font-size: .8rem; font-weight: 700;
+    margin-bottom: 10px;
+  }
+  h1 { font-size: clamp(2rem, 5vw, 3.2rem); line-height: 1.1; margin-bottom: 8px; }
+  h1 .sub { color: var(--purple); }
+  .tagline { color: var(--ink-dim); font-size: 1.1rem; margin-bottom: 28px; }
+
+  /* ---------- sections ---------- */
+  section { margin-top: 72px; }
+  h2 {
+    font-size: 1.7rem; margin-bottom: 6px;
+    color: var(--gold);
+    display: flex; align-items: center; gap: 12px;
+  }
+  h2::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+  .lede { color: var(--ink-dim); margin-bottom: 24px; max-width: 72ch; }
+  h3 { color: var(--teal); margin: 28px 0 10px; font-size: 1.15rem; }
+  p + p { margin-top: 12px; }
+  em { color: var(--purple); font-style: normal; font-weight: 600; }
+
+  figure { margin: 22px 0; }
+  figure img { width: 100%; border-radius: 14px; border: 1px solid var(--line); }
+  figcaption { font-size: .82rem; color: var(--ink-dim); margin-top: 8px; text-align: center; }
+
+  /* ---------- pillars ---------- */
+  .pillars { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; margin-top: 18px; }
+  .pillar {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px;
+  }
+  .pillar b { color: var(--teal); display: block; margin-bottom: 6px; }
+  .pillar span { color: var(--ink-dim); font-size: .92rem; }
+
+  /* ---------- tables ---------- */
+  .tablewrap { overflow-x: auto; margin-top: 14px; }
+  table { border-collapse: collapse; width: 100%; font-size: .9rem; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid rgba(95,232,216,.12); vertical-align: top; }
+  th { color: var(--teal); font-size: .78rem; text-transform: uppercase; letter-spacing: .08em; }
+  td b { color: var(--gold); }
+
+  /* ---------- cards ---------- */
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; margin-top: 18px; }
+  .card {
+    background: linear-gradient(160deg, var(--panel2), var(--panel));
+    border: 1px solid var(--line); border-radius: 16px; padding: 18px 18px 16px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .card .top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+  .card h4 { font-size: 1.08rem; color: var(--ink); }
+  .cost { color: var(--teal); font-weight: 700; white-space: nowrap; font-size: .95rem; }
+  .cost.enemy { color: var(--orange); }
+  .role {
+    display: inline-block; font-size: .7rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--purple); border: 1px solid rgba(185,138,255,.4); border-radius: 999px; padding: 2px 10px;
+    align-self: flex-start;
+  }
+  .role.enemy { color: var(--orange); border-color: rgba(255,154,77,.4); }
+  .role.boss { color: var(--red); border-color: rgba(255,105,77,.5); }
+  .card p { font-size: .9rem; color: var(--ink-dim); }
+  .tiers { font-size: .82rem; color: var(--ink-dim); border-top: 1px dashed rgba(95,232,216,.2); padding-top: 8px; margin-top: 4px; }
+  .tiers b { color: var(--teal); }
+  .counter { font-size: .8rem; }
+  .counter b { color: var(--gold); }
+
+  /* ---------- levels ---------- */
+  .level {
+    display: grid; grid-template-columns: 64px 1fr; gap: 18px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 16px;
+    padding: 20px; margin-top: 16px;
+  }
+  .lvlnum {
+    width: 56px; height: 56px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, var(--teal), #1a6a5c);
+    color: #06251d; font-weight: 900; font-size: 1.4rem;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 0 22px rgba(95,232,216,.35);
+  }
+  .level.boss-level .lvlnum { background: radial-gradient(circle at 35% 30%, var(--orange), #8a3212); color: #2a0d02; box-shadow: 0 0 22px rgba(255,105,77,.4); }
+  .level h4 { font-size: 1.2rem; margin-bottom: 2px; }
+  .level .setting { color: var(--purple); font-size: .85rem; margin-bottom: 8px; }
+  .level p { font-size: .92rem; color: var(--ink-dim); }
+  .badges { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 4px; }
+  .badge { font-size: .72rem; font-weight: 700; border-radius: 999px; padding: 3px 10px; letter-spacing: .04em; }
+  .badge.unlock { background: rgba(95,232,216,.14); color: var(--teal); border: 1px solid rgba(95,232,216,.35); }
+  .badge.foe { background: rgba(255,154,77,.12); color: var(--orange); border: 1px solid rgba(255,154,77,.35); }
+  .badge.gimmick { background: rgba(185,138,255,.12); color: var(--purple); border: 1px solid rgba(185,138,255,.35); }
+  .badge.spell { background: rgba(255,215,101,.12); color: var(--gold); border: 1px solid rgba(255,215,101,.35); }
+  .story {
+    border-left: 3px solid var(--purple); background: rgba(185,138,255,.06);
+    padding: 10px 14px; border-radius: 0 10px 10px 0; margin-top: 10px;
+    font-size: .9rem; font-style: italic; color: var(--ink-dim);
+  }
+
+  .quote {
+    border-left: 3px solid var(--gold); background: rgba(255,215,101,.05);
+    padding: 14px 18px; border-radius: 0 12px 12px 0; margin: 18px 0;
+    font-style: italic; color: var(--ink-dim);
+  }
+  .quote b { color: var(--gold); font-style: normal; }
+
+  ul.clean { list-style: none; margin-top: 10px; }
+  ul.clean li { padding: 6px 0 6px 26px; position: relative; color: var(--ink-dim); font-size: .95rem; }
+  ul.clean li::before { content: "🌿"; position: absolute; left: 0; }
+
+  footer { margin-top: 90px; text-align: center; color: var(--ink-dim); font-size: .8rem; border-top: 1px solid var(--line); padding-top: 24px; }
+  @media (max-width: 640px) {
+    .level { grid-template-columns: 1fr; }
+    .lvlnum { width: 44px; height: 44px; font-size: 1.1rem; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="#overview">Overview</a>
+  <a href="#mechanics">Mechanics</a>
+  <a href="#towers">Defenders</a>
+  <a href="#enemies">Enemies</a>
+  <a href="#spells">Guardian Spells</a>
+  <a href="#levels">Campaign</a>
+  <a href="#story">Story</a>
+  <a href="#art">Art Direction</a>
+  <a href="#tech">Tech Notes</a>
+</nav>
+
+<main>
+
+<header class="hero">
+  <div class="kicker">Game Concept Proposal · Chata Games</div>
+  <h1>Forest Rescue: <span class="sub">Heartwood</span></h1>
+  <p class="tagline">A tower defense reimagining of Forest Rescue — the magical creatures of the forest rise to defend their home.</p>
+  <img src="art/key-art.png" alt="Key art: the Guardian and the Heartwood tree facing the advancing logging machines">
+</header>
+
+<!-- ================================================================ -->
+<section id="overview">
+  <h2>Overview</h2>
+  <p class="lede">
+    In <b>Forest Rescue</b>, the player held four lanes against eight waves of loggers and saved
+    the jungle heart. <b>Heartwood</b> is the escalation: the logging company returns with an
+    industrial campaign, and the battlefield opens up from straight lanes into <em>winding forest
+    paths</em>. Instead of planting one kind of magic tree, the player awakens the ancient
+    magical creatures of the forest — each a living "tower" — and guides the Guardian through a
+    ten-level journey to the Heartwood itself.
+  </p>
+
+  <div class="pillars">
+    <div class="pillar"><b>Same soul, new genre</b><span>Everything beloved from Forest Rescue survives the genre shift: mana flowers you tap, jungle hearts you protect, enemies that fight back, and the painterly glowing-forest look.</span></div>
+    <div class="pillar"><b>The forest fights back — and gets hit back</b><span>Unlike classic TD where towers are safe, loggers stop to chop your creatures. Defense placement is also about protecting the defenders.</span></div>
+    <div class="pillar"><b>Touch-first, session-sized</b><span>Mobile-first like the original: big tap targets, one-thumb play, levels of 5–10 minutes, no build step, vanilla JS + canvas.</span></div>
+    <div class="pillar"><b>A story of renewal</b><span>Not "nature vs. evil humans" — the machines are the villain's, the workers are redeemable, and the ending is about regrowth, not revenge.</span></div>
+  </div>
+
+  <h3>What carries over vs. what changes</h3>
+  <div class="tablewrap">
+    <table>
+      <tr><th>System</th><th>Forest Rescue (lane defense)</th><th>Heartwood (tower defense)</th></tr>
+      <tr><td><b>Battlefield</b></td><td>7×4 grid, enemies march right→left in lanes</td><td>Winding waypoint paths; enemies follow the trail toward the Heartwood gate</td></tr>
+      <tr><td><b>Placement</b></td><td>Any free grid cell</td><td>Fixed <em>fairy rings</em> (mushroom circles) beside the path — big, readable tap targets</td></tr>
+      <tr><td><b>Units</b></td><td>One tower type (Magic Tree)</td><td>10 defender creatures, 3 upgrade tiers each, distinct roles</td></tr>
+      <tr><td><b>Economy</b></td><td>Mana regen + tappable mana flowers</td><td>Same, plus kill bounties; Poachers can steal flowers</td></tr>
+      <tr><td><b>Damage to player</b></td><td>Leaked enemy = −1 of 5 jungle hearts</td><td>Identical — 5 hearts per level</td></tr>
+      <tr><td><b>Enemy behavior</b></td><td>Loggers chop trees blocking their lane</td><td>Human enemies still stop to chop defenders near the path; machines just roll on</td></tr>
+      <tr><td><b>Structure</b></td><td>One endless map, 8 waves</td><td>10 handcrafted levels with story, bosses, and per-level gimmicks</td></tr>
+      <tr><td><b>Player agency</b></td><td>Placement + flower tapping</td><td>+ upgrades, uprooting, Guardian spells on cooldown</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- ================================================================ -->
+<section id="mechanics">
+  <h2>Core Mechanics</h2>
+
+  <h3>The path and the fairy rings</h3>
+  <p>
+    Each level defines one or more <em>trails</em> — waypoint paths from the loggers' camp to the
+    Heartwood gate. Beside the trail sit <em>fairy rings</em>: glowing mushroom circles where the
+    Guardian can awaken a defender. Rings are finite and positioned deliberately; choosing
+    <b>which</b> creature to wake in <b>which</b> ring is the core decision. One special
+    placement breaks the rule: the <b>Thornvine Bramble</b> is planted directly <b>on</b> the
+    path as a living roadblock.
+  </p>
+
+  <figure>
+    <img src="art/gameplay-mockup.png" alt="Gameplay mockup: winding path, fairy-ring build spots, defenders and enemies, minimal UI">
+    <figcaption>Target look in play: S-curve trail, fairy-ring build spots, mana counter / hearts / wave counter, ability row at the bottom.</figcaption>
+  </figure>
+
+  <h3>Mana — the one resource</h3>
+  <ul class="clean">
+    <li><b>Trickle:</b> mana regenerates slowly over time (≈5/s, as in the original).</li>
+    <li><b>Mana flowers:</b> bloom at random near the trail; tap for +25 before they wilt. Skilled players are rewarded for looking away from the action.</li>
+    <li><b>Bounties:</b> every kill drops mana (8–30 depending on enemy).</li>
+    <li><b>Spent on:</b> waking defenders, upgrading them (two tiers), and casting Guardian spells. Uprooting a defender refunds 70%.</li>
+  </ul>
+
+  <h3>Defenders take damage</h3>
+  <p>
+    The signature Forest Rescue twist, kept and sharpened: <em>human</em> enemies (Loggers,
+    Brutes, Arsonists) will stop and chop any defender within reach of the path. Defenders have
+    HP and can be destroyed. This creates a rhythm classic TD lacks — a strong forward defender
+    is also a target, and support creatures that heal (Grove Matriarch) or distract choppers
+    (Hive Hollow bees) earn their cost. <em>Machine</em> enemies never stop: they crush Brambles
+    and roll on, so walls alone can't hold them.
+  </p>
+
+  <h3>Waves, hearts, stars</h3>
+  <ul class="clean">
+    <li>Levels run 8–16 scripted waves with a preview of the next wave's composition.</li>
+    <li>Each leaked enemy costs one of <b>5 jungle hearts</b>; at zero the level is lost.</li>
+    <li>End-of-level stars: 3★ = all hearts kept, 2★ = 3–4 hearts, 1★ = won at all. Stars unlock optional <b>Elder Trials</b> (remixed challenge variants of cleared levels).</li>
+  </ul>
+</section>
+
+<!-- ================================================================ -->
+<section id="towers">
+  <h2>The Defenders (Towers)</h2>
+  <p class="lede">
+    Ten magical creatures of the forest, awakened over the campaign. Every defender has three
+    tiers — awaken (T1) and two paid upgrades (T2/T3) — and a clear role, counter, and weakness.
+    Costs are in mana and tuned around the original game's economy (Magic Tree = 50).
+  </p>
+
+  <figure>
+    <img src="art/towers-1.png" alt="Defender lineup 1: Sprig Sentinel, Wisp Willow, Dewdrop Nymph, Mushroom Shaman, Firefly Beacon">
+    <figcaption>Left to right: Sprig Sentinel · Wisp Willow · Dewdrop Nymph · Mushroom Shaman · Firefly Beacon</figcaption>
+  </figure>
+
+  <div class="cards">
+    <div class="card">
+      <div class="top"><h4>🌱 Sprig Sentinel</h4><span class="cost">50 mana</span></div>
+      <span class="role">Core DPS · Single Target</span>
+      <p>A sapling treant with a slingshot arm — the direct descendant of the original Magic Tree. Cheap, dependable seed-bolts (35 dmg / 1.1s). The backbone of every early maze.</p>
+      <div class="tiers"><b>T2 Sapling Slinger (75):</b> twin shot, faster draw. <b>T3 Oakling Warden (140):</b> piercing acorns hit two enemies in a line.</div>
+      <p class="counter"><b>Weak vs:</b> armor, swarms. <b>Shines vs:</b> everything early.</p>
+    </div>
+
+    <div class="card">
+      <div class="top"><h4>🌿 Thornvine Bramble</h4><span class="cost">35 mana</span></div>
+      <span class="role">Path Blocker · Slow</span>
+      <p>Planted <em>on</em> the trail. A coiled, thorny living wall (220 HP) that slows and pricks everything squeezing past. Human enemies stop to chop it; machines crush it instantly — it buys time, not immortality.</p>
+      <div class="tiers"><b>T2 (50):</b> 400 HP, 30% slow. <b>T3 Gripping Roots (90):</b> periodically grabs and holds one enemy for 1.2s.</div>
+      <p class="counter"><b>Weak vs:</b> Bulldozers, Brutes. <b>Shines vs:</b> fast runners, buying time in front of DPS.</p>
+    </div>
+
+    <div class="card">
+      <div class="top"><h4>🍃 Wisp Willow</h4><span class="cost">90 mana</span></div>
+      <span class="role">Arcane · Anti-Air · Chain</span>
+      <p>A weeping willow sheltering a family of teal wisps. Lobs wisp-bolts (30 dmg) that arc to a second target — and it's the first defender that can touch <em>flying</em> enemies.</p>
+      <div class="tiers"><b>T2 (110):</b> chains to 3 targets. <b>T3 Wisp Chorus (200):</b> chains to 5 and briefly slows each target hit.</div>
+      <p class="counter"><b>Weak vs:</b> single tanky targets. <b>Shines vs:</b> drones, clustered crews.</p>
+    </div>
+
+    <div class="card">
+      <div class="top"><h4>💧 Dewdrop Nymph</h4><span class="cost">75 mana</span></div>
+      <span class="role">Control · Slow · Fire Counter</span>
+      <p>A giggling water sprite. Splashes chilling mist (12 dmg, 35% slow for 2s, small AoE), douses burning defenders, and rusts machines.</p>
+      <div class="tiers"><b>T2 Rustmaker (100):</b> her mist strips 30% of machine armor. <b>T3 Frostbloom (180):</b> occasional flash-freeze — a short AoE stun.</div>
+      <p class="counter"><b>Weak vs:</b> raw HP (low damage). <b>Shines vs:</b> Arsonists, armored machines, boss slowing.</p>
+    </div>
+
+    <div class="card">
+      <div class="top"><h4>🍄 Mushroom Shaman</h4><span class="cost">80 mana</span></div>
+      <span class="role">Poison · Area Denial · Debuff</span>
+      <p>An ancient mycelium elder under a spotted cap. Puffs spore clouds over the path — enemies inside take stacking poison (10 dps, lingers 4s after leaving).</p>
+      <div class="tiers"><b>T2 Withering Spores (105):</b> poisoned enemies take +15% damage from all sources. <b>T3 Burst Bloom (190):</b> poisoned enemies pop on death, spreading spores.</div>
+      <p class="counter"><b>Weak vs:</b> fast enemies that sprint through. <b>Shines vs:</b> dense slow waves, softening for DPS.</p>
+    </div>
+
+    <div class="card">
+      <div class="top"><h4>✨ Firefly Beacon</h4><span class="cost">60 mana</span></div>
+      <span class="role">Support · Buff · Detection</span>
+      <p>A giant gentle firefly on a fern perch. Deals no damage — its warm glow grants nearby defenders +20% range and damage, and <em>reveals cloaked Poachers</em>.</p>
+      <div class="tiers"><b>T2 (85):</b> wider glow, +30% buff. <b>T3 Dazzling Pulse (160):</b> every 6s, a flash stuns nearby enemies for 0.5s.</div>
+      <p class="counter"><b>Weak vs:</b> being your only defender. <b>Shines vs:</b> Poachers; anchoring a killzone.</p>
+    </div>
+  </div>
+
+  <figure>
+    <img src="art/towers-2.png" alt="Defender lineup 2: Mossback Golem, Faefox Archer, Hive Hollow, Thornvine Bramble, Grove Matriarch">
+    <figcaption>Left to right: Mossback Golem · Faefox Archer · Hive Hollow · Thornvine Bramble · Grove Matriarch</figcaption>
+  </figure>
+
+  <div class="cards">
+    <div class="card">
+      <div class="top"><h4>🪨 Mossback Golem</h4><span class="cost">120 mana</span></div>
+      <span class="role">Siege · Splash · Armor Break</span>
+      <p>A boulder-hurling stone sleeper woken from the cliffs. Slow, enormous lobs (90 splash dmg / 2.8s) that <em>crack armor</em> — the machine-killer.</p>
+      <div class="tiers"><b>T2 (150):</b> bigger boulders, 130 dmg. <b>T3 Quakefist (260):</b> slams the ground when enemies get close — AoE knock and heavy damage around itself.</div>
+      <p class="counter"><b>Weak vs:</b> fast singles, drones. <b>Shines vs:</b> Bulldozers, Excavators, clumps.</p>
+    </div>
+
+    <div class="card">
+      <div class="top"><h4>🦊 Faefox Archer</h4><span class="cost">85 mana</span></div>
+      <span class="role">Rapid DPS · Anti-Air Specialist</span>
+      <p>Kin of the Guardian — a leaf-fox with a vine bow. Very fast leaf-arrows (22 dmg / 0.4s), double damage against anything flying. Long range, elegant, fragile.</p>
+      <div class="tiers"><b>T2 (115):</b> twin-nock — two arrows per draw. <b>T3 Gale Volley (210):</b> periodically rains a volley across its whole range.</div>
+      <p class="counter"><b>Weak vs:</b> heavy armor. <b>Shines vs:</b> Buzzsaw Drones, fast runners.</p>
+    </div>
+
+    <div class="card">
+      <div class="top"><h4>🐝 Hive Hollow</h4><span class="cost">100 mana</span></div>
+      <span class="role">Swarm · Distraction</span>
+      <p>A hollow stump ruled by a tiny crowned queen. Releases a bee swarm that <em>chases enemies along the path</em> (6 dps) — and choppers stop chopping to swat at bees, protecting your other defenders.</p>
+      <div class="tiers"><b>T2 (130):</b> two simultaneous swarms. <b>T3 Honeyworks (220):</b> spills a honey slick on the path — 40% slow zone.</div>
+      <p class="counter"><b>Weak vs:</b> machines (bees can't sting steel). <b>Shines vs:</b> chopper crews, protecting Brambles.</p>
+    </div>
+
+    <div class="card">
+      <div class="top"><h4>🌳 Grove Matriarch</h4><span class="cost">200 mana</span></div>
+      <span class="role">Ultimate · AoE · Healer Aura</span>
+      <p>An ancient flowering treant, eldest daughter of the Heartwood. Root-smash (150 AoE dmg / 3s), heals nearby defenders 3 HP/s, and her presence slows enemies who dare approach. <b>Limit: one per level.</b></p>
+      <div class="tiers"><b>T2 (260):</b> stronger smash, wider heal. <b>T3 Blooming Wrath (400):</b> smash leaves flowering roots that damage the path for 6s.</div>
+      <p class="counter"><b>Weak vs:</b> being everywhere at once. <b>Shines vs:</b> the last stand in front of the gate.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================ -->
+<section id="enemies">
+  <h2>The Enemies</h2>
+  <p class="lede">
+    ChopCo Industries fields two families: <b>crews</b> (humans — squishier, but they stop and
+    chop your defenders) and <b>machines</b> (armored, relentless, immune to distraction).
+    Every enemy has a defender that counters it cleanly; difficulty comes from mixtures.
+  </p>
+
+  <figure>
+    <img src="art/enemies-1.png" alt="Enemy lineup: Logger, Chainsaw Brute, Surveyor, Foreman, Poacher, Arsonist">
+    <figcaption>The crews, left to right: Logger · Chainsaw Brute · Surveyor · Foreman · Poacher · Arsonist</figcaption>
+  </figure>
+
+  <div class="cards">
+    <div class="card">
+      <div class="top"><h4>🪓 Logger</h4><span class="cost enemy">115 HP · normal</span></div>
+      <span class="role enemy">Crew · Chopper</span>
+      <p>The classic. Marches steadily; stops to chop any defender in reach (28 dmg/swing). Bounty 8.</p>
+      <p class="counter"><b>Counter:</b> any DPS; bees make him forget his job.</p>
+    </div>
+    <div class="card">
+      <div class="top"><h4>⚙️ Chainsaw Brute</h4><span class="cost enemy">180 HP · normal</span></div>
+      <span class="role enemy">Crew · Anti-Defender</span>
+      <p>A wall of muscle with a smoking chainsaw. Chops three times faster than a Logger and beelines for Brambles. Bounty 12.</p>
+      <p class="counter"><b>Counter:</b> Hive Hollow distraction + focused fire before he reaches your line.</p>
+    </div>
+    <div class="card">
+      <div class="top"><h4>🔭 Surveyor</h4><span class="cost enemy">60 HP · fast</span></div>
+      <span class="role enemy">Crew · Scout · Marker</span>
+      <p>Sprints ahead of waves planting marker flags: a <em>marked</em> defender takes +25% damage from choppers until the Surveyor dies. Bounty 6.</p>
+      <p class="counter"><b>Counter:</b> Faefox Archer picks him off before the flag drops.</p>
+    </div>
+    <div class="card">
+      <div class="top"><h4>📢 Foreman</h4><span class="cost enemy">220 HP · slow</span></div>
+      <span class="role enemy">Crew · Buffer</span>
+      <p>Never lifts a tool himself. His megaphone aura drives nearby enemies +25% faster. Kill the middle manager first. Bounty 15.</p>
+      <p class="counter"><b>Counter:</b> Mossback splash hits him inside his own crowd.</p>
+    </div>
+    <div class="card">
+      <div class="top"><h4>🥷 Poacher</h4><span class="cost enemy">90 HP · fast</span></div>
+      <span class="role enemy">Crew · Cloaked · Thief</span>
+      <p><em>Invisible</em> outside Firefly glow. Ignores the gate — he sneaks to your <b>mana flowers</b>, jars them, and runs home. Kill him to drop the jar (+40 mana); let him escape and the flower economy suffers. Bounty 10.</p>
+      <p class="counter"><b>Counter:</b> Firefly Beacon reveals; anything fast kills.</p>
+    </div>
+    <div class="card">
+      <div class="top"><h4>🔥 Arsonist</h4><span class="cost enemy">100 HP · normal</span></div>
+      <span class="role enemy">Crew · Burner</span>
+      <p>Flicks a drip torch at defenders as he passes: <em>burning</em> defenders take 5 dps for 8s unless doused. Fires can spread to adjacent fairy rings on scorched maps. Bounty 10.</p>
+      <p class="counter"><b>Counter:</b> Dewdrop Nymph douses; Cleansing Rain clears everything.</p>
+    </div>
+  </div>
+
+  <figure>
+    <img src="art/enemies-2.png" alt="Machine lineup: Bulldozer, Buzzsaw Drone, Diesel Hauler, Excavator, Tunnel Borer">
+    <figcaption>The machines, left to right: Bulldozer · Buzzsaw Drone · Diesel Hauler · Excavator · Tunnel Borer</figcaption>
+  </figure>
+
+  <div class="cards">
+    <div class="card">
+      <div class="top"><h4>🚜 Bulldozer</h4><span class="cost enemy">260 HP · slow</span></div>
+      <span class="role enemy">Machine · Armor 1</span>
+      <p>The returning heavyweight. Armor plates shrug 10 damage off every hit; crushes Brambles without slowing down. Bounty 15.</p>
+      <p class="counter"><b>Counter:</b> Mossback Golem cracks it open; Nymph rust strips the plates.</p>
+    </div>
+    <div class="card">
+      <div class="top"><h4>🚁 Buzzsaw Drone</h4><span class="cost enemy">70 HP · fast</span></div>
+      <span class="role enemy">Machine · Flying</span>
+      <p>Skips the path entirely — flies a straight line over terrain toward the gate. Only Wisp Willow, Faefox Archer, and Beacon pulses can touch it. Bounty 8.</p>
+      <p class="counter"><b>Counter:</b> Faefox Archer (2× vs air).</p>
+    </div>
+    <div class="card">
+      <div class="top"><h4>🚛 Diesel Hauler</h4><span class="cost enemy">320 HP · slow</span></div>
+      <span class="role enemy">Machine · Smoke Aura</span>
+      <p>Belches a rolling smoke cloud: defenders inside lose 30% range. Often escorts crews who chop your suddenly-shortsighted line. Bounty 18.</p>
+      <p class="counter"><b>Counter:</b> long-range Golem lobs from outside the smoke; Rain clears it.</p>
+    </div>
+    <div class="card">
+      <div class="top"><h4>🏗️ Excavator</h4><span class="cost enemy">700 HP · very slow</span></div>
+      <span class="role enemy">Machine · Armor 2 · Mini-boss</span>
+      <p>A rolling fortress (−20 per hit). Doesn't attack — it simply <em>arrives</em>, and everything you have must already be in place. Bounty 30.</p>
+      <p class="counter"><b>Counter:</b> rust + poison stacking + Golems; slows are your real weapon.</p>
+    </div>
+    <div class="card">
+      <div class="top"><h4>🌀 Tunnel Borer</h4><span class="cost enemy">240 HP · slow</span></div>
+      <span class="role enemy">Machine · Burrower</span>
+      <p>Periodically drills underground for 3-second stretches — untargetable, skipping whole killzones. Surfaces with a shudder you can learn to time. Bounty 20.</p>
+      <p class="counter"><b>Counter:</b> layered defense along the whole trail, not one killbox; Bramble grip catches it surfacing.</p>
+    </div>
+    <div class="card">
+      <div class="top"><h4>☠️ Sprayer Rig</h4><span class="cost enemy">280 HP · slow</span></div>
+      <span class="role enemy">Machine · Defender Disable</span>
+      <p>Late-campaign horror: hoses herbicide at fairy rings as it passes, putting the defender there to <em>sleep for 5s</em>. Bounty 20.</p>
+      <p class="counter"><b>Counter:</b> kill it before it reaches your core rings; redundant coverage.</p>
+    </div>
+  </div>
+
+  <h3>Bosses</h3>
+  <div class="cards">
+    <div class="card">
+      <div class="top"><h4>🪚 The Grinder</h4><span class="cost enemy">3,000 HP</span></div>
+      <span class="role boss">Boss · Level 5</span>
+      <p>A mobile wood-chipper the size of a barn. <em>Eats</em> Brambles to heal, and spits sawblade shrapnel that damages defenders near the path. At half health it enrages and speeds up.</p>
+      <p class="counter"><b>Lesson it teaches:</b> stop leaning on walls; kill with sustained ranged damage.</p>
+    </div>
+    <div class="card">
+      <div class="top"><h4>🕷️ Iron Canopy Crawler</h4><span class="cost enemy">4,500 HP</span></div>
+      <span class="role boss">Boss · Level 8</span>
+      <p>A spider-legged harvester that walks the <em>trunks above the path</em>, out of most defenders' reach, launching drone swarms and web-cocooning one defender at a time.</p>
+      <p class="counter"><b>Lesson it teaches:</b> anti-air isn't optional; Faefoxes and Willows carry.</p>
+    </div>
+    <div class="card">
+      <div class="top"><h4>🏭 The Terraformer</h4><span class="cost enemy">12,000 HP · 3 phases</span></div>
+      <span class="role boss">Final Boss · Level 10</span>
+      <p>Axel Grind's cathedral-sized crawling factory. Advances down the trail for the <em>entire level</em>, spawning crews from its belly, spraying herbicide, and unleashing sawblade storms. Between phases its hull opens, exposing the caged <b>Seed of Light</b> at its core — the burst-damage windows that decide the fight.</p>
+      <p class="counter"><b>Lesson it teaches:</b> everything at once. This is the exam.</p>
+    </div>
+  </div>
+
+  <figure>
+    <img src="art/boss-terraformer.png" alt="The Terraformer: colossal crawling factory boss with the caged Seed of Light">
+    <figcaption>The Terraformer — final boss. Deep in its core: the caged Seed of Light.</figcaption>
+  </figure>
+</section>
+
+<!-- ================================================================ -->
+<section id="spells">
+  <h2>Guardian Spells</h2>
+  <p class="lede">
+    The Guardian — the leaf-fox hero of Forest Rescue — doesn't sit in a fairy ring. It runs the
+    battlefield, and the player channels its power as tap-anywhere spells with mana costs and
+    cooldowns. Spells are earned as story rewards, not bought.
+  </p>
+  <div class="cards">
+    <div class="card">
+      <div class="top"><h4>🌾 Root Snare</h4><span class="cost">45 mana · 25s cd</span></div>
+      <span class="role">Earned: Level 5</span>
+      <p>Roots erupt in a target circle, holding all ground enemies in place for 2 seconds. The panic button when a Brute reaches your Matriarch.</p>
+    </div>
+    <div class="card">
+      <div class="top"><h4>🌧️ Cleansing Rain</h4><span class="cost">60 mana · 40s cd</span></div>
+      <span class="role">Earned: Level 6</span>
+      <p>A soft rain over the whole map: extinguishes every burning defender, heals all defenders 30%, and washes away smoke clouds. The answer to Arsonist + Hauler waves.</p>
+    </div>
+    <div class="card">
+      <div class="top"><h4>🍂 Nature's Wrath</h4><span class="cost">90 mana · 60s cd</span></div>
+      <span class="role">Earned: Level 9</span>
+      <p>A spiraling storm of razor leaves and light crashes into a target area — 200 damage to everything, double to machines. The Guardian's answer to the Terraformer's open core.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================================ -->
+<section id="levels">
+  <h2>The Campaign — Ten Levels</h2>
+  <p class="lede">
+    One valley, ten battles, escalating from a torn fence at the meadow's edge to the roots of
+    the Heartwood itself. Each level introduces at most one defender and one enemy, has a
+    signature gimmick, and advances the story.
+  </p>
+
+  <figure>
+    <img src="art/world-map.png" alt="Campaign world map with ten numbered levels winding through the valley">
+    <figcaption>The valley: ten levels from Meadow's Edge to the Heart of the Forest.</figcaption>
+  </figure>
+
+  <div class="level">
+    <div class="lvlnum">1</div>
+    <div>
+      <h4>Meadow's Edge</h4>
+      <div class="setting">Sunny forest fringe · single gentle S-path · 8 waves</div>
+      <div class="badges">
+        <span class="badge unlock">Unlocks: Sprig Sentinel, Thornvine Bramble</span>
+        <span class="badge foe">New: Logger</span>
+        <span class="badge gimmick">Tutorial: rings, mana flowers, chopping</span>
+      </div>
+      <p>The fence ChopCo tore down is the starting line. Teach placement, upgrading, and the golden rule: your creatures can be hurt.</p>
+      <div class="story">A contract is nailed to the old oak: "NOTICE OF CLEARANCE — entire valley, effective immediately. — A. Grind, CEO." The Guardian reads it twice, then eats it.</div>
+    </div>
+  </div>
+
+  <div class="level">
+    <div class="lvlnum">2</div>
+    <div>
+      <h4>Old Stump Crossroads</h4>
+      <div class="setting">Logged clearing of ancient stumps · two paths merging · 9 waves</div>
+      <div class="badges">
+        <span class="badge unlock">Unlocks: Wisp Willow</span>
+        <span class="badge foe">New: Surveyor, Chainsaw Brute</span>
+        <span class="badge gimmick">Split pressure: two spawn gates</span>
+      </div>
+      <p>First taste of divided attention. The merge point is the obvious killzone — but Surveyors marking your defenders punish tunnel vision.</p>
+      <div class="story">The stumps are old ChopCo work — this ground was lost a generation ago. Among them, one stump still whispers. The wisps have been waiting here for someone to fight for the place again.</div>
+    </div>
+  </div>
+
+  <div class="level">
+    <div class="lvlnum">3</div>
+    <div>
+      <h4>Whispering River</h4>
+      <div class="setting">Riverbank and bridges · path crosses water twice · 10 waves</div>
+      <div class="badges">
+        <span class="badge unlock">Unlocks: Dewdrop Nymph</span>
+        <span class="badge foe">New: Buzzsaw Drone</span>
+        <span class="badge gimmick">Drones fly straight over the river bends</span>
+      </div>
+      <p>The trail snakes; the drones don't. Air cuts the corner your maze depends on, forcing the first real coverage decisions.</p>
+      <div class="story">The river runs grey downstream of the camp. A small water nymph is scrubbing a fish clean with her hands, furious. She joins before the Guardian finishes asking.</div>
+    </div>
+  </div>
+
+  <div class="level">
+    <div class="lvlnum">4</div>
+    <div>
+      <h4>Mushroom Hollow</h4>
+      <div class="setting">Night · bioluminescent fungal dell · one long winding path · 10 waves</div>
+      <div class="badges">
+        <span class="badge unlock">Unlocks: Firefly Beacon, Mushroom Shaman</span>
+        <span class="badge foe">New: Poacher</span>
+        <span class="badge gimmick">Darkness: defenders see only near glow sources</span>
+      </div>
+      <p>The map is dark outside fairy-ring glow and Beacon light. Poachers slip through shadows toward your mana flowers. Light placement <em>is</em> the level.</p>
+      <div class="story">The fireflies gather around the Guardian like embers around a fire that remembers them. Deeper in, the Mushroom Shaman wakes mid-sentence, as if he'd only paused a conversation from three hundred years ago.</div>
+    </div>
+  </div>
+
+  <div class="level boss-level">
+    <div class="lvlnum">5</div>
+    <div>
+      <h4>The Sawmill Clearing</h4>
+      <div class="setting">Industrial camp perimeter · short brutal path · 10 waves + BOSS</div>
+      <div class="badges">
+        <span class="badge foe">BOSS: The Grinder</span>
+        <span class="badge spell">Reward: Root Snare</span>
+        <span class="badge gimmick">Boss eats Brambles; sawblade shrapnel hits defenders</span>
+      </div>
+      <p>Assault on the forward sawmill. The Grinder punishes the wall-heavy strategies the first four levels rewarded — adapt or be mulched.</p>
+      <div class="story">Inside the wrecked mill office: shipping manifests. Timber isn't being sold — it's being <em>fed</em> to something upriver. Every page bears the same stamp: <b>PROJECT TERRAFORMER</b>.</div>
+    </div>
+  </div>
+
+  <div class="level">
+    <div class="lvlnum">6</div>
+    <div>
+      <h4>Ashfall Scar</h4>
+      <div class="setting">Burned forest, falling ash · forked path rejoining · 12 waves</div>
+      <div class="badges">
+        <span class="badge foe">New: Arsonist, Diesel Hauler</span>
+        <span class="badge spell">Reward: Cleansing Rain</span>
+        <span class="badge gimmick">Fire spreads between fairy rings unless doused</span>
+      </div>
+      <p>ChopCo burns what it can't be bothered to cut. Fire jumps ring to ring; the Nymph shifts from nice-to-have to load-bearing.</p>
+      <div class="story">Nothing sings here. The Guardian presses a paw into the ash and finds one acorn, alive, stubborn. It pockets it. (Players who 3★ this level see it again in the epilogue.)</div>
+    </div>
+  </div>
+
+  <div class="level">
+    <div class="lvlnum">7</div>
+    <div>
+      <h4>Boulder Pass</h4>
+      <div class="setting">Mountain switchbacks · long zigzag path, rings on ledges · 12 waves</div>
+      <div class="badges">
+        <span class="badge unlock">Unlocks: Mossback Golem</span>
+        <span class="badge foe">New: Tunnel Borer, Excavator</span>
+        <span class="badge gimmick">Borers skip switchback loops underground</span>
+      </div>
+      <p>The switchbacks give huge path length — which Borers ignore. Excavators arrive as slow-rolling exams of your total damage output.</p>
+      <div class="story">The "boulders" of the pass have faces. The Guardian sings the waking-song its mother taught it, and the mountain stretches, cracks its knuckles, and asks — in a voice like a rockslide — who needs throwing.</div>
+    </div>
+  </div>
+
+  <div class="level boss-level">
+    <div class="lvlnum">8</div>
+    <div>
+      <h4>Canopy Highway</h4>
+      <div class="setting">Treetop bridges and platforms · paths in the branches · 13 waves + MINI-BOSS</div>
+      <div class="badges">
+        <span class="badge unlock">Unlocks: Faefox Archer, Hive Hollow</span>
+        <span class="badge foe">MINI-BOSS: Iron Canopy Crawler · drone swarms</span>
+        <span class="badge gimmick">Mostly airborne waves; ground rings are scarce</span>
+      </div>
+      <p>The battle leaves the ground. Drone swarms and the trunk-walking Crawler flip the priority list — the sky is the front line now.</p>
+      <div class="story">The fox tribes — the Guardian's kin, gone since the first clearances — answer a horn nobody has blown in a lifetime. The reunion lasts nine seconds; then everyone nocks arrows.</div>
+    </div>
+  </div>
+
+  <div class="level">
+    <div class="lvlnum">9</div>
+    <div>
+      <h4>The Long Night</h4>
+      <div class="setting">The grove gates, midnight rain · three converging paths · 16 waves, no pauses</div>
+      <div class="badges">
+        <span class="badge unlock">Unlocks: Grove Matriarch</span>
+        <span class="badge foe">New: Sprayer Rig · Foreman champion waves · everything returns</span>
+        <span class="badge spell">Reward: Nature's Wrath</span>
+        <span class="badge gimmick">Endurance: waves chain instantly, mana flowers are scarce</span>
+      </div>
+      <p>The full siege. Every enemy type, back to back, with the Matriarch as the anchor you build the last stand around.</p>
+      <div class="story">Axel's voice crackles from every machine at once: "Final offer. Walk away, fluffy." At dawn, something unprecedented: a crew of loggers drops their axes and walks — away from ChopCo. The forest lets them pass. One of them leaves his helmet upturned on the ground, full of stolen seeds, returned.</div>
+    </div>
+  </div>
+
+  <div class="level boss-level">
+    <div class="lvlnum">10</div>
+    <div>
+      <h4>Heart of the Forest</h4>
+      <div class="setting">The Heartwood's roots · one grand spiral path · FINAL: The Terraformer</div>
+      <div class="badges">
+        <span class="badge foe">FINAL BOSS: The Terraformer + spawned crews</span>
+        <span class="badge gimmick">Boss advances all level; Heartwood Pulse — tap the tree when charged for a radiant burst</span>
+      </div>
+      <p>The Terraformer crawls the spiral for the whole level while its belly spawns crews and its arms disable rings. Between its three phases the hull opens — burn the exposed core with everything, including the Heartwood's own charged Pulse.</p>
+      <div class="story">The machine's heart is not an engine. It is a <b>Seed of Light</b> in a cage — the seed of the first tree Axel's family ever felled, kept burning as fuel for three generations. The Guardian doesn't destroy the Terraformer. It frees the seed — and the machine, unburdened, simply stops. The forest does the rest: vines through the treads, moss over the saws, flowers in the smokestacks. In the epilogue, ex-loggers plant saplings in the Ashfall Scar — the Guardian's stubborn acorn first — while Axel Grind, CEO of nothing, is politely but firmly supervised by bees.</div>
+    </div>
+  </div>
+
+  <h3>Difficulty & pacing curve</h3>
+  <div class="tablewrap">
+    <table>
+      <tr><th>Level</th><th>Teaches</th><th>Tests</th></tr>
+      <tr><td><b>1–2</b></td><td>Placement, upgrades, chopping, split paths</td><td>Basic economy discipline</td></tr>
+      <tr><td><b>3–4</b></td><td>Air coverage, detection, light management</td><td>Coverage trade-offs</td></tr>
+      <tr><td><b>5</b></td><td>— (boss)</td><td>Everything from Act I; anti-wall play</td></tr>
+      <tr><td><b>6–7</b></td><td>Status management (fire), armor breaking, layered defense</td><td>Reacting to map hazards</td></tr>
+      <tr><td><b>8</b></td><td>Air-first building</td><td>Priority inversion</td></tr>
+      <tr><td><b>9</b></td><td>— (endurance)</td><td>Full toolkit under sustained pressure</td></tr>
+      <tr><td><b>10</b></td><td>— (final)</td><td>Mastery; burst windows and spell timing</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- ================================================================ -->
+<section id="story">
+  <h2>The Story</h2>
+
+  <div class="quote">
+    "Cut costs. Cut corners. Cut trees." — <b>Axel Grind</b>, CEO, ChopCo Industries
+  </div>
+
+  <p class="lede">
+    Three acts across ten levels, told in short pre/post-level vignettes (two or three lines of
+    text over a painted panel — no cutscene tech needed). Tone: warm, funny, a little melancholy
+    in the middle, triumphant at the end. Nature wins by <em>growing</em>, not by conquering.
+  </p>
+
+  <h3>Act I — The Return (Levels 1–4)</h3>
+  <p>
+    After the failed clear-cut of the jungle heart (the events of Forest Rescue), ChopCo returns
+    with lawyers, machines, and a valley-wide clearance contract. The Guardian — older, no wiser,
+    still adorable — realizes it cannot hold every path with seed-slinging saplings alone, and
+    begins waking the old defenders: the wisps who waited in the stumps, the nymph scrubbing the
+    grey out of her river, the shaman who never really stopped talking.
+  </p>
+
+  <h3>Act II — Project Terraformer (Levels 5–7)</h3>
+  <p>
+    The sawmill manifests reveal the truth: the timber isn't lumber, it's <em>fuel</em>. Axel
+    Grind is building the Terraformer — a machine that doesn't harvest a forest but
+    <em>replaces</em> it, converting living valley into ChopCo property at a tread's pace. The
+    middle act is the dark one: the Scar, the ash, the acorn. But it's also where the forest's
+    deepest strength wakes — the stone-sleepers of Boulder Pass, who remember when the valley had
+    no name.
+  </p>
+
+  <h3>Act III — The Last Grove (Levels 8–10)</h3>
+  <p>
+    The fox tribes return, the Matriarch takes the gate, and the workers — spared again and again
+    by a forest that only ever fought the machines — start walking off the job. The final battle
+    reveals the engine of everything: a stolen Seed of Light, the first tree Axel's family
+    felled, caged and burning for three generations. The Guardian's victory is an act of release,
+    not destruction. The Terraformer stops because its heart is finally allowed to stop burning.
+  </p>
+
+  <figure>
+    <img src="art/key-art-alt.png" alt="Alternate key art: the Guardian before the Heartwood at dusk, machines on the horizon">
+    <figcaption>Alternate key art — Act III mood: dusk, the last grove, the machines on the horizon.</figcaption>
+  </figure>
+
+  <h3>Post-credits</h3>
+  <p>
+    Snow. Pine trees. A different valley, a different fence being torn down — and a small
+    creature of frost and needles opening one eye. <em>Forest Rescue: Winterroot?</em>
+  </p>
+</section>
+
+<!-- ================================================================ -->
+<section id="art">
+  <h2>Art Direction</h2>
+  <p class="lede">
+    Direct continuation of Forest Rescue's established look: vibrant painterly illustration,
+    chibi-proportioned forest creatures, bioluminescent <b>teal + purple</b> magic against the
+    machines' <b>rust-orange + oily grey</b>. All concept art on this page was generated with
+    gpt-image-2 using the shipped Forest Rescue sprites as style references — the same pipeline
+    (generate → chroma-key → sprite) extends to production assets.
+  </p>
+  <ul class="clean">
+    <li><b>Faction color language:</b> the forest glows cool (teal runes, purple blossoms); ChopCo glows hot (headlights, sparks, embers). Readable at a glance on a phone.</li>
+    <li><b>Silhouette first:</b> every defender and enemy must be identifiable as a ~64px sprite. The lineup sheets above are silhouette tests as much as mood pieces.</li>
+    <li><b>The path is the canvas:</b> sandy trail on dark bioluminescent undergrowth — maximum contrast where the action happens.</li>
+    <li><b>UI stays diegetic-ish:</b> leaf-framed mana counter, wooden wave banner, hearts as in the original.</li>
+  </ul>
+</section>
+
+<!-- ================================================================ -->
+<section id="tech">
+  <h2>Tech Notes (for the eventual build)</h2>
+  <p class="lede">
+    Heartwood is deliberately buildable as an evolution of the existing <code>forest-rescue</code>
+    codebase — vanilla ES6, single canvas, no dependencies, no build step.
+  </p>
+  <div class="tablewrap">
+    <table>
+      <tr><th>Existing piece</th><th>Fate</th></tr>
+      <tr><td>Fixed-timestep loop, DPR-aware canvas, resize handling</td><td>Reused as-is</td></tr>
+      <tr><td>WebAudio <code>AudioKit</code> (generated SFX, mute)</td><td>Reused; add per-defender voices</td></tr>
+      <tr><td>Sprite loading with drawn-shape fallback</td><td>Reused — keeps the game playable with zero assets</td></tr>
+      <tr><td>Pointer events, drag-plant, big tap targets</td><td>Reused; drag now previews range circles on fairy rings</td></tr>
+      <tr><td>Lane logic (<code>lane</code>, <code>x -= speed·dt</code>)</td><td>Replaced by waypoint paths: each enemy tracks distance <code>t</code> along a polyline; position = interpolation</td></tr>
+      <tr><td>Grid cells</td><td>Replaced by per-level data: <code>{ paths: [[x,y]…], rings: [{x,y}…], waves: […] }</code> — levels become JSON, enabling fast iteration and community maps later</td></tr>
+      <tr><td>Single <code>Tree</code> class</td><td>Becomes a <code>Defender</code> base + data-driven stats table (the card stats above translate 1:1)</td></tr>
+      <tr><td>Mana flowers, hearts, wave banner</td><td>Reused unchanged — they are the brand</td></tr>
+    </table>
+  </div>
+  <p>
+    Suggested scope for a first playable: levels 1–3, defenders 1–4 (Sentinel, Bramble, Willow,
+    Nymph), enemies Logger / Surveyor / Brute / Drone. That slice exercises every new system
+    (paths, rings, upgrades, air) with minimal content.
+  </p>
+</section>
+
+<footer>
+  Forest Rescue: Heartwood — concept proposal · Chata Games · Concept art generated with gpt-image-2 in the Forest Rescue house style
+</footer>
+
+</main>
+</body>
+</html>
