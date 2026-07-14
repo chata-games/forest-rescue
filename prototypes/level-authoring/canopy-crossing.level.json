@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "id": "canopy-crossing",
+  "name": "Canopy Crossing",
+  "seed": "heartwood-canopy-crossing-v1",
+  "biome": "river-canopy",
+  "learningGoal": "air-coverage",
+  "topology": {
+    "archetype": "river-crossings",
+    "entrances": 1,
+    "exits": 1
+  },
+  "targets": {
+    "pathLength": 1840,
+    "pathDensity": 0.42,
+    "ringCount": 9,
+    "difficulty": 0.86,
+    "durationMinutes": 8
+  },
+  "constraints": {
+    "pathWidth": 92,
+    "minimumTurnRadius": 110,
+    "minimumParallelGap": 160
+  },
+  "waves": {
+    "count": 8,
+    "allowedEnemies": [
+      "logger",
+      "buzzsaw-drone"
+    ],
+    "budgetCurve": "gentle"
+  },
+  "landmarks": [
+    "river-stones",
+    "canopy-bridge"
+  ],
+  "acceptance": {
+    "metrics": {
+      "pathLength": {
+        "min": 1500,
+        "max": 1900
+      },
+      "ringCount": {
+        "min": 8,
+        "max": 10
+      },
+      "estimatedDifficulty": {
+        "min": 0.75,
+        "max": 1.15
+      }
+    },
+    "simulationScenarios": [
+      {
+        "id": "anti-air-ready",
+        "bot": "anti-air-priority",
+        "availableDefenders": [
+          "sprig-sentinel",
+          "wisp-willow"
+        ],
+        "expect": {
+          "won": true,
+          "minHearts": 1
+        }
+      },
+      {
+        "id": "anti-air-missing-scrape-by",
+        "bot": "cheapest-dps",
+        "availableDefenders": [
+          "sprig-sentinel"
+        ],
+        "expect": {
+          "won": true,
+          "maxHearts": 1
+        }
+      }
+    ]
+  }
+}
