@@ -11,7 +11,7 @@
 // outcome, frame for frame.
 
 import { PathCurve } from './path';
-import { effectiveStats, getDefender, getEnemy, maxTier, upgradeCost } from './content';
+import { effectiveStats, getDefender, getEnemy, maxTier, upgradeCost, type EffectiveStats } from './content';
 import { scoreStars as scoreStarsRule, type BattleScoreInput } from './scoring';
 import type { CompiledLevel, DefenderStats, Ring } from './types';
 
@@ -336,9 +336,7 @@ export class BattleState {
   upgradeDefender(
     ringId: string,
   ): { ok: true; cost: number; tier: number } | { ok: false; reason: string } {
-    if (this.phase !== 'planning' && this.phase !== 'running') {
-      return { ok: false, reason: 'battle-over' };
-    }
+    if (this.isBattleOver()) return { ok: false, reason: 'battle-over' };
     const idx = this.defenders.findIndex((d) => d.ringId === ringId && !d.dead);
     if (idx === -1) return { ok: false, reason: 'no-defender' };
     const defender = this.defenders[idx];
@@ -374,9 +372,7 @@ export class BattleState {
    * UNDO_WINDOW via {@link undoLastAction}.
    */
   removeDefender(ringId: string): { ok: true; refund: number } | { ok: false; reason: string } {
-    if (this.phase !== 'planning' && this.phase !== 'running') {
-      return { ok: false, reason: 'battle-over' };
-    }
+    if (this.isBattleOver()) return { ok: false, reason: 'battle-over' };
     const idx = this.defenders.findIndex((d) => d.ringId === ringId && !d.dead);
     if (idx === -1) return { ok: false, reason: 'no-defender' };
     const defender = this.defenders[idx];
@@ -406,16 +402,19 @@ export class BattleState {
     let upgrade: UpgradePreview | null = null;
     const cost = upgradeCost(stats, defender.tier);
     if (cost !== null) {
-      const now = effectiveStats(stats, defender.tier);
-      const next = effectiveStats(stats, defender.tier + 1);
-      const battleOver = this.phase !== 'planning' && this.phase !== 'running';
-      const reason = battleOver ? 'battle-over' : this.mana < cost ? 'insufficient-mana' : undefined;
+      // Why the upgrade may be unavailable, in priority order. `available` is the
+      // absence of a reason, so the panel can both disable and explain the button.
+      let reason: UpgradePreview['reason'];
+      if (this.isBattleOver()) reason = 'battle-over';
+      else if (this.mana < cost) reason = 'insufficient-mana';
+      else reason = undefined;
+      const nextTier = defender.tier + 1;
       upgrade = {
-        nextTier: defender.tier + 1,
+        nextTier,
         cost,
         available: reason === undefined,
         ...(reason ? { reason } : {}),
-        statChanges: diffStats(now, next),
+        statChanges: diffStats(effectiveStats(stats, defender.tier), effectiveStats(stats, nextTier)),
       };
     }
 
@@ -519,9 +518,7 @@ export class BattleState {
     ringId: string,
     typeId: string,
   ): { ok: true; ring: Ring; stats: DefenderStats } | { ok: false; reason: string } {
-    if (this.phase !== 'planning' && this.phase !== 'running') {
-      return { ok: false, reason: 'battle-over' };
-    }
+    if (this.isBattleOver()) return { ok: false, reason: 'battle-over' };
     const ring = this.rings.find((r) => r.id === ringId);
     if (!ring) return { ok: false, reason: 'unknown-ring' };
     if (this.defenders.some((d) => d.ringId === ringId && !d.dead)) {
@@ -543,6 +540,11 @@ export class BattleState {
   private collectBounty(enemy: ActiveEnemy): void {
     this.mana += enemy.bounty;
     this.resourcesCollected += enemy.bounty;
+  }
+
+  /** Whether the battle has resolved and edits (place/upgrade/remove) are closed off. */
+  private isBattleOver(): boolean {
+    return this.phase === 'won' || this.phase === 'lost';
   }
 
   private spawnDue(): void {
@@ -771,10 +773,7 @@ function makeDefender(ring: Ring, stats: DefenderStats): PlacedDefender {
 }
 
 /** Build the upgrade-preview deltas between two resolved tiers (omits unchanged). */
-function diffStats(
-  now: ReturnType<typeof effectiveStats>,
-  next: ReturnType<typeof effectiveStats>,
-): StatChanges {
+function diffStats(now: EffectiveStats, next: EffectiveStats): StatChanges {
   const changes: StatChanges = {};
   if (now.damage !== next.damage) changes.damage = { from: now.damage, to: next.damage };
   if (now.range !== next.range) changes.range = { from: now.range, to: next.range };
