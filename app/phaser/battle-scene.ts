@@ -12,6 +12,7 @@ import { STEP } from '../domain/battle';
 import type { BattleState } from '../domain/battle';
 import { getDefender } from '../domain/content';
 import type { Ring } from '../domain/types';
+import type { PreviewSummary } from '../domain/preview';
 
 export interface BattleSceneApi {
   battle: BattleState;
@@ -64,6 +65,15 @@ interface Gesture {
   movedTooFar: boolean;
 }
 
+// Preview-overlay tints (author mode only): role-coded rings + hazard regions.
+const ROLE_COLOR: Record<string, number> = {
+  frontline: 0x77e0c1,
+  chokepoint: 0xf7d66f,
+  'gate-defense': 0xff6f5b,
+  'long-range': 0x8ea0ff,
+  support: 0x9a9a9a,
+};
+
 export class BattleScene extends Phaser.Scene {
   private battle!: BattleState;
   private onRingClick!: (ringId: string | null, typeId?: string) => void;
@@ -74,6 +84,8 @@ export class BattleScene extends Phaser.Scene {
 
   private accumulator = 0;
   private timeScale = 1;
+  private preview = false;
+  private summary: PreviewSummary | undefined;
 
   /** Active taps, keyed by pointer id (one gesture per thumb). */
   private gestures = new Map<number, Gesture>();
@@ -89,11 +101,14 @@ export class BattleScene extends Phaser.Scene {
     this.battle = api.battle;
     this.onRingClick = api.onRingClick;
     this.timeScale = (this.registry.get('timeScale') as number | undefined) ?? 1;
+    this.preview = (this.registry.get('preview') as boolean | undefined) ?? false;
+    this.summary = this.registry.get('summary') as PreviewSummary | undefined;
     this.rings = [...this.battle.rings];
 
     this.terrain = this.add.graphics();
     this.dynamic = this.add.graphics();
     this.drawTerrain();
+    if (this.preview) this.drawPreviewOverlay();
 
     // Tap-tap placement (issue #22). A second pointer is allowed so two thumbs
     // can play simultaneously; each carries its own tool snapshot. Placement
@@ -219,6 +234,48 @@ export class BattleScene extends Phaser.Scene {
       g.fillCircle(ring.x, ring.y, ring.radius);
       g.lineStyle(3, COLOR.ring, 0.9);
       g.strokeCircle(ring.x, ring.y, ring.radius);
+    }
+  }
+
+  /**
+   * Author preview overlay (drawn once onto the static terrain layer when
+   * ?preview=1): role-coded ring outlines, hazard regions (water crossings,
+   * air lanes), spawn markers, and the Heartwood target reticle for each route.
+   */
+  private drawPreviewOverlay(): void {
+    const summary = this.summary;
+    if (!summary) return;
+    const g = this.terrain;
+
+    for (const ring of this.rings) {
+      const color = ROLE_COLOR[ring.role] ?? COLOR.ring;
+      g.lineStyle(2, color, 0.9);
+      g.strokeCircle(ring.x, ring.y, ring.radius + 6);
+    }
+
+    for (const hazard of summary.hazards) {
+      if (hazard.kind === 'water') {
+        g.fillStyle(0x2f6fb0, 0.35);
+        g.fillEllipse(hazard.region.x, hazard.region.y, hazard.region.rx * 2, hazard.region.ry * 2);
+      } else if (hazard.kind === 'air-lane') {
+        g.lineStyle(3, 0x8ea0ff, 0.5);
+        g.lineBetween(hazard.region.from.x, hazard.region.from.y, hazard.region.to.x, hazard.region.to.y);
+      }
+    }
+
+    for (const route of summary.routes) {
+      // Spawn marker (enemy entrance).
+      g.lineStyle(2, 0xd7ff8f, 0.95);
+      g.strokeCircle(route.spawn.x, route.spawn.y, 20);
+      g.fillStyle(0xd7ff8f, 0.5);
+      g.fillCircle(route.spawn.x, route.spawn.y, 8);
+
+      // Heartwood target reticle (the grove enemies must reach).
+      const h = route.heartwood;
+      g.lineStyle(3, 0xff6f5b, 0.9);
+      g.strokeCircle(h.x, h.y, 64);
+      g.lineBetween(h.x - 72, h.y, h.x + 72, h.y);
+      g.lineBetween(h.x, h.y - 72, h.x, h.y + 72);
     }
   }
 

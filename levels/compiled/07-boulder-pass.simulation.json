@@ -1,0 +1,69 @@
+{
+  "levelId": "07-boulder-pass",
+  "results": {
+    "cheapest-dps": {
+      "bot": "cheapest-dps",
+      "won": true,
+      "hearts": 3,
+      "mana": 999,
+      "ticks": 11744,
+      "defendersPlaced": 9,
+      "band": "hard-win",
+      "bandEvaluation": {
+        "ok": true,
+        "expected": "win with between 1 and 3 hearts",
+        "actual": "win with 3 hearts"
+      }
+    },
+    "best-coverage": {
+      "bot": "best-coverage",
+      "won": true,
+      "hearts": 5,
+      "mana": 999,
+      "ticks": 12014,
+      "defendersPlaced": 9,
+      "band": "clean-win",
+      "bandEvaluation": {
+        "ok": true,
+        "expected": "win with between 4 and 5 hearts",
+        "actual": "win with 5 hearts"
+      }
+    },
+    "upgrade-first": {
+      "bot": "upgrade-first",
+      "won": true,
+      "hearts": 3,
+      "mana": 999,
+      "ticks": 11794,
+      "defendersPlaced": 9,
+      "band": "hard-win",
+      "bandEvaluation": {
+        "ok": true,
+        "expected": "win with between 1 and 3 hearts",
+        "actual": "win with 3 hearts"
+      }
+    },
+    "defensive-gate": {
+      "bot": "defensive-gate",
+      "won": false,
+      "hearts": 0,
+      "mana": 35,
+      "ticks": 1969,
+      "defendersPlaced": 8
+    },
+    "anti-air-priority": {
+      "bot": "anti-air-priority",
+      "won": false,
+      "hearts": 0,
+      "mana": 46,
+      "ticks": 1973,
+      "defendersPlaced": 3,
+      "band": "loss",
+      "bandEvaluation": {
+        "ok": true,
+        "expected": "loss",
+        "actual": "loss/timed out with 0 hearts left"
+      }
+    }
+  }
+}

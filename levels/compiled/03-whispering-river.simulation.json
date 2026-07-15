@@ -5,9 +5,15 @@
       "bot": "cheapest-dps",
       "won": true,
       "hearts": 1,
-      "mana": 617,
-      "ticks": 7628,
-      "defendersPlaced": 8
+      "mana": 623,
+      "ticks": 7704,
+      "defendersPlaced": 8,
+      "band": "hard-win",
+      "bandEvaluation": {
+        "ok": true,
+        "expected": "win with between 1 and 3 hearts",
+        "actual": "win with 1 heart"
+      }
     },
     "best-coverage": {
       "bot": "best-coverage",
@@ -20,9 +26,9 @@
     "upgrade-first": {
       "bot": "upgrade-first",
       "won": true,
-      "hearts": 1,
-      "mana": 618,
-      "ticks": 7639,
+      "hearts": 5,
+      "mana": 436,
+      "ticks": 5914,
       "defendersPlaced": 8
     },
     "defensive-gate": {
@@ -31,15 +37,27 @@
       "hearts": 5,
       "mana": 999,
       "ticks": 28799,
-      "defendersPlaced": 8
+      "defendersPlaced": 8,
+      "band": "loss",
+      "bandEvaluation": {
+        "ok": true,
+        "expected": "loss",
+        "actual": "loss/timed out with 5 hearts left"
+      }
     },
     "anti-air-priority": {
       "bot": "anti-air-priority",
       "won": true,
       "hearts": 5,
-      "mana": 77,
-      "ticks": 4541,
-      "defendersPlaced": 8
+      "mana": 82,
+      "ticks": 4592,
+      "defendersPlaced": 8,
+      "band": "clean-win",
+      "bandEvaluation": {
+        "ok": true,
+        "expected": "win with between 4 and 5 hearts",
+        "actual": "win with 5 hearts"
+      }
     }
   }
 }

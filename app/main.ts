@@ -6,6 +6,10 @@
 // Relative asset paths (base './') keep the build deployable to GitHub Pages at
 // any subpath. Progress is a versioned local JSON save with safe reset on
 // schema drift or corruption.
+//
+// Author preview: `?level=<id>` drops straight into any level, `?layout=portrait`
+// forces the compact phone layout, and `?preview=1` overlays routes, hazards,
+// wave composition, metrics, and the deterministic simulation summary.
 
 import Phaser from 'phaser';
 import { BattleState } from './domain/battle';
@@ -22,6 +26,7 @@ import {
   type CampaignProgress,
   type TrailNode,
 } from './domain/campaign';
+import { buildPreviewSummary, type PreviewSummary, type SimulationFile } from './domain/preview';
 import type { BattleSnapshot } from './domain/battle';
 import type { CompiledLevel } from './domain/types';
 import manifestRaw from '../levels/campaign.json';
@@ -47,6 +52,17 @@ const COMPILED: Record<string, CompiledLevel> = {
   '07-boulder-pass': lvl07 as CompiledLevel,
 };
 
+// Manifest order for the author level picker, and the deterministic simulations
+// (outcome bands) keyed by level id — eagerly imported so any level can preview.
+const LEVEL_ORDER = Object.keys(COMPILED).sort();
+const simModules = import.meta.glob('../levels/compiled/*.simulation.json', { eager: true }) as Record<string, SimulationFile>;
+const SIMS: Record<string, SimulationFile> = {};
+for (const sim of Object.values(simModules)) SIMS[sim.levelId] = sim;
+
+function resolveLevel(id: string): CompiledLevel {
+  return COMPILED[id] ?? COMPILED['01-meadows-edge'];
+}
+
 function buildMeta(level: CompiledLevel): LevelMeta {
   return {
     id: level.id,
@@ -66,13 +82,21 @@ for (const id of Object.keys(COMPILED)) META[id] = buildMeta(COMPILED[id]);
 interface QueryOptions {
   god: boolean;
   timeScale: number;
+  levelId: string;
+  layout: 'auto' | 'portrait' | 'landscape';
+  preview: boolean;
 }
 
 function readOptions(): QueryOptions {
   const params = new URLSearchParams(location.search);
+  const layoutParam = params.get('layout');
+  const layout = layoutParam === 'portrait' || layoutParam === 'landscape' ? layoutParam : 'auto';
   return {
     god: params.get('god') === '1',
     timeScale: Math.max(1, Number(params.get('turbo')) || 1),
+    levelId: params.get('level') ?? '01-meadows-edge',
+    layout,
+    preview: params.get('preview') === '1',
   };
 }
 
@@ -109,6 +133,11 @@ function saveProgress(p: CampaignProgress): void {
 
 let progress = loadProgress();
 
+// Deterministic outcome-band summary for the author preview level (if any).
+const summary: PreviewSummary | undefined = options.preview
+  ? buildPreviewSummary(resolveLevel(options.levelId), SIMS[options.levelId])
+  : undefined;
+
 // --- DOM references -------------------------------------------------------
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -131,6 +160,10 @@ const overlay = $<HTMLElement>('outcomeOverlay');
 const outcomeTitle = $<HTMLHeadingElement>('outcomeTitle');
 const outcomeMessage = $<HTMLParagraphElement>('outcomeMessage');
 const hint = $<HTMLOutputElement>('hint');
+// Author preview controls: level picker, phone-layout toggle, and the legend.
+const levelSelect = $<HTMLSelectElement>('levelSelect');
+const layoutBtn = $<HTMLButtonElement>('layoutBtn');
+const previewPanel = $<HTMLElement>('previewPanel');
 
 const hudElements: HudElements = {
   mana: manaValue,
@@ -154,6 +187,49 @@ const detailElements: DetailElements = {
   unlock: $<HTMLParagraphElement>('detailUnlock'),
   enterBtn: detailEnterBtn,
 };
+
+// --- Layout + level selection (author preview) ---------------------------
+function currentLayout(): QueryOptions['layout'] {
+  if (document.body.classList.contains('force-portrait')) return 'portrait';
+  if (document.body.classList.contains('force-landscape')) return 'landscape';
+  return 'auto';
+}
+
+function applyLayout(layout: QueryOptions['layout']): void {
+  document.body.classList.toggle('force-portrait', layout === 'portrait');
+  document.body.classList.toggle('force-landscape', layout === 'landscape');
+  if (layoutBtn) {
+    layoutBtn.textContent = `Layout: ${currentLayout()}`;
+  }
+}
+
+function navigate(next: Partial<QueryOptions>): void {
+  const params = new URLSearchParams(location.search);
+  const merged = { ...options, ...next };
+  params.set('level', merged.levelId);
+  if (merged.preview) params.set('preview', '1'); else params.delete('preview');
+  if (merged.layout !== 'auto') params.set('layout', merged.layout); else params.delete('layout');
+  location.search = params.toString();
+}
+
+if (levelSelect) {
+  for (const id of LEVEL_ORDER) {
+    const opt = document.createElement('option');
+    opt.value = id;
+    opt.textContent = COMPILED[id]?.name ?? id;
+    if (id === options.levelId) opt.selected = true;
+    levelSelect.appendChild(opt);
+  }
+  levelSelect.addEventListener('change', () => navigate({ levelId: levelSelect.value }));
+}
+
+if (layoutBtn) {
+  layoutBtn.addEventListener('click', () => {
+    applyLayout(currentLayout() === 'portrait' ? 'landscape' : 'portrait');
+  });
+}
+
+applyLayout(options.layout);
 
 // --- Trail construction ---------------------------------------------------
 let trailNodes: TrailNode[] = resolveTrail(manifest, META, progress);
@@ -355,6 +431,37 @@ function recordOutcome(snap: BattleSnapshot): void {
   saveProgress(progress);
 }
 
+// --- Preview legend (author overlays) ------------------------------------
+function renderPreviewLegend(): void {
+  if (!previewPanel || !summary) return;
+  const m = summary.metrics;
+  const rows: string[] = [];
+  rows.push(`<h3>${summary.meta.name}</h3>`);
+  rows.push(`<p class="preview__meta">${summary.meta.biome} · boss: ${summary.meta.bossId ?? 'none'} · spell: ${summary.meta.spellUnlock ?? 'none'}</p>`);
+  if (m) {
+    rows.push(`<p class="preview__metrics">path ${m.pathLength} · ${m.ringCount} rings · coverage ${m.averageRingCoverage} · choke ${m.chokepoints} · diff ${m.estimatedDifficulty}</p>`);
+  }
+  if (summary.hazards.length) {
+    rows.push(`<p class="preview__hazards">hazards: ${summary.hazards.map((h) => h.label).join(', ')}</p>`);
+  }
+  const waveList = summary.waves
+    .map((w) => `<li><b>W${w.index + 1}</b> ${w.totalEnemies} foe${w.totalEnemies === 1 ? '' : 's'}: ${w.groups.map((g) => `${g.count}× ${g.type}`).join(', ')}</li>`)
+    .join('');
+  rows.push(`<ol class="preview__waves">${waveList}</ol>`);
+  if (summary.simulation?.length) {
+    const sims = summary.simulation
+      .map((s) => {
+        const status = s.inBand ? 'in band' : 'OUT OF BAND';
+        const verdict = s.band ? `${s.band}: ${status}` : 'no band';
+        return `<li>${s.bot} — ${s.won ? 'win' : 'loss'} (${s.hearts}♥) <span class="preview__band">${verdict}</span></li>`;
+      })
+      .join('');
+    rows.push(`<ul class="preview__sims">${sims}</ul>`);
+  }
+  previewPanel.innerHTML = rows.join('');
+  previewPanel.hidden = false;
+}
+
 function syncHud(snap: BattleSnapshot): void {
   recordOutcome(snap);
   // The Undo button reflects the undo window every frame, independent of the
@@ -385,6 +492,10 @@ function bootBattleScene(): void {
   game.registry.set('battleApi', { battle, onRingClick: handleRingClick });
   game.registry.set('timeScale', options.timeScale);
   game.registry.set('onFrame', syncHud);
+  // Author overlays: the scene tints rings by role when preview is on, and the
+  // DOM legend renders the metrics/simulation summary.
+  game.registry.set('preview', options.preview);
+  if (summary) game.registry.set('summary', summary);
 }
 
 function enterLevel(levelId: string): void {
@@ -409,6 +520,7 @@ function enterLevel(levelId: string): void {
   trailScreen.hidden = true;
   battleRoot.hidden = false;
   bootBattleScene();
+  if (options.preview) renderPreviewLegend();
   window.fr = makeDebugApi();
 }
 
@@ -463,3 +575,10 @@ declare global {
 buildTrailDom();
 renderTrailView();
 trailMap.addEventListener('keydown', trailKeydown);
+
+// Author preview: `?level=<id>` drops straight into that level (with optional
+// phone layout + simulation overlay) instead of starting on the Trail.
+const bootParams = new URLSearchParams(location.search);
+if (bootParams.has('level')) {
+  enterLevel(options.levelId);
+}

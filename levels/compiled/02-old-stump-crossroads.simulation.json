@@ -6,8 +6,14 @@
       "won": true,
       "hearts": 5,
       "mana": 999,
-      "ticks": 19379,
-      "defendersPlaced": 8
+      "ticks": 19289,
+      "defendersPlaced": 8,
+      "band": "clean-win",
+      "bandEvaluation": {
+        "ok": true,
+        "expected": "win with between 4 and 5 hearts",
+        "actual": "win with 5 hearts"
+      }
     },
     "best-coverage": {
       "bot": "best-coverage",
@@ -22,7 +28,7 @@
       "won": true,
       "hearts": 5,
       "mana": 999,
-      "ticks": 19384,
+      "ticks": 18936,
       "defendersPlaced": 8
     },
     "defensive-gate": {
@@ -31,7 +37,13 @@
       "hearts": 5,
       "mana": 999,
       "ticks": 28799,
-      "defendersPlaced": 8
+      "defendersPlaced": 8,
+      "band": "loss",
+      "bandEvaluation": {
+        "ok": true,
+        "expected": "loss",
+        "actual": "loss/timed out with 5 hearts left"
+      }
     },
     "anti-air-priority": {
       "bot": "anti-air-priority",

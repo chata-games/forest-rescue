@@ -9,7 +9,9 @@
  *   - invalid compiled path/ring geometry,
  *   - missing or duplicate stable IDs,
  *   - manifest <-> compiled/intent consistency,
- *   - compiler convergence.
+ *   - compiler convergence,
+ *   - deterministic replay (compiled output reproduces from its intent),
+ *   - outcome-band simulation (named strategies land in their target band).
  *
  * Every check returns an array of {@link ValidationError} objects so the CLI
  * (`validate.mjs`) and the tests can share one error shape.
@@ -28,6 +30,7 @@ import {
   pathInBounds,
   pathSelfIntersects,
 } from "./shared.mjs";
+import { runNamedSimulations } from "../simulation/scenarios.mjs";
 
 /**
  * @typedef {{ code: string, message: string, source?: string }} ValidationError
@@ -349,12 +352,56 @@ export function validateConvergence(intents, candidates = 40) {
 }
 
 /**
+ * Deterministic replay: recompile every intent that ships a compiled file and
+ * assert the output is bit-for-bit identical. Catches compiled/intent drift
+ * (the "deterministic replay" failure category) using the same default
+ * candidate budget the production `compile --all` uses.
+ * @returns {ValidationError[]}
+ */
+export function validateReplay({ intents, compiled }) {
+  const errors = [];
+  const at = (code, message, source) => errors.push({ code, message, source });
+  const shipped = new Map(compiled.map((c) => [c.id, c.level]));
+  for (const { id, intent, source } of intents) {
+    const level = shipped.get(id);
+    if (!level) continue; // missing compiled output is reported by the manifest check
+    try {
+      const replay = compileIntent(intent);
+      if (JSON.stringify(replay) !== JSON.stringify(level)) {
+        at("compiler/output-drift", `compiled output for '${id}' no longer reproduces from its intent`, source || `replay:${id}`);
+      }
+    } catch (err) {
+      at("compiler/output-drift", `replay failed to recompile '${id}': ${err.message}`, source || `replay:${id}`);
+    }
+  }
+  return errors;
+}
+
+/**
+ * Outcome-band simulation gate: run the named strategy scenarios and report any
+ * that land outside their declared band. This is the "metric-band" failure
+ * category — it rejects out-of-target difficulty with an actionable report
+ * before content is accepted.
+ * @param {Map<string, object>} levelsById
+ * @returns {ValidationError[]}
+ */
+export function validateOutcomeBands(levelsById) {
+  const { failures } = runNamedSimulations(levelsById);
+  return failures.map((f) => ({
+    code: f.code,
+    message: f.message,
+    source: `scenario:${f.scenario.name}`,
+  }));
+}
+
+/**
  * Run every semantic check across the corpus and return the combined errors.
  * @param {{intents: Array, compiled: Array, manifest: object, catalogs: object}} input
  * @returns {ValidationError[]}
  */
 export function validateAll({ intents, compiled, manifest, catalogs }) {
   const errors = [];
+  const levelsById = new Map(compiled.map((c) => [c.id, c.level]));
   for (const { id, intent, source } of intents) {
     errors.push(...validateIntentRules(intent, catalogs, source || `intent:${id}`));
   }
@@ -362,11 +409,12 @@ export function validateAll({ intents, compiled, manifest, catalogs }) {
     errors.push(...validateCompiledRules(level, catalogs, source || `compiled:${id}`));
   }
   if (manifest) {
-    const compiledLevels = new Map(compiled.map((c) => [c.id, c.level]));
     const intentIds = new Set(intents.map((i) => i.id));
-    errors.push(...validateManifest(manifest, catalogs, { intentIds, compiledLevels }));
+    errors.push(...validateManifest(manifest, catalogs, { intentIds, compiledLevels: levelsById }));
   }
   errors.push(...validateStableIds({ intents, compiled, manifest }));
   errors.push(...validateConvergence(intents.map(({ id, intent }) => ({ id, intent }))));
+  errors.push(...validateReplay({ intents, compiled }));
+  errors.push(...validateOutcomeBands(levelsById));
   return errors;
 }
