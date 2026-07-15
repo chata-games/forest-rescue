@@ -1,3 +1,7 @@
+tmp
+.sandcastle/.env
+.env
+dist
 node_modules/
 assets/previews/
 levels/compiled/*-preview.png

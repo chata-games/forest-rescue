@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Forest Rescue — battle shell prototype</title>
+  </head>
+  <body>
+    <main class="shell" aria-label="Forest Rescue battle shell prototype">
+      <header class="hud hud-top">
+        <div class="brand"><span class="heart">♥</span><strong>HEARTWOOD</strong><span id="hearts">5</span></div>
+        <div class="wave"><span>WAVE</span><strong id="wave">3 / 8</strong><button id="pause" type="button" aria-pressed="false">Ⅱ</button></div>
+        <div class="mana"><span>✦</span><strong id="mana">120</strong><span class="mana-label">MANA</span></div>
+      </header>
+
+      <section class="battlefield" aria-label="Battlefield">
+        <div class="trail"></div>
+        <div class="grove">✦</div>
+        <div class="enemy enemy-a">♟</div><div class="enemy enemy-b">♟</div><div class="enemy enemy-c">♟</div>
+        <button class="ring ring-a" type="button" aria-label="Select fairy ring A">+</button>
+        <button class="ring ring-b" type="button" aria-label="Select fairy ring B">+</button>
+        <button class="ring ring-c" type="button" aria-label="Select fairy ring C">+</button>
+        <div class="spell-ring" aria-hidden="true"></div>
+        <aside class="target-card" hidden>
+          <strong>Fairy ring</strong><span>Choose a defender</span>
+        </aside>
+      </section>
+
+      <footer class="hud hud-bottom">
+        <div class="status"><span class="status-dot"></span><span id="status">Planning</span></div>
+        <div class="actions" aria-label="Compact actions">
+          <button type="button" class="action selected" data-action="leaf">🌿<small>Leafguard</small></button>
+          <button type="button" class="action" data-action="mushroom">🍄<small>Shaman</small></button>
+          <button type="button" class="action spell" data-action="spell">✧<small>Vine burst</small></button>
+          <button type="button" class="action" data-action="loadout">☰<small>Loadout</small></button>
+        </div>
+        <button id="start" class="start" type="button">START WAVE</button>
+      </footer>
+    </main>
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>
