@@ -264,7 +264,6 @@ export function drawEnemyEntity(ctx, e, catalog, bob = 0, atlas = null) {
   if (e.stats?.damagedSprite && e.hp < e.maxHp * 0.5) {
     spriteId = e.stats.damagedSprite;
   }
-  const yOff = e.flying ? Math.sin(bob * 2) * 5 : Math.sin(bob) * 3;
   if (spriteId && drawEntitySprite(ctx, spriteId, e.x, e.y + (e.flying ? yOff : 0), catalog, atlas, bob, e.flash)) {
     const w = e.stats.width;
     if (e.hp < e.maxHp) drawHp(ctx, e.x - w / 2, e.y - e.stats.height / 2 - 10 + yOff, w, e.hp / e.maxHp, "#ff7056");
