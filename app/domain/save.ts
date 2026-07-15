@@ -24,15 +24,17 @@
 // campaign and Loadout contracts.
 
 import { emptyProgress, type CampaignProgress } from './campaign';
+import { defaultGuidance, guidanceForClearedCount, sanitizeGuidance, type GuidanceState } from './guidance';
 import type { SavedLoadout, SavedLoadoutSlot } from './loadout';
 
 /**
  * The save's own schema version — the on-disk JSON shape. Bumped whenever that
  * shape changes; each bump is covered by a sequential migration step below.
  * v1 is the pre-issue-#27 shape written by the original shell
- * (`{ schemaVersion: 1, levels: CampaignProgress }`); v2 is the full shape here.
+ * (`{ schemaVersion: 1, levels: CampaignProgress }`); v2 is the full shape here;
+ * v3 adds the Guidance preference (issue #23).
  */
-export const SAVE_SCHEMA_VERSION = 2;
+export const SAVE_SCHEMA_VERSION = 3;
 
 /**
  * The campaign content epoch this build ships. A *deliberate, incompatible*
@@ -73,6 +75,8 @@ export interface SaveData {
   unlocks: string[];
   /** Per-level chosen Loadout, keyed by stable level id. Stable IDs only. */
   loadouts: Record<string, SavedLoadout>;
+  /** The Guidance preference + fading intensity (issue #23 AC1/AC6). */
+  guidance: GuidanceState;
 }
 
 export type SaveNoticeKind = 'epoch' | 'corrupted';
@@ -88,6 +92,8 @@ export interface SaveLoadOutcome {
   progress: CampaignProgress;
   unlocks: string[];
   loadouts: Record<string, SavedLoadout>;
+  /** The Guidance preference recovered from the save (issue #23 AC6). */
+  guidance: GuidanceState;
   /** A recovery notice, or null when the save loaded cleanly. */
   notice: SaveNotice | null;
   /** The preserved raw value when progress was archived/recovered (AC4). */
@@ -110,13 +116,15 @@ export function freshSave(ctx: SaveContext): SaveData {
 
 /**
  * Build a save from the live campaign state. Inputs are sanitized, so partial or
- * loosely-typed app state can never produce an invalid save.
+ * loosely-typed app state can never produce an invalid save. `guidance` defaults
+ * to a brand-new Guardian's preference when omitted (issue #23).
  */
 export function buildSave(input: {
   ctx: SaveContext;
   progress: CampaignProgress;
   unlocks: string[];
   loadouts: Record<string, SavedLoadout>;
+  guidance?: GuidanceState;
 }): SaveData {
   return {
     schemaVersion: SAVE_SCHEMA_VERSION,
@@ -125,6 +133,7 @@ export function buildSave(input: {
     progress: sanitizeProgress(input.progress),
     unlocks: sanitizeStringArray(input.unlocks),
     loadouts: sanitizeLoadouts(input.loadouts),
+    guidance: sanitizeGuidance(input.guidance),
   };
 }
 
@@ -140,7 +149,14 @@ export function serializeSave(save: SaveData): string {
  */
 export function loadSave(raw: string | null | undefined, ctx: SaveContext): SaveLoadOutcome {
   if (raw == null || raw === '') {
-    return { progress: emptyProgress(), unlocks: [], loadouts: {}, notice: null, archivedRaw: null };
+    return {
+      progress: emptyProgress(),
+      unlocks: [],
+      loadouts: {},
+      guidance: defaultGuidance(),
+      notice: null,
+      archivedRaw: null,
+    };
   }
 
   let parsed: unknown;
@@ -168,6 +184,7 @@ export function loadSave(raw: string | null | undefined, ctx: SaveContext): Save
     progress: aliased.progress,
     unlocks: aliased.unlocks,
     loadouts: aliased.loadouts,
+    guidance: aliased.guidance,
     notice: null,
     archivedRaw: null,
   };
@@ -195,8 +212,10 @@ export function applyAliases(save: SaveData, aliases: Readonly<Record<string, st
 
 // --- Migration ladder ------------------------------------------------------
 
-/** A migration step: read schemaVersion N (1-indexed), return a clean N+1 save. */
-type Migration = (data: unknown, ctx: SaveContext) => SaveData;
+/** A migration step: read schemaVersion N (1-indexed), return the next version's
+ * raw shape. The final {@link normalizeSave} call validates + cleans it into a
+ * well-typed SaveData, so a step need only carry the fields it transforms. */
+type Migration = (data: unknown, ctx: SaveContext) => Record<string, unknown>;
 
 /**
  * v1 → v2: lift the pre-issue-#27 `{ schemaVersion: 1, levels }` shape into the
@@ -219,10 +238,33 @@ const migrateV1ToV2: Migration = (data, ctx) => {
 };
 
 /**
+ * v2 → v3: add the Guidance preference (issue #23 AC1/AC6). A v2 save carried no
+ * guidance, so its faded level is reconstructed from how many levels the
+ * Guardian has already cleared — the level they would have reached had guidance
+ * faded once per first-time clear (clamped at 0 = graduated). Progress, unlocks,
+ * and Loadouts are preserved verbatim. Like the v1→v2 step, a migrated save
+ * adopts the current content epoch.
+ */
+const migrateV2ToV3: Migration = (data, ctx) => {
+  const obj = isObject(data) ? data : {};
+  const progress = sanitizeProgress(obj.progress);
+  const cleared = Object.values(progress).filter((p) => p.cleared).length;
+  return {
+    schemaVersion: 3,
+    contentEpoch: ctx.contentEpoch,
+    campaignId: ctx.campaignId,
+    progress,
+    unlocks: sanitizeStringArray(obj.unlocks),
+    loadouts: sanitizeLoadouts(obj.loadouts),
+    guidance: guidanceForClearedCount(cleared),
+  };
+};
+
+/**
  * Sequential migration ladder. Entry i migrates schemaVersion (i + 1) → (i + 2).
  * Adding a new schema version appends one step here and bumps SAVE_SCHEMA_VERSION.
  */
-const MIGRATIONS: Migration[] = [migrateV1ToV2];
+const MIGRATIONS: Migration[] = [migrateV1ToV2, migrateV2ToV3];
 
 /** Run the migration ladder from the parsed save's version to the current one. */
 function runMigrations(parsed: unknown, ctx: SaveContext): SaveData {
@@ -255,6 +297,7 @@ function normalizeSave(data: unknown): SaveData {
     progress: sanitizeProgress(isObject(data.progress) ? data.progress : {}),
     unlocks: sanitizeStringArray(data.unlocks),
     loadouts: sanitizeLoadouts(data.loadouts),
+    guidance: sanitizeGuidance(data.guidance),
   };
 }
 
@@ -325,6 +368,7 @@ function recover(raw: string, kind: SaveNoticeKind, message: string): SaveLoadOu
     progress: emptyProgress(),
     unlocks: [],
     loadouts: {},
+    guidance: defaultGuidance(),
     notice: { kind, message },
     archivedRaw: raw,
   };

@@ -199,8 +199,16 @@
         <h2 id="outcomeTitle">Victory</h2>
         <p id="outcomeStars" class="overlay__stars" aria-live="polite"></p>
         <p id="outcomeMessage"></p>
+        <!-- Opt-in "How could I improve?" coaching (issue #23 AC5): non-blocking
+             advice derived from the battle's observable results, shown on request.
+             It never forces an action or a Loadout — the Guardian stays in control. -->
+        <div id="coachingPanel" class="coaching" role="region" aria-label="Improvement coaching" hidden>
+          <h3 class="coaching__title">How you could improve</h3>
+          <div id="coachingBody" class="coaching__body"></div>
+        </div>
         <div class="overlay__actions">
           <button id="replayBtn" class="overlay__btn" type="button">Play Again</button>
+          <button id="coachingBtn" class="overlay__btn" type="button" hidden>How could I improve?</button>
           <button id="returnToTrailBtn" class="primary-btn" type="button">Return to Trail</button>
         </div>
       </div>
@@ -239,7 +247,8 @@
             <button id="pauseLayoutBtn" class="overlay__btn" type="button">Layout</button>
             <button id="pauseAudioBtn" class="overlay__btn" type="button">Audio</button>
           </div>
-          <p class="overlay__note">Two-thumb landscape is preferred; portrait scales the whole battlefield to fit. Music and effects are controlled independently under Audio.</p>
+          <button id="pauseGuidanceBtn" class="overlay__btn" type="button" aria-pressed="true">Guidance: On</button>
+          <p class="overlay__note">Two-thumb landscape is preferred; portrait scales the whole battlefield to fit. Audio and Guidance can be changed independently.</p>
         </div>
         <div id="pauseConfirm" class="overlay__confirm" role="alertdialog" aria-label="Confirm action" hidden>
           <p id="pauseConfirmText" class="overlay__note"></p>

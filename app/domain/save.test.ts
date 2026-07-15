@@ -278,4 +278,106 @@ describe('freshSave', () => {
     expect(outcome.notice).toBeNull();
     expect(outcome.progress).toEqual({});
   });
+
+  it('carries the default Guidance preference for a brand-new Guardian (issue #23)', () => {
+    const data = freshSave(CTX);
+    expect(data.guidance).toEqual({ enabled: true, level: 3 });
+  });
+});
+
+// --- Guidance persistence (issue #23 AC6) -----------------------------------
+
+describe('guidance persistence journey', () => {
+  it('round-trips the Guidance preference through reload (AC6)', () => {
+    // Opted out + faded to level 1: both halves of the preference survive.
+    const raw = serializeSave(
+      buildSave({
+        ctx: CTX,
+        progress: sampleProgress(),
+        unlocks: ['sprig-sentinel'],
+        loadouts: {},
+        guidance: { enabled: false, level: 1 },
+      }),
+    );
+    const outcome = loadSave(raw, CTX);
+    expect(outcome.guidance).toEqual({ enabled: false, level: 1 });
+    expect(outcome.notice).toBeNull();
+  });
+
+  it('migrates a v2 save (no guidance) to v3, reconstructing the faded level from clears', () => {
+    // A pre-issue-#23 save: schemaVersion 2, no guidance field. One level
+    // cleared → guidance faded once → level 2 (AC1 fade applied on migration).
+    const v2 = JSON.stringify({
+      schemaVersion: 2,
+      contentEpoch: CONTENT_EPOCH,
+      campaignId: 'heartwood-v1',
+      progress: { '01-meadows-edge': { cleared: true, stars: 2 } },
+      unlocks: ['sprig-sentinel'],
+      loadouts: { '01-meadows-edge': [{ kind: 'defender', id: 'sprig-sentinel' }] },
+    });
+    const outcome = loadSave(v2, CTX);
+    expect(outcome.progress['01-meadows-edge']).toEqual({ cleared: true, stars: 2 });
+    expect(outcome.guidance).toEqual({ enabled: true, level: 2 });
+    expect(outcome.notice).toBeNull();
+  });
+
+  it('a v2 save with no clears migrates to full-intensity guidance (a fresh start)', () => {
+    const v2 = JSON.stringify({
+      schemaVersion: 2,
+      contentEpoch: CONTENT_EPOCH,
+      campaignId: 'heartwood-v1',
+      progress: {},
+      unlocks: [],
+      loadouts: {},
+    });
+    expect(loadSave(v2, CTX).guidance).toEqual({ enabled: true, level: 3 });
+  });
+
+  it('a v2 save with many clears graduates guidance to disabled on migration', () => {
+    // 3+ first-clears fade guidance all the way to 0 (AC1 "eventually disable").
+    const v2 = JSON.stringify({
+      schemaVersion: 2,
+      contentEpoch: CONTENT_EPOCH,
+      campaignId: 'heartwood-v1',
+      progress: {
+        '01-meadows-edge': { cleared: true, stars: 3 },
+        '02-old-stump-crossroads': { cleared: true, stars: 2 },
+        '03-whispering-river': { cleared: true, stars: 1 },
+      },
+      unlocks: [],
+      loadouts: {},
+    });
+    expect(loadSave(v2, CTX).guidance).toEqual({ enabled: true, level: 0 });
+  });
+
+  it('a legacy v1 save migrates through v2 into v3, reconstructing guidance from clears', () => {
+    const v1 = JSON.stringify({ schemaVersion: 1, levels: { '01-meadows-edge': { cleared: true, stars: 1 } } });
+    const outcome = loadSave(v1, CTX);
+    expect(outcome.progress['01-meadows-edge']).toEqual({ cleared: true, stars: 1 });
+    expect(outcome.guidance).toEqual({ enabled: true, level: 2 });
+  });
+
+  it('sanitizes a wild persisted guidance value rather than rejecting the save', () => {
+    const raw = JSON.stringify({
+      schemaVersion: SAVE_SCHEMA_VERSION,
+      contentEpoch: CONTENT_EPOCH,
+      campaignId: 'heartwood-v1',
+      progress: {},
+      unlocks: [],
+      loadouts: {},
+      guidance: { enabled: 'maybe', level: 99 },
+    });
+    const outcome = loadSave(raw, CTX);
+    // truthy non-false → enabled; 9 clamps to the max of 3.
+    expect(outcome.guidance).toEqual({ enabled: true, level: 3 });
+    expect(outcome.notice).toBeNull();
+  });
+
+  it('recovery journeys reset guidance to the default alongside the fresh campaign', () => {
+    // Corruption recovery.
+    expect(loadSave('{ broken', CTX).guidance).toEqual({ enabled: true, level: 3 });
+    // Incompatible epoch recovery.
+    const epochRaw = serialize({ epoch: 'long-gone' });
+    expect(loadSave(epochRaw, CTX).guidance).toEqual({ enabled: true, level: 3 });
+  });
 });

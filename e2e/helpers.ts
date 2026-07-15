@@ -22,6 +22,11 @@ export interface FrSaveNotice {
   message: string;
 }
 
+export interface FrGuidance {
+  enabled: boolean;
+  level: number;
+}
+
 export interface FrSaveState {
   schemaVersion: number;
   contentEpoch: string;
@@ -29,6 +34,7 @@ export interface FrSaveState {
   progress: Record<string, { cleared: boolean; stars: number }>;
   unlocks: string[];
   loadouts: Record<string, (FrLoadoutSlot | null)[]>;
+  guidance: FrGuidance;
 }
 
 export interface FrApi {
@@ -69,6 +75,10 @@ export interface FrApi {
   audioEffective(channel: 'master' | 'music' | 'effects'): number;
   audioSet(channel: 'master' | 'music' | 'effects', value: number): void;
   audioMute(channel: 'master' | 'music' | 'effects'): void;
+  // Guidance + retry seam (issue #23 AC6).
+  guidance(): FrGuidance;
+  setGuidance(enabled: boolean): FrGuidance;
+  coaching(): string[];
 }
 
 /**

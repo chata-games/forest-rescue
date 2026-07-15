@@ -60,6 +60,15 @@ import {
   type TrailNode,
 } from './domain/campaign';
 import {
+  coachingAdvice,
+  defaultGuidance,
+  guidanceActive,
+  reduceGuidance,
+  setGuidanceEnabled,
+  type CoachingInput,
+  type GuidanceState,
+} from './domain/guidance';
+import {
   CONTENT_ALIASES,
   CONTENT_EPOCH,
   SAVE_SCHEMA_VERSION,
@@ -302,7 +311,7 @@ function loadCampaignSave(): SaveLoadOutcome {
   return outcome;
 }
 
-/** Persist the current campaign (progress + earned unlocks + chosen Loadouts). */
+/** Persist the current campaign (progress + earned unlocks + chosen Loadouts + Guidance). */
 function persistSave(): void {
   writeSaveRaw(
     serializeSave(
@@ -311,6 +320,7 @@ function persistSave(): void {
         progress,
         unlocks: earnedUnlocks(progress),
         loadouts: savedLoadouts,
+        guidance,
       }),
     ),
   );
@@ -326,6 +336,7 @@ function applySaveOutcome(outcome: SaveLoadOutcome): void {
   progress = outcome.progress;
   savedLoadouts = outcome.loadouts;
   savedUnlocks = outcome.unlocks;
+  guidance = outcome.guidance;
   saveNotice = outcome.notice;
   if (outcome.notice) {
     // Replace the unrecoverable raw with a clean fresh save bound to this epoch.
@@ -338,6 +349,8 @@ let progress: CampaignProgress = emptyProgress();
 let savedLoadouts: Record<string, SavedLoadout> = {};
 /** Earned reward ids from the loaded save (informational; pool derives live). */
 let savedUnlocks: string[] = [];
+/** The Guidance preference + fading intensity (issue #23 AC1/AC6). */
+let guidance: GuidanceState = defaultGuidance();
 /** Pending one-time recovery notice, or null when the save loaded cleanly. */
 let saveNotice: SaveNotice | null = null;
 
@@ -395,6 +408,11 @@ const overlay = $<HTMLElement>('outcomeOverlay');
 const outcomeTitle = $<HTMLHeadingElement>('outcomeTitle');
 const outcomeStars = $<HTMLParagraphElement>('outcomeStars');
 const outcomeMessage = $<HTMLParagraphElement>('outcomeMessage');
+// Opt-in "How could I improve?" coaching (issue #23 AC5): a button revealed on
+// the outcome overlay, and the non-blocking advice panel it populates.
+const coachingBtn = $<HTMLButtonElement>('coachingBtn');
+const coachingPanel = $<HTMLElement>('coachingPanel');
+const coachingBody = $<HTMLElement>('coachingBody');
 const hint = $<HTMLOutputElement>('hint');
 // Author preview controls: level picker, phone-layout toggle, and the legend.
 const levelSelect = $<HTMLSelectElement>('levelSelect');
@@ -438,6 +456,9 @@ const exitBtn = $<HTMLButtonElement>('exitBtn');
 const pauseSettings = $<HTMLElement>('pauseSettings');
 const pauseLayoutBtn = $<HTMLButtonElement>('pauseLayoutBtn');
 const pauseAudioBtn = $<HTMLButtonElement>('pauseAudioBtn');
+// Guidance toggle (issue #23 AC1): mirrors the Layout toggle as the app's other
+// independent setting. Reflects the Guardian's guidance preference; persists.
+const pauseGuidanceBtn = $<HTMLButtonElement>('pauseGuidanceBtn');
 const pauseConfirm = $<HTMLElement>('pauseConfirm');
 const pauseConfirmText = $<HTMLParagraphElement>('pauseConfirmText');
 const pauseConfirmYes = $<HTMLButtonElement>('pauseConfirmYes');
@@ -1321,6 +1342,20 @@ settingsBtn.addEventListener('click', () => {
 // setting) so the Guardian can reflow while planning.
 pauseLayoutBtn.addEventListener('click', toggleLayout);
 
+// Guidance is the app's other independent setting (issue #23 AC1): on by default,
+// toggleable here, and persisted. It fades as levels are cleared.
+function syncGuidanceToggle(): void {
+  if (!pauseGuidanceBtn) return;
+  pauseGuidanceBtn.textContent = guidance.enabled ? 'Guidance: On' : 'Guidance: Off';
+  pauseGuidanceBtn.setAttribute('aria-pressed', String(guidance.enabled));
+}
+
+pauseGuidanceBtn.addEventListener('click', () => {
+  guidance = setGuidanceEnabled(guidance, !guidance.enabled);
+  persistSave();
+  syncGuidanceToggle();
+});
+
 restartBtn.addEventListener('click', () =>
   armPauseConfirm('restart', 'Restart this level? Your current run will be lost.'),
 );
@@ -1430,6 +1465,10 @@ function resetBattleHud(): void {
   deferOutcome = false;
   storyPanel.hidden = true;
   storyQueue = [];
+  // Coaching resets per battle (issue #23): the button is re-armed and any prior
+  // advice panel is hidden until the next outcome is resolved and re-requested.
+  coachingBtn.hidden = true;
+  coachingPanel.hidden = true;
   startBtn.textContent = 'Start Wave';
   startBtn.disabled = false;
   pauseBtn.setAttribute('aria-pressed', 'false');
@@ -1451,10 +1490,15 @@ function recordOutcome(snap: BattleSnapshot): void {
   if (!currentLevelId || !battle || outcomeRecorded) return;
   if (snap.phase !== 'won' && snap.phase !== 'lost') return;
   outcomeRecorded = true;
+  // Guidance fades only on a FIRST successful completion of a level (issue #23
+  // AC1): replaying an already-cleared level never burns it, so the Guardian
+  // can't grind guidance away. Captured before recordResult marks the clear.
+  const firstClear = snap.phase === 'won' && !progress[currentLevelId]?.cleared;
   // The engine-independent seam: score the battle and fold it into progress. A
   // loss advances nothing; a victory clears the level, preserving the best star
   // result across replays (issue #29 AC1/AC3).
   progress = recordResult(progress, currentLevelId, battle.resultInput());
+  if (firstClear) guidance = reduceGuidance(guidance);
   persistSave();
   // Audio cue for the outcome (issue #33 AC4) — every cue also has an on-screen
   // representation, so this is supplementary, never required.
@@ -1466,6 +1510,56 @@ function recordOutcome(snap: BattleSnapshot): void {
     deferOutcome = true;
     runStoryQueue([{ levelId: currentLevelId, kind: 'post' }]);
   }
+}
+
+/**
+ * Configure the outcome overlay's actions for a won/lost battle (issue #23 AC3).
+ * A loss offers Try Again (returns to the pre-level Loadout with selections
+ * preserved, AC4) and Return to Map; a victory keeps Play Again (replay in place,
+ * #29) and Return to Trail. The opt-in "How could I improve?" coaching button is
+ * offered on either outcome (AC5); the advice panel stays hidden until requested.
+ */
+function configureOutcomeActions(snap: BattleSnapshot): void {
+  if (snap.phase !== 'won' && snap.phase !== 'lost') return;
+  const lost = snap.phase === 'lost';
+  replayBtn.textContent = lost ? 'Try Again' : 'Play Again';
+  returnToTrailBtn.textContent = lost ? 'Return to Map' : 'Return to Trail';
+  coachingBtn.hidden = false;
+  coachingPanel.hidden = true;
+}
+
+/**
+ * Build the CoachingInput from the resolved battle + the chosen Loadout (AC5).
+ * The Loadout's Defender composition (had a blocker? had a ranged unit?) is
+ * observable from the stable ids + the catalogue — never from private sim state.
+ */
+function buildCoachingInput(snap: BattleSnapshot): CoachingInput {
+  const input = battle!.resultInput();
+  const defenderIds = currentLoadout
+    .filter((slot): slot is AvailableItem => slot !== null && slot.kind === 'defender')
+    .map((slot) => slot.id);
+  const hadBlocker = defenderIds.some((id) => !!getDefender(id)?.blocksPath);
+  const hadRanged = defenderIds.some((id) => !getDefender(id)?.blocksPath);
+  return {
+    outcome: input.outcome,
+    stars: snap.stars,
+    hearts: input.hearts,
+    maxHearts: input.maxHearts,
+    manaSpent: input.manaSpent,
+    resourcesCollected: input.resourcesCollected,
+    totalBounty: input.totalBounty,
+    startingMana: input.startingMana,
+    hadBlocker,
+    hadRanged,
+  };
+}
+
+/** Render opt-in coaching tips into the non-blocking advice panel (AC5). */
+function renderCoaching(tips: string[]): void {
+  coachingBody.innerHTML = tips.length
+    ? tips.map((t) => `<p>${t}</p>`).join('')
+    : '<p>Nothing to suggest — nicely done.</p>';
+  coachingPanel.hidden = false;
 }
 
 // --- Preview legend (author overlays) ------------------------------------
@@ -1522,6 +1616,9 @@ function syncHud(snap: BattleSnapshot): void {
   }
   lastSync = key;
   renderHud(snap, hudElements);
+  // Outcome actions (issue #23): label the retry/return buttons for the outcome
+  // and arm the opt-in coaching button, once when the overlay first appears.
+  configureOutcomeActions(snap);
 
   // While a post-victory story beat holds the surface, keep the outcome overlay
   // hidden underneath (issue #33 AC1); advanceStory reveals it once the beat is
@@ -1682,9 +1779,11 @@ function renderLoadout(): void {
     loadoutSlots.append(btn);
   }
 
-  // Advice: the recommendation plus any non-blocking suitability warnings.
+  // Advice: the recommendation is a Guidance suggestion, so it shows only while
+  // guidance is active (issue #23 AC1). The suitability warnings always surface —
+  // they are safety, not coaching, so opting out of guidance never hides them.
   const lines: string[] = [];
-  if (view.advice.recommendation) lines.push(view.advice.recommendation);
+  if (guidanceActive(guidance) && view.advice.recommendation) lines.push(view.advice.recommendation);
   for (const warning of view.advice.warnings) lines.push(warning);
   loadoutAdviceEl.innerHTML = lines.length
     ? lines.map((line) => `<p class="loadout__advice-line">${line}</p>`).join('')
@@ -1817,10 +1916,32 @@ function returnToTrail(): void {
 // star result is kept (a worse replay can never lower it). Return to Trail
 // returns to the campaign map, where the freshly unlocked next level is now
 // enterable (issue #29 AC4).
+//
+// Try Again (a loss, issue #23 AC3/AC4) returns to the pre-level Loadout with
+// selections preserved — the Guardian may restart immediately or adjust the
+// Loadout first. The battlefield is torn down so it does not tick while hidden.
 replayBtn.addEventListener('click', () => {
-  if (currentLevelId) enterLevel(currentLevelId, currentLoadout);
+  if (!currentLevelId) return;
+  if (battle?.phase === 'lost') {
+    if (game) {
+      game.destroy(true);
+      game = null;
+    }
+    battle = null;
+    openLoadout(currentLevelId);
+    return;
+  }
+  enterLevel(currentLevelId, currentLoadout);
 });
 returnToTrailBtn.addEventListener('click', returnToTrail);
+
+// Opt-in "How could I improve?" coaching (issue #23 AC5): only on request, the
+// resolved battle's observable results drive non-blocking advice. Never forces a
+// Loadout or disables an action — the Guardian stays in control.
+coachingBtn.addEventListener('click', () => {
+  if (!battle) return;
+  renderCoaching(coachingAdvice(buildCoachingInput(battle.snapshot())));
+});
 
 // Debug/test seam. Ring taps on a FIT-scaled canvas are coordinate-fragile, so
 // this exposes the exact same placement/start handlers the pointer path uses,
@@ -1872,6 +1993,7 @@ function makeDebugApi(): ForestRescueDebug {
       progress,
       unlocks: savedUnlocks,
       loadouts: savedLoadouts,
+      guidance,
     }),
     saveRaw: () => readSaveRaw(),
     saveArchiveRaw: () => {
@@ -1890,6 +2012,7 @@ function makeDebugApi(): ForestRescueDebug {
       applySaveOutcome(loadCampaignSave());
       refreshTrail();
       showSaveNotice(saveNotice);
+      syncGuidanceToggle();
     },
     clearSave: () => {
       try {
@@ -1901,9 +2024,11 @@ function makeDebugApi(): ForestRescueDebug {
       progress = emptyProgress();
       savedLoadouts = {};
       savedUnlocks = [];
+      guidance = defaultGuidance();
       saveNotice = null;
       refreshTrail();
       showSaveNotice(null);
+      syncGuidanceToggle();
     },
     // --- Story / tutorial / audio seam (issue #33 AC6) ---
     storyFor: (levelId, kind) => {
@@ -1922,6 +2047,15 @@ function makeDebugApi(): ForestRescueDebug {
     audioEffective: (channel) => effectiveVolume(audioSettings, channel),
     audioSet: (channel, value) => applyAudioChannel(channel, value),
     audioMute: (channel) => applyAudioMute(channel),
+    // --- Guidance + retry seam (issue #23 AC6) ---
+    guidance: () => guidance,
+    setGuidance: (enabled: boolean) => {
+      guidance = setGuidanceEnabled(guidance, enabled);
+      persistSave();
+      syncGuidanceToggle();
+      return guidance;
+    },
+    coaching: () => (battle ? coachingAdvice(buildCoachingInput(battle.snapshot())) : []),
   };
 }
 
@@ -1980,6 +2114,10 @@ export interface ForestRescueDebug {
   audioEffective(channel: 'master' | 'music' | 'effects'): number;
   audioSet(channel: 'master' | 'music' | 'effects', value: number): void;
   audioMute(channel: 'master' | 'music' | 'effects'): void;
+  // --- Guidance + retry seam (issue #23 AC6) ---
+  guidance(): GuidanceState;
+  setGuidance(enabled: boolean): GuidanceState;
+  coaching(): string[];
 }
 
 /** Observable save snapshot exposed through the debug seam (issue #27 AC6). */
@@ -1990,6 +2128,7 @@ export interface SaveDebugState {
   progress: CampaignProgress;
   unlocks: string[];
   loadouts: Record<string, SavedLoadout>;
+  guidance: GuidanceState;
 }
 
 declare global {
@@ -2004,6 +2143,8 @@ renderTrailView();
 trailMap.addEventListener('keydown', trailKeydown);
 // Surface any one-time save recovery notice from the initial load (issue #27).
 showSaveNotice(saveNotice);
+// Reflect the loaded Guidance preference on the pause-settings toggle (issue #23).
+syncGuidanceToggle();
 // Wire the debug seam on the Trail too so the save journeys (reload / migration
 // / epoch / corruption) are observable before any level is opened (issue #27 AC6).
 window.fr = makeDebugApi();

@@ -921,6 +921,41 @@ body[data-layout="portrait"] .stage canvas {
   cursor: pointer;
 }
 
+/* Opt-in "How could I improve?" coaching (issue #23 AC5): a non-blocking panel
+   inside the outcome overlay. Advisory only — never disables an action. */
+.coaching {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid #6fd49a44;
+  border-radius: 12px;
+  background: #0c241a;
+  text-align: left;
+}
+
+.coaching[hidden] {
+  display: none;
+}
+
+.coaching__title {
+  margin: 0 0 6px;
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #9fd0b8;
+}
+
+.coaching__body {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+
+.coaching__body p {
+  margin: 0;
+  font-size: clamp(12px, 1.3vw, 14px);
+  line-height: 1.4;
+}
+
 /* --- Loadout assembly (issue #21) --- */
 .loadout {
   position: relative;
