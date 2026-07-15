@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { BattleState, planManaFlowers, MANA_FLOWER_HIT } from './battle';
+import { BattleState, buildWavePreview, planManaFlowers, MANA_FLOWER_HIT } from './battle';
 import meadowsRaw from '../../levels/compiled/01-meadows-edge.json';
 import type { CompiledLevel } from './types';
 
@@ -656,5 +656,183 @@ describe('Mana flowers (issue #31)', () => {
     // The spawned flower must clear the only ring's build area + half a hit region.
     const f = battle.manaFlowers[0]!;
     expect(Math.hypot(f.x - 300, f.y - 256)).toBeGreaterThan(42 + MANA_FLOWER_HIT / 2);
+  });
+});
+
+// A level with multiple waves (one a scripted boss wave) and two routes, so the
+// wave preview can show current/upcoming composition, traits, boss warnings,
+// routes, and a countdown to the next wave (issue #32 AC1).
+function previewLevel(): CompiledLevel {
+  const samples = Array.from({ length: 61 }, (_, i) => ({ x: 600 - i * 10, y: 256 }));
+  return {
+    id: 'preview',
+    name: 'Preview',
+    compilerVersion: '1.0.0',
+    intentHash: 'x',
+    seed: 's',
+    biome: 'meadow-edge',
+    unlocks: [],
+    spellUnlock: null,
+    bossId: 'the-grinder',
+    startingMana: 9999,
+    maxHearts: 5,
+    levelModifiers: [],
+    paths: [
+      { id: 'main', width: 92, length: 600, controlPoints: [{ x: 600, y: 256 }, { x: 0, y: 256 }], arcLengths: Array.from({ length: 61 }, (_, i) => i * 10), samples },
+      { id: 'secondary', width: 80, length: 600, controlPoints: [{ x: 600, y: 700 }, { x: 0, y: 700 }], arcLengths: Array.from({ length: 61 }, (_, i) => i * 10), samples: samples.map((s) => ({ x: s.x, y: 700 })) },
+    ],
+    rings: [],
+    waves: [
+      { enemies: [{ type: 'logger', count: 3 }], delayBefore: 2, delayAfter: 4, spawnInterval: 1 },
+      { enemies: [{ type: 'logger', count: 4 }], delayBefore: 1, delayAfter: 4, spawnInterval: 1 },
+      { enemies: [{ type: 'logger', count: 1 }, { type: 'surveyor', count: 2 }], delayBefore: 1, delayAfter: 0, spawnInterval: 1 },
+      { enemies: [{ type: 'the-grinder', count: 1 }], delayBefore: 3, delayAfter: 0, spawnInterval: 1, scripted: true, bossId: 'the-grinder' },
+    ],
+  };
+}
+
+// Wave preview (issue #32 AC1): a pure projector off the level + battle clock
+// that surfaces the current and next-upcoming wave — composition, enemy traits,
+// routes, boss warnings, and a countdown — so the Guardian can plan while paused.
+describe('wave preview (issue #32 AC1)', () => {
+  it('before start, previews wave 1 as current and wave 2 as upcoming with countdowns', () => {
+    const battle = new BattleState({ level: previewLevel() });
+    const preview = battle.wavePreview();
+    expect(preview.current).not.toBeNull();
+    expect(preview.current!.wave).toBe(1);
+    expect(preview.current!.total).toBe(3);
+    expect(preview.current!.countdown).toBe(2); // wave 1 delayBefore
+    expect(preview.upcoming).not.toBeNull();
+    expect(preview.upcoming!.wave).toBe(2);
+    expect(preview.upcoming!.total).toBe(4);
+    // Wave 2 starts after wave 1 (delayBefore 2 + last spawn + delayAfter 4 + its delayBefore 1).
+    expect(preview.upcoming!.countdown).toBe(2 + 2 + 4 + 1);
+  });
+
+  it('surfaces enemy counts, names, and trait tags per group', () => {
+    const level = previewLevel();
+    const preview = buildWavePreview({ waves: level.waves, paths: level.paths, currentWave: 1, clock: 0 });
+    const g = preview.current!.groups[0]!;
+    expect(g).toMatchObject({ type: 'logger', count: 3, name: 'Logger' });
+    expect(g.traits).toEqual(['crew', 'ground', 'choppable']);
+    // A multi-group wave lists each group; uncatalogued types fall back to the id.
+    const w3 = buildWavePreview({ waves: level.waves, paths: level.paths, currentWave: 3, clock: 0 });
+    expect(w3.current!.groups.map((grp) => `${grp.count}× ${grp.name}`)).toEqual(['1× Logger', '2× surveyor']);
+  });
+
+  it('flags a boss wave and falls back to the type id when the boss is uncatalogued', () => {
+    const level = previewLevel();
+    // The boss wave is wave 4; project it directly (it never needs to spawn).
+    const preview = buildWavePreview({ waves: level.waves, paths: level.paths, currentWave: 4, clock: 999 });
+    expect(preview.current!.wave).toBe(4);
+    expect(preview.current!.boss).toBe(true);
+    expect(preview.upcoming).toBeNull();
+    const bossGroup = preview.current!.groups[0]!;
+    expect(bossGroup.type).toBe('the-grinder');
+    expect(bossGroup.name).toBe('the-grinder'); // not in the catalogue -> id fallback
+    expect(bossGroup.traits).toEqual([]);
+  });
+
+  it('lists the level routes so the Guardian knows where foes will arrive', () => {
+    const battle = new BattleState({ level: previewLevel() });
+    expect(battle.wavePreview().current!.routeIds).toEqual(['main', 'secondary']);
+  });
+
+  it('clamps the current wave countdown to 0 once it is spawning', () => {
+    const battle = new BattleState({ level: previewLevel() });
+    battle.start();
+    for (let i = 0; i < 3 * 60; i++) battle.tick(); // past wave 1's 2s delayBefore
+    const preview = battle.wavePreview();
+    expect(preview.current!.wave).toBe(1);
+    expect(preview.current!.countdown).toBe(0); // already started
+  });
+
+  it('reports no upcoming wave once the last wave is current', () => {
+    const level = previewLevel();
+    const preview = buildWavePreview({ waves: level.waves, paths: level.paths, currentWave: level.waves.length, clock: 999 });
+    expect(preview.current!.wave).toBe(level.waves.length);
+    expect(preview.upcoming).toBeNull();
+  });
+
+  it('is exposed on the snapshot so the HUD can render it each frame', () => {
+    const battle = new BattleState({ level: previewLevel() });
+    const snap = battle.snapshot();
+    expect(snap.wavePreview.current).not.toBeNull();
+    expect(snap.wavePreview.current!.wave).toBe(1);
+  });
+
+  it('buildWavePreview is pure: current+upcoming from waves, clock, and currentWave', () => {
+    const level = previewLevel();
+    const preview = buildWavePreview({
+      waves: level.waves,
+      paths: level.paths,
+      currentWave: 2,
+      clock: 5,
+    });
+    expect(preview.current!.wave).toBe(2);
+    // Wave 2 starts at 2 + 2 + 4 + 1 = 9; clock 5 -> 4s remaining.
+    expect(preview.current!.countdown).toBe(4);
+    expect(preview.upcoming!.wave).toBe(3);
+  });
+});
+
+// Planning Pause (issue #32 AC2/AC4): an explicit mid-battle pause freezes the
+// simulation (already) and locks live-battle actions — spells and Mana-flower
+// collection — explaining why, while Defender management stays available.
+describe('Planning Pause (issue #32)', () => {
+  it('cannot arm or cast a spell while paused, and the toolbar explains why (AC4)', () => {
+    const battle = new BattleState({ level: tinyLevel(), startingMana: 9999, availableSpells: ['root-snare'] });
+    battle.start();
+    battle.setPaused(true);
+    expect(battle.armSpell('root-snare')).toEqual({ ok: false, reason: 'paused' });
+    expect(battle.armedSpell).toBeNull();
+    expect(battle.castSpell(300, 256, 'root-snare')).toEqual({ ok: false, reason: 'paused' });
+    expect(battle.mana).toBe(9999); // nothing spent
+    // The availability list reports every spell unavailable with a paused reason.
+    const s = battle.snapshot().spells[0]!;
+    expect(s.available).toBe(false);
+    expect(s.reason).toBe('paused');
+  });
+
+  it('cannot collect a Mana flower while paused (AC4)', () => {
+    const battle = new BattleState({ level: tinyLevel(), startingMana: 0 });
+    battle.spawnManaFlower(900, 256, 25);
+    battle.start();
+    battle.setPaused(true);
+    const id = battle.manaFlowers[0]!.id;
+    expect(battle.collectManaFlower(id)).toEqual({ ok: false, reason: 'paused' });
+    expect(battle.mana).toBe(0);
+    expect(battle.manaFlowers).toHaveLength(1); // flower untouched
+  });
+
+  it('keeps Defender placement, inspection, upgrade, and removal available while paused (AC3)', () => {
+    const battle = new BattleState({ level: meadows, startingMana: 9999 });
+    battle.placeDefender('ring-7', 'sprig-sentinel');
+    battle.start();
+    battle.setPaused(true);
+    // A second placement on a different ring still works at normal cost.
+    expect(battle.placeDefender('ring-43', 'sprig-sentinel').ok).toBe(true);
+    // Inspection, upgrade, and removal are unaffected by the pause.
+    expect(battle.inspect('ring-7')).not.toBeNull();
+    expect(battle.upgradeDefender('ring-7').ok).toBe(true);
+    expect(battle.removeDefender('ring-43').ok).toBe(true);
+    expect(battle.snapshot().paused).toBe(true);
+  });
+
+  it('spells and flowers become available again once the battle resumes (AC4)', () => {
+    const battle = new BattleState({ level: tinyLevel(), startingMana: 9999, availableSpells: ['root-snare'] });
+    battle.spawnManaFlower(900, 256, 25);
+    battle.start();
+    battle.setPaused(true);
+    expect(battle.snapshot().spells[0]!.available).toBe(false);
+    battle.setPaused(false);
+    expect(battle.snapshot().spells[0]!.available).toBe(true);
+    expect(battle.collectManaFlower(battle.manaFlowers[0]!.id).ok).toBe(true);
+  });
+
+  it('pause is a no-op outside the running phase (planning is already frozen)', () => {
+    const battle = new BattleState({ level: meadows });
+    battle.setPaused(true); // still in planning -> ignored
+    expect(battle.paused).toBe(false);
   });
 });

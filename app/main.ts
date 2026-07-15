@@ -13,7 +13,7 @@
 
 import Phaser from 'phaser';
 import { BattleState } from './domain/battle';
-import type { BattleSnapshot } from './domain/battle';
+import type { BattleSnapshot, WavePreview } from './domain/battle';
 import { DEFENDERS, SPELLS, getDefender, getSpell } from './domain/content';
 import {
   addToLoadout,
@@ -30,7 +30,15 @@ import {
   type LoadoutContext,
 } from './domain/loadout';
 import { BattleScene } from './phaser/battle-scene';
-import { buildContextPanel, humanReason, renderHud, spellStateText, type HudElements } from './hud';
+import {
+  buildContextPanel,
+  buildWavePreviewView,
+  humanReason,
+  renderHud,
+  spellStateText,
+  type HudElements,
+  type WavePreviewView,
+} from './hud';
 import { renderTrail, renderDetail, type TrailElements, type DetailElements } from './trail';
 import {
   resolveTrail,
@@ -236,6 +244,24 @@ const cpConfirmBtn = $<HTMLButtonElement>('cpConfirmBtn');
 const cpCancelBtn = $<HTMLButtonElement>('cpCancelBtn');
 const cpCloseBtn = $<HTMLButtonElement>('cpClose');
 
+// Wave preview (issue #32 AC1) — a corner panel while planning, and a copy inside
+// the pause overlay for mid-battle planning.
+const wavePreviewPanel = $<HTMLElement>('wavePreview');
+const wavePreviewBody = $<HTMLElement>('wavePreviewBody');
+// Planning Pause overlay (issue #32 AC5): Resume / Settings / Restart / Exit.
+const pauseOverlay = $<HTMLElement>('pauseOverlay');
+const pauseWavePreview = $<HTMLElement>('pauseWavePreview');
+const resumeBtn = $<HTMLButtonElement>('resumeBtn');
+const settingsBtn = $<HTMLButtonElement>('settingsBtn');
+const restartBtn = $<HTMLButtonElement>('restartBtn');
+const exitBtn = $<HTMLButtonElement>('exitBtn');
+const pauseSettings = $<HTMLElement>('pauseSettings');
+const pauseLayoutBtn = $<HTMLButtonElement>('pauseLayoutBtn');
+const pauseConfirm = $<HTMLElement>('pauseConfirm');
+const pauseConfirmText = $<HTMLParagraphElement>('pauseConfirmText');
+const pauseConfirmYes = $<HTMLButtonElement>('pauseConfirmYes');
+const pauseConfirmNo = $<HTMLButtonElement>('pauseConfirmNo');
+
 const hudElements: HudElements = {
   mana: manaValue,
   hearts: heartsValue,
@@ -409,6 +435,10 @@ let game: Phaser.Game | null = null;
 let outcomeRecorded = false;
 let hintTimer = 0;
 let lastSync = '';
+/** Pending confirmed action from the Planning Pause overlay: 'restart' | 'exit'. */
+let pendingPauseAction: 'restart' | 'exit' | null = null;
+/** Tracks the pause-overlay open transition so Resume is focused once on open. */
+let pauseMenuOpen = false;
 
 // --- Loadout (issue #21) --------------------------------------------------
 // The level being loaded out and the in-progress Loadout. The Loadout feeds the
@@ -459,13 +489,18 @@ startBtn.addEventListener('click', () => {
   battle.start();
 });
 
-pauseBtn.addEventListener('click', () => {
-  if (!battle) return;
-  const next = !battle.paused;
-  battle.setPaused(next);
-  pauseBtn.setAttribute('aria-pressed', String(next));
-  pauseBtn.textContent = next ? 'Resume' : 'Pause';
-});
+/**
+ * Toggle Planning Pause (issue #32). Only a running battle can be paused. The
+ * button text, pressed state, and overlay are reconciled from the snapshot each
+ * frame in syncHud, so a backgrounding-driven pause keeps the UI in sync too
+ * (AC5/AC6).
+ */
+function togglePause(next?: boolean): void {
+  if (!battle || battle.phase !== 'running') return;
+  battle.setPaused(next ?? !battle.paused);
+}
+
+pauseBtn.addEventListener('click', () => togglePause());
 
 replayBtn.addEventListener('click', () => location.reload());
 
@@ -683,6 +718,82 @@ function handleCollectFlower(flowerId: string): void {
   if (result.ok) showHint(`Collected +${result.mana} mana`);
 }
 
+// --- Wave preview + Planning Pause (issue #32) ----------------------------
+
+/** One wave's view rendered to HTML lines (counts, traits, routes, boss, countdown). */
+function wavePreviewHTML(w: WavePreviewView['current'], upcoming: boolean): string {
+  if (!w) return '';
+  const cls = upcoming ? 'wave-preview__wave wave-preview__wave--upcoming' : 'wave-preview__wave';
+  const lines: string[] = [
+    `<div class="${cls}">`,
+    `<div class="wave-preview__heading">${upcoming ? 'Next: ' : ''}${w.heading}</div>`,
+    `<div class="wave-preview__count">${w.count}</div>`,
+    ...w.groups.map((g) => `<div class="wave-preview__group">${g}</div>`),
+  ];
+  if (w.traits.length) lines.push(`<div class="wave-preview__traits">traits: ${w.traits.join(', ')}</div>`);
+  lines.push(`<div class="wave-preview__routes">${w.routes}</div>`);
+  if (w.boss) lines.push(`<div class="wave-preview__boss">${w.boss}</div>`);
+  if (w.countdown) lines.push(`<div class="wave-preview__countdown">${w.countdown}</div>`);
+  lines.push('</div>');
+  return lines.join('');
+}
+
+/** Render the current + upcoming wave into both the planning panel and the pause overlay. */
+function renderWavePreview(snap: BattleSnapshot): void {
+  const view = buildWavePreviewView(snap.wavePreview);
+  const html = wavePreviewHTML(view.current, false) + wavePreviewHTML(view.upcoming, true);
+  if (wavePreviewBody) wavePreviewBody.innerHTML = html;
+  if (pauseWavePreview) pauseWavePreview.innerHTML = html;
+}
+
+resumeBtn.addEventListener('click', () => togglePause(false));
+
+settingsBtn.addEventListener('click', () => {
+  pauseSettings.hidden = !pauseSettings.hidden;
+});
+
+// The pause Settings surface mirrors the HUD layout toggle (the app's one real
+// setting) so the Guardian can reflow while planning.
+pauseLayoutBtn.addEventListener('click', () => {
+  applyLayout(currentLayout() === 'portrait' ? 'landscape' : 'portrait');
+});
+
+restartBtn.addEventListener('click', () => {
+  pendingPauseAction = 'restart';
+  pauseConfirmText.textContent = 'Restart this level? Your current run will be lost.';
+  pauseConfirm.hidden = false;
+  pauseConfirmYes.focus();
+});
+
+exitBtn.addEventListener('click', () => {
+  pendingPauseAction = 'exit';
+  pauseConfirmText.textContent = 'Leave the battle and return to the campaign trail?';
+  pauseConfirm.hidden = false;
+  pauseConfirmYes.focus();
+});
+
+pauseConfirmYes.addEventListener('click', () => {
+  const action = pendingPauseAction;
+  pendingPauseAction = null;
+  pauseConfirm.hidden = true;
+  if (action === 'restart' && currentLevelId) enterLevel(currentLevelId, currentLoadout);
+  else if (action === 'exit') returnToTrail();
+});
+
+pauseConfirmNo.addEventListener('click', () => {
+  pendingPauseAction = null;
+  pauseConfirm.hidden = true;
+});
+
+// Backgrounding enters a safe paused state and combat never resumes without an
+// explicit Resume (issue #32 AC6): hiding the tab pauses a running battle, and
+// nothing auto-unpauses it on return.
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && battle && battle.phase === 'running' && !battle.paused) {
+    battle.setPaused(true);
+  }
+});
+
 /** Build the spell toolbar for a level's unlocked spells (aria-pressed/state sync
  * in syncHud). Each button is a real, focusable control reachable from keyboard. */
 function buildSpellToolbar(spells: string[]): void {
@@ -705,6 +816,14 @@ function buildSpellToolbar(spells: string[]): void {
   spellbar.hidden = spells.length === 0;
 }
 
+/** Reset the confirm/settings state of the Planning Pause overlay. */
+function closePauseMenu(): void {
+  pendingPauseAction = null;
+  pauseMenuOpen = false;
+  pauseConfirm.hidden = true;
+  pauseSettings.hidden = true;
+}
+
 function resetBattleHud(): void {
   lastSync = '';
   outcomeRecorded = false;
@@ -713,6 +832,8 @@ function resetBattleHud(): void {
   startBtn.disabled = false;
   pauseBtn.setAttribute('aria-pressed', 'false');
   pauseBtn.textContent = 'Pause';
+  pauseOverlay.hidden = true;
+  closePauseMenu();
   hint.textContent = '';
   closeInspect();
   // Default to the Loadout's first Defender so the placement tool the scene
@@ -788,6 +909,25 @@ function syncHud(snap: BattleSnapshot): void {
   }
   lastSync = key;
   renderHud(snap, hudElements);
+
+  // Planning Pause (issue #32): the button, the overlay, and the wave preview all
+  // reflect the snapshot, so a backgrounding-driven pause (not a button click) is
+  // surfaced too. Combat resumes only through Resume (AC5/AC6).
+  pauseBtn.setAttribute('aria-pressed', String(snap.paused));
+  pauseBtn.textContent = snap.paused ? 'Resume' : 'Pause';
+  const showPauseMenu = snap.paused && snap.phase === 'running';
+  pauseOverlay.hidden = !showPauseMenu;
+  if (!showPauseMenu) {
+    closePauseMenu();
+  } else if (!pauseMenuOpen) {
+    // Focus Resume once when the menu opens (not every frame).
+    pauseMenuOpen = true;
+    resumeBtn.focus();
+  }
+  // Wave preview: a corner panel while planning (pre-Start); the pause overlay
+  // carries its own copy for mid-battle planning (AC1).
+  wavePreviewPanel.hidden = !(snap.phase === 'planning' && !snap.paused);
+  renderWavePreview(snap);
 }
 
 /** Project spell availability + armed state onto the toolbar each frame, and keep
@@ -1045,6 +1185,9 @@ function makeDebugApi(): ForestRescueDebug {
     castSpell: (x: number, y: number, typeId?: string) => handleSpellCast(x, y, typeId),
     collectFlower: (id: string) => handleCollectFlower(id),
     start: () => battle?.start(),
+    pause: () => togglePause(true),
+    resume: () => togglePause(false),
+    wavePreview: () => (battle ? battle.wavePreview() : null),
     ringIds: () => (battle ? battle.rings.map((r) => r.id) : []),
     spellIds: () => (battle ? battle.snapshot().spells.map((s) => s.id) : []),
     flowerIds: () => (battle ? battle.manaFlowers.map((f) => f.id) : []),
@@ -1091,6 +1234,9 @@ export interface ForestRescueDebug {
   castSpell(x: number, y: number, typeId?: string): void;
   collectFlower(id: string): void;
   start(): void;
+  pause(): void;
+  resume(): void;
+  wavePreview(): WavePreview | null;
   ringIds(): string[];
   spellIds(): string[];
   flowerIds(): string[];

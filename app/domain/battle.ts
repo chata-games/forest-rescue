@@ -11,10 +11,18 @@
 // outcome, frame for frame.
 
 import { PathCurve } from './path';
-import { effectiveStats, getDefender, getEnemy, maxTier, upgradeCost, type EffectiveStats } from './content';
+import {
+  effectiveStats,
+  getDefender,
+  getEnemy,
+  getSpell,
+  maxTier,
+  upgradeCost,
+  type EffectiveStats,
+  type SpellStats,
+} from './content';
 import { scoreStars as scoreStarsRule, type BattleScoreInput } from './scoring';
-import { getSpell, type SpellStats } from './content';
-import type { CompiledLevel, DefenderStats, Ring } from './types';
+import type { CompiledLevel, DefenderStats, Ring, Wave } from './types';
 
 export const STEP = 1 / 60;
 
@@ -151,6 +159,8 @@ export interface BattleSnapshot {
   armedSpell: string | null;
   /** Availability of every unlocked spell, for the spell toolbar. */
   spells: SpellAvailability[];
+  /** Current + upcoming wave composition/traits/routes/boss/countdown (issue #32 AC1). */
+  wavePreview: WavePreview;
 }
 
 /** A before→after delta for one decisive stat, for the upgrade preview (issue #30 AC3). */
@@ -203,6 +213,43 @@ export interface DefenderInspection {
   removalRefund: number;
   /** The next upgrade preview, or null at the ladder's top tier. */
   upgrade: UpgradePreview | null;
+}
+
+/** One enemy group in a wave preview (issue #32 AC1): count, display name, traits. */
+export interface WavePreviewGroup {
+  type: string;
+  count: number;
+  /** Display name from the catalogue (falls back to the type id for bosses). */
+  name: string;
+  /** Enemy trait tags (ground, flying, armored, …) from the catalogue. */
+  traits: string[];
+}
+
+/** A wave the Guardian can plan against: composition, routes, boss flag, countdown. */
+export interface WavePreviewEntry {
+  /** 1-based wave number. */
+  wave: number;
+  /** Total enemies across all groups. */
+  total: number;
+  groups: WavePreviewGroup[];
+  /** Path ids the level exposes (the routes foes arrive on). */
+  routeIds: string[];
+  /** True when this wave carries a boss (wave.bossId authored). */
+  boss: boolean;
+  /** Seconds until this wave's first enemy spawns, clamped to >= 0. */
+  countdown: number;
+}
+
+/**
+ * The current and next-upcoming wave, for the Planning Pause wave preview (issue
+ * #32 AC1). A pure projection off the level + battle clock: composition, enemy
+ * traits, routes, boss warnings, and a countdown to the next wave.
+ */
+export interface WavePreview {
+  /** The wave currently or most-recently spawning (null once all waves are spent). */
+  current: WavePreviewEntry | null;
+  /** The next wave to spawn (null if the current wave is the last). */
+  upcoming: WavePreviewEntry | null;
 }
 
 interface ScheduledSpawn {
@@ -604,6 +651,8 @@ export class BattleState {
 
   /** Harvest a Mana flower: grants its Mana and removes it. Idempotent failure. */
   collectManaFlower(flowerId: string): { ok: true; mana: number } | { ok: false; reason: string } {
+    // Mana-flower collection is a live-battle action, locked while paused (issue #32 AC4).
+    if (this.paused) return { ok: false, reason: 'paused' };
     const idx = this.manaFlowers.findIndex((f) => f.id === flowerId);
     if (idx === -1) return { ok: false, reason: 'already-collected' };
     const [flower] = this.manaFlowers.splice(idx, 1);
@@ -665,6 +714,7 @@ export class BattleState {
       stars: this.scoreStars(),
       armedSpell: this.armedSpell,
       spells: this.spellAvailability(),
+      wavePreview: this.wavePreview(),
     };
   }
 
@@ -687,6 +737,20 @@ export class BattleState {
       totalBounty: totalBounty(this.level),
       startingMana: this.level.startingMana ?? 0,
     };
+  }
+
+  /**
+   * The current + next-upcoming wave for the Planning Pause wave preview (issue
+   * #32 AC1). Delegates to the pure projector so the timing math stays in one
+   * place and matches the spawn schedule exactly.
+   */
+  wavePreview(): WavePreview {
+    return buildWavePreview({
+      waves: this.level.waves ?? [],
+      paths: this.level.paths,
+      currentWave: this.currentWave,
+      clock: this.battleClock,
+    });
   }
 
   // --- Internals --------------------------------------------------------
@@ -748,6 +812,9 @@ export class BattleState {
     if (this.phase !== 'planning' && this.phase !== 'running') {
       return { ok: false, reason: 'battle-over' };
     }
+    // Planning Pause freezes live-battle actions: a spell cannot be armed or
+    // cast while paused (issue #32 AC4).
+    if (this.paused) return { ok: false, reason: 'paused' };
     if (!typeId) return { ok: false, reason: 'no-spell-armed' };
     if (!this.availableSpells.includes(typeId)) return { ok: false, reason: 'spell-locked' };
     const stats = getSpell(typeId);
@@ -788,7 +855,14 @@ export class BattleState {
         const cooldownRemaining = Math.max(0, this.spellCooldowns[id] ?? 0);
         const affordable = this.mana >= stats.cost;
         const ready = cooldownRemaining === 0;
-        const reason = !ready ? 'spell-cooldown' : !affordable ? 'insufficient-mana' : null;
+        // Planning Pause locks every spell (issue #32 AC4); otherwise the reason
+        // is cooldown, then affordability, in priority order. `available` is the
+        // absence of a reason, so the toolbar can both disable and explain.
+        let reason: SpellAvailability['reason'];
+        if (this.paused) reason = 'paused';
+        else if (!ready) reason = 'spell-cooldown';
+        else if (!affordable) reason = 'insufficient-mana';
+        else reason = null;
         return {
           id: stats.id,
           name: stats.name,
@@ -797,7 +871,7 @@ export class BattleState {
           cooldownMax: stats.cooldown,
           affordable,
           ready,
-          available: ready && affordable,
+          available: reason === null,
           reason,
         };
       })
@@ -992,27 +1066,92 @@ function totalBounty(level: CompiledLevel): number {
   return sum;
 }
 
+/**
+ * First-spawn time of each wave's opening enemy, in seconds from battle start.
+ * Shared by the spawn schedule and the wave preview so their timing can never
+ * drift apart (issue #32 AC1). Index 0 is wave 1.
+ */
+function waveStartTimes(waves: ReadonlyArray<Wave>): number[] {
+  const times: number[] = [];
+  let cursor = 0;
+  waves.forEach((wave, idx) => {
+    cursor += wave.delayBefore;
+    times[idx] = cursor;
+    const count = wave.enemies.reduce((sum, group) => sum + group.count, 0);
+    const lastSpawnAt = cursor + Math.max(0, count - 1) * wave.spawnInterval;
+    cursor = lastSpawnAt + wave.delayAfter;
+  });
+  return times;
+}
+
 function buildSchedule(level: CompiledLevel): ScheduledSpawn[] {
   const schedule: ScheduledSpawn[] = [];
-  let cursor = 0;
+  const starts = waveStartTimes(level.waves ?? []);
   level.waves?.forEach((wave, waveIndex) => {
-    cursor += wave.delayBefore;
-    const count = wave.enemies.reduce((sum, group) => sum + group.count, 0);
+    const start = starts[waveIndex] ?? 0;
     let i = 0;
     for (const group of wave.enemies) {
       for (let k = 0; k < group.count; k++) {
         schedule.push({
           type: group.type,
-          at: cursor + i * wave.spawnInterval,
+          at: start + i * wave.spawnInterval,
           wave: waveIndex + 1,
         });
         i++;
       }
     }
-    const lastSpawnAt = cursor + Math.max(0, count - 1) * wave.spawnInterval;
-    cursor = lastSpawnAt + wave.delayAfter;
   });
   return schedule;
+}
+
+/**
+ * Pure wave-preview projector (issue #32 AC1): from the level's waves + paths,
+ * the 1-based current wave, and the battle clock, derive the current and
+ * next-upcoming wave — composition, enemy names/traits, routes, boss flag, and a
+ * countdown clamped to >= 0. Deterministic given the inputs.
+ */
+export function buildWavePreview(input: {
+  waves: ReadonlyArray<Wave>;
+  paths: ReadonlyArray<{ id: string }>;
+  /** 1-based wave number currently/most-recently spawning (0 before the first). */
+  currentWave: number;
+  /** Elapsed battle time in seconds. */
+  clock: number;
+}): WavePreview {
+  const { waves, paths, currentWave, clock } = input;
+  const routeIds = paths.map((p) => p.id);
+  const starts = waveStartTimes(waves);
+
+  const entry = (idx0: number): WavePreviewEntry | null => {
+    if (idx0 < 0 || idx0 >= waves.length) return null;
+    const wave = waves[idx0]!;
+    const groups: WavePreviewGroup[] = wave.enemies.map((g) => {
+      const stats = getEnemy(g.type);
+      return {
+        type: g.type,
+        count: g.count,
+        name: stats?.name ?? g.type,
+        traits: stats?.tags ?? [],
+      };
+    });
+    const total = groups.reduce((sum, g) => sum + g.count, 0);
+    const start = starts[idx0] ?? 0;
+    return {
+      wave: idx0 + 1,
+      total,
+      groups,
+      routeIds,
+      boss: !!wave.bossId,
+      countdown: Math.max(0, start - clock),
+    };
+  };
+
+  // current = the wave currently/most-recently spawning, or the first if none yet.
+  const currentIdx0 = Math.max(currentWave, 1) - 1;
+  return {
+    current: entry(currentIdx0),
+    upcoming: entry(currentIdx0 + 1),
+  };
 }
 
 function spawnEnemy(typeId: string, path: PathCurve): ActiveEnemy {

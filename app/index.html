@@ -139,6 +139,14 @@
           <button id="cpRemoveBtn" class="context-panel__action context-panel__action--danger" type="button">Remove</button>
         </div>
       </section>
+
+      <!-- Wave preview (issue #32 AC1): shown while planning so the Guardian can
+           inspect the current + upcoming wave before pressing Start. A second
+           copy lives inside the pause overlay for mid-battle planning. -->
+      <section id="wavePreview" class="wave-preview" role="region" aria-label="Wave preview" hidden>
+        <h3 class="wave-preview__title">Incoming Waves</h3>
+        <div id="wavePreviewBody" class="wave-preview__body"></div>
+      </section>
     </div>
 
     <nav id="toolbar" class="toolbar" aria-label="Defender selection" hidden>
@@ -164,6 +172,34 @@
         <div class="overlay__actions">
           <button id="replayBtn" class="overlay__btn" type="button">Play Again</button>
           <button id="returnToTrailBtn" class="primary-btn" type="button">Return to Trail</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Planning Pause (issue #32 AC5): a frozen mid-battle state. Cancels every
+         battlefield gesture and offers Resume, Settings, confirmed Restart, and
+         confirmed Exit. Spells and Mana flowers wait until Resume (AC4). -->
+    <section id="pauseOverlay" class="overlay overlay--pause" role="dialog" aria-modal="true" aria-label="Battle paused" hidden>
+      <div class="overlay__panel">
+        <h2>Paused</h2>
+        <p class="overlay__note">Plan freely — Defender placement, inspection, upgrades, and removal stay available. Spells and Mana flowers resume with the battle.</p>
+        <div id="pauseWavePreview" class="wave-preview wave-preview--pause" aria-label="Wave preview"></div>
+        <div class="overlay__actions overlay__actions--pause">
+          <button id="resumeBtn" class="primary-btn" type="button">Resume</button>
+          <button id="settingsBtn" class="overlay__btn" type="button">Settings</button>
+          <button id="restartBtn" class="overlay__btn" type="button">Restart</button>
+          <button id="exitBtn" class="overlay__btn overlay__btn--danger" type="button">Exit to Campaign</button>
+        </div>
+        <div id="pauseSettings" class="overlay__settings" hidden>
+          <button id="pauseLayoutBtn" class="overlay__btn" type="button">Layout</button>
+          <p class="overlay__note">Two-thumb landscape is preferred; portrait scales the whole battlefield to fit.</p>
+        </div>
+        <div id="pauseConfirm" class="overlay__confirm" role="alertdialog" aria-label="Confirm action" hidden>
+          <p id="pauseConfirmText" class="overlay__note"></p>
+          <div class="overlay__actions">
+            <button id="pauseConfirmYes" class="overlay__btn overlay__btn--danger" type="button">Confirm</button>
+            <button id="pauseConfirmNo" class="overlay__btn" type="button">Cancel</button>
+          </div>
         </div>
       </div>
     </section>

@@ -488,6 +488,90 @@ body.force-landscape .app-root {
   }
 }
 
+/* --- Wave preview (issue #32 AC1) --- */
+/* A corner panel (mirroring the modeless context panel) shown while planning so
+   the Guardian can read the current + upcoming wave before pressing Start. A
+   second copy renders inside the pause overlay for mid-battle planning. */
+.wave-preview {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 6;
+  width: min(240px, 60vw);
+  padding: 10px 12px 12px;
+  background: #0c2a1dee;
+  border: 1px solid #6fd49a55;
+  border-radius: 12px;
+  box-shadow: 0 12px 40px #03110eaa;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.wave-preview[hidden] {
+  display: none;
+}
+
+.wave-preview__title {
+  margin: 0 0 6px;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--mana);
+}
+
+.wave-preview__body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.wave-preview__wave {
+  padding: 6px 8px;
+  background: #08201788;
+  border-radius: 8px;
+}
+
+.wave-preview__wave--upcoming {
+  opacity: 0.85;
+}
+
+.wave-preview__heading {
+  font-weight: 800;
+  color: var(--leaf-bright);
+}
+
+.wave-preview__count {
+  color: #cfeede;
+}
+
+.wave-preview__group {
+  color: var(--ink);
+}
+
+.wave-preview__traits,
+.wave-preview__routes {
+  font-size: 11px;
+  color: #9fd0b8;
+}
+
+.wave-preview__boss {
+  color: var(--heart);
+  font-weight: 700;
+}
+
+.wave-preview__countdown {
+  color: var(--mana);
+  font-weight: 700;
+}
+
+/* Inside the pause overlay the panel is not absolutely positioned. */
+.wave-preview--pause {
+  position: static;
+  width: min(360px, 88vw);
+  margin: 0 auto 12px;
+  text-align: left;
+}
+
 body.force-portrait .preview {
   display: none;
 }
@@ -884,4 +968,51 @@ body.force-portrait .preview {
 
 .loadout__actions .primary-btn {
   flex: 1;
+}
+
+/* --- Planning Pause overlay (issue #32 AC5) --- */
+.overlay--pause .overlay__panel {
+  max-width: min(440px, 92vw);
+  text-align: center;
+}
+
+.overlay__note {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: #cfeede;
+  line-height: 1.45;
+}
+
+.overlay__btn--danger {
+  border-color: #ff6f5b77;
+  color: #ffb3a6;
+}
+
+.overlay__actions--pause {
+  flex-wrap: wrap;
+}
+
+.overlay__settings {
+  margin-top: 8px;
+  padding: 10px;
+  border-radius: 10px;
+  background: #08201788;
+  text-align: center;
+}
+
+.overlay__settings[hidden] {
+  display: none;
+}
+
+.overlay__confirm {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 12px;
+  background: #2a140ecc;
+  border: 1px solid #ff6f5b55;
+  text-align: center;
+}
+
+.overlay__confirm[hidden] {
+  display: none;
 }

@@ -7,9 +7,16 @@ import {
   waveText,
   buildContextPanel,
   spellStateText,
+  buildWavePreviewView,
   type HudElements,
 } from './hud';
-import type { BattleSnapshot, DefenderInspection, SpellAvailability } from './domain/battle';
+import type {
+  BattleSnapshot,
+  DefenderInspection,
+  SpellAvailability,
+  WavePreview,
+  WavePreviewEntry,
+} from './domain/battle';
 
 function stubs(): HudElements {
   return {
@@ -43,6 +50,7 @@ function snap(partial: Partial<BattleSnapshot>): BattleSnapshot {
     stars: 0,
     armedSpell: null,
     spells: [],
+    wavePreview: { current: null, upcoming: null },
     ...partial,
   };
 }
@@ -247,5 +255,85 @@ describe('spell availability text (issue #31 AC4)', () => {
 
   it('explains unaffordability when the Guardian lacks the Mana', () => {
     expect(spellStateText(spell({ ready: true, affordable: false, cost: 50 }))).toBe('Needs 50 mana');
+  });
+
+  it('says Paused (before cooldown/affordability) while the battle is paused (issue #32 AC4)', () => {
+    expect(spellStateText(spell({ ready: true, affordable: true, reason: 'paused' }))).toBe('Paused');
+    // Paused takes precedence even when the spell is also cooling down.
+    expect(spellStateText(spell({ ready: false, cooldownRemaining: 18.2, reason: 'paused' }))).toBe('Paused');
+  });
+
+  it('translates the paused rejection into a Guardian-facing hint (issue #32 AC4)', () => {
+    expect(humanReason('paused')).toBe('Not while paused');
+  });
+});
+
+// Wave preview projection (issue #32 AC1): the pure view the DOM panel renders
+// for the current and upcoming wave — heading, foe counts, traits, routes, boss
+// warning, and countdown.
+describe('wave preview projection (issue #32 AC1)', () => {
+  function entry(partial: Partial<WavePreviewEntry> = {}): WavePreviewEntry {
+    return {
+      wave: 1,
+      total: 3,
+      groups: [{ type: 'logger', count: 3, name: 'Logger', traits: ['crew', 'ground', 'choppable'] }],
+      routeIds: ['main'],
+      boss: false,
+      countdown: 0,
+      ...partial,
+    };
+  }
+
+  function preview(current: WavePreviewEntry | null, upcoming: WavePreviewEntry | null = null): WavePreview {
+    return { current, upcoming };
+  }
+
+  it('renders null entries as null so the caller can hide a missing section', () => {
+    const view = buildWavePreviewView(preview(null, null));
+    expect(view.current).toBeNull();
+    expect(view.upcoming).toBeNull();
+  });
+
+  it('shows the wave heading, total foes, and per-group counts (AC1)', () => {
+    const view = buildWavePreviewView(preview(entry()))!;
+    expect(view.current!.heading).toBe('Wave 1');
+    expect(view.current!.count).toBe('3 foes');
+    expect(view.current!.groups).toEqual(['3× Logger']);
+  });
+
+  it('flattens and de-duplicates enemy trait tags across groups', () => {
+    const e = entry({
+      total: 3,
+      groups: [
+        { type: 'logger', count: 2, name: 'Logger', traits: ['ground', 'crew'] },
+        { type: 'drone', count: 1, name: 'Drone', traits: ['flying', 'ground'] },
+      ],
+    });
+    const view = buildWavePreviewView(preview(e))!;
+    expect(view.current!.traits).toEqual(['ground', 'crew', 'flying']);
+  });
+
+  it('lists a single route vs. multiple routes', () => {
+    expect(buildWavePreviewView(preview(entry({ routeIds: ['main'] })))!.current!.routes).toBe('Route: main');
+    expect(buildWavePreviewView(preview(entry({ routeIds: ['main', 'secondary'] })))!.current!.routes).toBe(
+      'Routes: main, secondary',
+    );
+  });
+
+  it('shows a boss warning on a boss wave and omits it otherwise', () => {
+    expect(buildWavePreviewView(preview(entry({ boss: false })))!.current!.boss).toBeNull();
+    expect(buildWavePreviewView(preview(entry({ boss: true })))!.current!.boss).toBe('⚠ Boss wave');
+  });
+
+  it('counts down to an upcoming wave (rounded up), and omits it once begun', () => {
+    expect(buildWavePreviewView(preview(entry({ countdown: 0 })))!.current!.countdown).toBeNull();
+    expect(buildWavePreviewView(preview(entry({ countdown: 8.2 })))!.current!.countdown).toBe('Starts in 9s');
+  });
+
+  it('projects both the current and the upcoming wave', () => {
+    const view = buildWavePreviewView(preview(entry({ wave: 2, countdown: 0 }), entry({ wave: 3, countdown: 5 })));
+    expect(view.current!.heading).toBe('Wave 2');
+    expect(view.upcoming!.heading).toBe('Wave 3');
+    expect(view.upcoming!.countdown).toBe('Starts in 5s');
   });
 });

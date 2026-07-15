@@ -24,6 +24,8 @@ export interface FrApi {
   removeRing(ringId: string): { ok: true; refund: number } | { ok: false; reason: string } | null;
   selectDefender(typeId: string): void;
   start(): void;
+  pause(): void;
+  resume(): void;
   ringIds(): string[];
   // Loadout seam (issue #21): observable during the pre-battle Loadout step.
   loadoutCapacity(): number;

@@ -2,7 +2,14 @@
 // globals so it can be unit-tested with plain stub elements: it is the exact
 // transformation the browser applies to each BattleState snapshot.
 
-import type { BattleSnapshot, DefenderInspection, SpellAvailability, StatChanges } from './domain/battle';
+import type {
+  BattleSnapshot,
+  DefenderInspection,
+  SpellAvailability,
+  StatChanges,
+  WavePreview,
+  WavePreviewEntry,
+} from './domain/battle';
 
 /** Minimal structural shape renderHud touches — real HTMLElements satisfy this. */
 export interface HudElements {
@@ -54,6 +61,8 @@ export function humanReason(reason: string): string {
       return 'Undo window expired';
     case 'spell-cooldown':
       return 'Spell on cooldown';
+    case 'paused':
+      return 'Not while paused';
     case 'spell-locked':
       return 'Spell not unlocked';
     case 'unknown-spell':
@@ -81,6 +90,9 @@ export function humanReason(reason: string): string {
  * Cooldown is rounded up so the Guardian never sees "0s" on a still-locking spell.
  */
 export function spellStateText(spell: SpellAvailability): string {
+  // Planning Pause locks every spell (issue #32 AC4): surface that before the
+  // cooldown/affordability states so the toolbar explains why it is unavailable.
+  if (spell.reason === 'paused') return 'Paused';
   if (!spell.ready) return `Cooldown ${Math.ceil(spell.cooldownRemaining)}s`;
   if (!spell.affordable) return `Needs ${spell.cost} mana`;
   return 'Ready';
@@ -215,5 +227,71 @@ export function buildContextPanel(info: DefenderInspection | null): ContextPanel
       summary: `Remove — ${info.removalRefund} mana refunded (70%)`,
       confirm: `Remove this Defender? ${info.removalRefund} mana will be refunded.`,
     },
+  };
+}
+
+// --- Wave preview (issue #32 AC1) -----------------------------------------
+// A pure projector: turns the BattleState's WavePreview into the exact strings
+// the DOM panel renders (wave heading, foe counts, traits, routes, boss warning,
+// countdown). Free of the DOM so it is unit-tested directly, like buildContextPanel.
+
+export interface WavePreviewWaveView {
+  /** "Wave 3" heading. */
+  heading: string;
+  /** "6 foes" total. */
+  count: string;
+  /** One summary line per enemy group, e.g. "3× Logger". */
+  groups: string[];
+  /** Trait tags flattened across groups, de-duplicated, e.g. ["ground","flying"]. */
+  traits: string[];
+  /** "Route: main" or "Routes: main, secondary". */
+  routes: string;
+  /** Boss warning line, or null when the wave carries no boss. */
+  boss: string | null;
+  /** "Starts in 8s" while the wave is still upcoming, or null once it has begun. */
+  countdown: string | null;
+}
+
+export interface WavePreviewView {
+  current: WavePreviewWaveView | null;
+  upcoming: WavePreviewWaveView | null;
+}
+
+/** "Starts in 8s" — rounded up so the Guardian never sees "0s" on an imminent wave. */
+function waveCountdownText(countdown: number): string | null {
+  if (countdown <= 0) return null;
+  return `Starts in ${Math.ceil(countdown)}s`;
+}
+
+/** Project one wave entry into the DOM view. */
+function waveView(entry: WavePreviewEntry): WavePreviewWaveView {
+  const traits: string[] = [];
+  for (const group of entry.groups) {
+    for (const tag of group.traits) {
+      if (!traits.includes(tag)) traits.push(tag);
+    }
+  }
+  const routes = entry.routeIds.length > 1
+    ? `Routes: ${entry.routeIds.join(', ')}`
+    : `Route: ${entry.routeIds[0] ?? 'main'}`;
+  return {
+    heading: `Wave ${entry.wave}`,
+    count: `${entry.total} foe${entry.total === 1 ? '' : 's'}`,
+    groups: entry.groups.map((g) => `${g.count}× ${g.name}`),
+    traits,
+    routes,
+    boss: entry.boss ? '⚠ Boss wave' : null,
+    countdown: waveCountdownText(entry.countdown),
+  };
+}
+
+/**
+ * Project the BattleState's WavePreview into the panel view (issue #32 AC1).
+ * Empty entries (null) are preserved so the caller can hide a missing section.
+ */
+export function buildWavePreviewView(preview: WavePreview): WavePreviewView {
+  return {
+    current: preview.current ? waveView(preview.current) : null,
+    upcoming: preview.upcoming ? waveView(preview.upcoming) : null,
   };
 }
