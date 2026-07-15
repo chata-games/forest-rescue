@@ -214,3 +214,249 @@ body {
     margin-right: 0;
   }
 }
+
+/* --- Trail campaign map --- */
+/* The Trail is the campaign-start view. Generated art supplies scenery only
+   (the background layer); every route line, node, state, label, and hit region
+   below is rendered from the campaign manifest. */
+.trail {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  height: 100vh;
+  height: 100dvh;
+  background: var(--grove-deep);
+}
+
+.trail__header {
+  padding: clamp(12px, 2.4vw, 28px) clamp(16px, 3vw, 40px) clamp(4px, 1vw, 12px);
+  text-align: center;
+}
+
+.trail__title {
+  margin: 0;
+  font-size: clamp(20px, 3vw, 34px);
+  letter-spacing: 0.02em;
+}
+
+.trail__subtitle {
+  margin: 6px 0 0;
+  color: #aedbbd;
+  font-size: clamp(12px, 1.4vw, 15px);
+}
+
+.trail__map {
+  position: relative;
+  margin: 0 clamp(12px, 2vw, 32px);
+  border-radius: 16px;
+  overflow: hidden;
+  /* Scenery background: a painterly forest-map gradient. A generated landmark
+     image can replace this layer without touching any Trail logic. */
+  background:
+    radial-gradient(60% 50% at 18% 78%, #2c6b48cc 0%, #2c6b4800 60%),
+    radial-gradient(50% 45% at 82% 30%, #245a3dcc 0%, #245a3d00 60%),
+    linear-gradient(160deg, #18402c 0%, #0e2a1d 70%, #0a2015 100%);
+  border: 1px solid #1d5a4055;
+  box-shadow: inset 0 0 80px #03110e66;
+}
+
+.trail__route {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.trail__route .route__line {
+  fill: none;
+  stroke: #b9824e;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 3 2.5;
+  opacity: 0.8;
+}
+
+/* Each level node is a real semantic control: >=48x48 CSS px, visible focus,
+   keyboard-traversable (DOM order = campaign order). */
+.trail-node {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 58px;
+  height: 58px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border-radius: 50%;
+  border: 3px solid var(--ring);
+  background: #0c2a1dee;
+  color: var(--ink);
+  font-weight: 800;
+  font-size: 20px;
+  cursor: pointer;
+  /* Hit region comfortably exceeds the 48x48 minimum target. */
+  box-shadow: 0 4px 14px #03110eaa;
+}
+
+.trail-node:focus-visible {
+  outline: 3px solid var(--mana);
+  outline-offset: 4px;
+}
+
+.trail-node[data-status="current"] {
+  border-color: var(--leaf-bright);
+  background: #16432f;
+  box-shadow: 0 0 0 4px #8ef0b633, 0 4px 14px #03110eaa;
+  animation: trail-pulse 2.4s ease-in-out infinite;
+}
+
+.trail-node[data-status="cleared"] {
+  border-color: var(--mana);
+  background: #2a2410;
+  color: var(--mana);
+}
+
+.trail-node[data-status="cleared"]::after {
+  content: "★";
+  position: absolute;
+  bottom: -10px;
+  font-size: 13px;
+  color: var(--mana);
+}
+
+.trail-node[data-status="locked"] {
+  border-color: #4a6357;
+  background: #0a1f17;
+  color: #6f8c7e;
+}
+
+@keyframes trail-pulse {
+  0%, 100% { box-shadow: 0 0 0 4px #8ef0b633, 0 4px 14px #03110eaa; }
+  50% { box-shadow: 0 0 0 8px #8ef0b622, 0 4px 14px #03110eaa; }
+}
+
+.trail__legend {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  padding: 8px 0 clamp(12px, 2vw, 20px);
+  margin: 0;
+  font-size: 11px;
+  color: #aedbbd;
+}
+
+.trail__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.trail__chip::before {
+  content: "";
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid;
+}
+
+.trail__chip--current::before { border-color: var(--leaf-bright); background: #16432f; }
+.trail__chip--cleared::before { border-color: var(--mana); background: #2a2410; }
+.trail__chip--locked::before { border-color: #4a6357; background: #0a1f17; }
+
+/* --- Level detail surface --- */
+.detail {
+  margin: auto;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  max-width: min(440px, 92vw);
+  color: var(--ink);
+}
+
+.detail::backdrop {
+  background: #03110ed9;
+}
+
+.detail__panel {
+  background: var(--grove);
+  border: 1px solid var(--leaf);
+  border-radius: 18px;
+  padding: 24px 26px 22px;
+  box-shadow: 0 18px 60px #03110eaa;
+}
+
+.detail__title {
+  margin: 0 0 6px;
+  font-size: 26px;
+}
+
+.detail__blurb {
+  margin: 0 0 10px;
+  color: #cfeede;
+  font-size: 14px;
+}
+
+.detail__meta {
+  margin: 0 0 8px;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #9fd0b8;
+}
+
+.detail__rewards {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: var(--mana);
+}
+
+.detail__unlock {
+  margin: 0 0 14px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #2a140ecc;
+  border: 1px solid #ff6f5b55;
+  color: #ffb3a6;
+  font-size: 13px;
+}
+
+.detail__unlock:empty,
+.detail__unlock[hidden] {
+  display: none;
+}
+
+.detail__actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+.detail__back {
+  border: 1px solid #6fd49a55;
+  background: #122d22;
+  color: var(--ink);
+  border-radius: 12px;
+  padding: 10px 18px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* --- Outcome actions --- */
+.overlay__actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 18px;
+}
+
+.overlay__btn {
+  border: 1px solid #6fd49a55;
+  background: #122d22;
+  color: var(--ink);
+  border-radius: 12px;
+  padding: 12px 22px;
+  font-weight: 700;
+  cursor: pointer;
+}

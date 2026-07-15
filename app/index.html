@@ -5,14 +5,51 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#13391f" />
-  <title>Forest Rescue: Heartwood — Meadow's Edge</title>
+  <title>Forest Rescue: Heartwood — The Trail</title>
   <link rel="stylesheet" href="./styles.css" />
 </head>
 
 <body>
-  <div id="app-root" class="app-root">
-    <!-- Semantic DOM/CSS HUD: Mana, Hearts, wave state, pause, and outcome.
-         The Phaser battlefield renders into #game-root; this shell stays plain DOM. -->
+  <!-- The Trail: the campaign-start map. Route lines, nodes, state, labels, and
+       hit regions are all rendered here from the campaign manifest; generated
+       art supplies scenery only. Shown on first launch; the battle mounts after
+       a level is entered. -->
+  <section id="trailScreen" class="trail" aria-label="Campaign trail map">
+    <header class="trail__header">
+      <h1 class="trail__title" id="trailTitle">Forest Rescue: Heartwood</h1>
+      <p class="trail__subtitle">Follow the Trail to the Heartwood. Select a level to inspect it.</p>
+    </header>
+
+    <div id="trailMap" class="trail__map" role="group" aria-label="Trail levels">
+      <!-- Route polyline and level node buttons are built from the manifest by main.ts. -->
+    </div>
+
+    <p class="trail__legend" aria-hidden="true">
+      <span class="trail__chip trail__chip--current">Available</span>
+      <span class="trail__chip trail__chip--cleared">Cleared</span>
+      <span class="trail__chip trail__chip--locked">Locked</span>
+    </p>
+  </section>
+
+  <!-- Compact level detail surface (the pre-battle brief). Native <dialog> gives
+       focus management, ESC to dismiss, and an accessible modal role for free. -->
+  <dialog id="trailDetail" class="detail" aria-labelledby="detailTitle">
+    <div class="detail__panel">
+      <h2 id="detailTitle" class="detail__title"></h2>
+      <p id="detailBlurb" class="detail__blurb"></p>
+      <p id="detailMeta" class="detail__meta"></p>
+      <p id="detailRewards" class="detail__rewards"></p>
+      <p id="detailUnlock" class="detail__unlock" role="note"></p>
+      <div class="detail__actions">
+        <button id="detailBack" class="detail__back" type="button" autofocus>Back to Trail</button>
+        <button id="detailEnter" class="primary-btn" type="button">Enter</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Battle view: the semantic DOM/CSS HUD + Phaser battlefield. Hidden until a
+       level is entered from the Trail. -->
+  <div id="battleRoot" class="app-root" hidden>
     <header class="hud" role="banner" aria-label="Battle heads-up display">
       <div class="hud__title" id="levelName">Meadow's Edge</div>
 
@@ -34,7 +71,6 @@
       <button id="pauseBtn" class="hud__btn" type="button" aria-pressed="false" aria-label="Pause battle">Pause</button>
     </header>
 
-    <!-- The production Phaser battlefield mounts here. -->
     <main class="stage" id="game-root" role="img" aria-label="Forest Rescue battlefield"></main>
 
     <nav class="toolbar" aria-label="Defender selection">
@@ -57,7 +93,10 @@
       <div class="overlay__panel">
         <h2 id="outcomeTitle">Victory</h2>
         <p id="outcomeMessage"></p>
-        <button id="replayBtn" class="primary-btn" type="button">Play Again</button>
+        <div class="overlay__actions">
+          <button id="replayBtn" class="overlay__btn" type="button">Play Again</button>
+          <button id="returnToTrailBtn" class="primary-btn" type="button">Return to Trail</button>
+        </div>
       </div>
     </section>
   </div>

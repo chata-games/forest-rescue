@@ -1,38 +1,14 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
+import { TURBO, enterFromTrail, place, type FrApi } from './helpers';
 
 // Production launch-to-outcome tracer bullet (issue #19 acceptance criterion 6).
-// Each scenario launches the real Vite-served Phaser app, plants Defenders,
+// Each scenario enters Meadow's Edge from the campaign Trail, plants Defenders,
 // starts the scripted waves, and asserts the deterministic battle outcome the
 // engine-independent BattleState predicts for that loadout.
 
-const TURBO = '16'; // sim speed-up so a full battle resolves in a few seconds
-
-interface FrApi {
-  placeOnRing(ringId: string): void;
-  selectDefender(typeId: string): void;
-  start(): void;
-  ringIds(): string[];
-}
-
-async function fr(page: Page): Promise<void> {
-  await page.waitForFunction(() => !!(window as unknown as { fr?: unknown }).fr, undefined, { timeout: 30_000 });
-}
-
-async function place(page: Page, ringId: string, type: string): Promise<void> {
-  await page.evaluate(
-    ({ r, t }) => {
-      const api = (window as unknown as { fr: FrApi }).fr;
-      api.selectDefender(t);
-      api.placeOnRing(r);
-    },
-    { r: ringId, t: type },
-  );
-}
-
 test.describe("Meadow's Edge launch-to-outcome", () => {
   test('honest loadout is overrun → Defeat', async ({ page }) => {
-    await page.goto(`/?turbo=${TURBO}`);
-    await fr(page);
+    await enterFromTrail(page, `?turbo=${TURBO}`);
 
     // The level loaded from its CompiledLevel.
     await expect(page.locator('#levelName')).toHaveText("Meadow's Edge");
@@ -53,8 +29,7 @@ test.describe("Meadow's Edge launch-to-outcome", () => {
   });
 
   test('full fairy-ring coverage defends the Heartwood → Victory', async ({ page }) => {
-    await page.goto(`/?god=1&turbo=${TURBO}`);
-    await fr(page);
+    await enterFromTrail(page, `?god=1&turbo=${TURBO}`);
 
     const ringIds = await page.evaluate(() => (window as unknown as { fr: FrApi }).fr.ringIds());
     // Sprig Sentinels on every beside-path ring plus a Thornvine Bramble on the
