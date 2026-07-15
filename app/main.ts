@@ -135,8 +135,7 @@ function cumulativeUnlocks(levelId: string): string[] {
   for (let i = 0; i <= idx; i++) {
     const meta = META[LEVEL_ORDER[i] ?? ''];
     if (!meta) continue;
-    for (const defender of meta.unlocks) if (!ids.includes(defender)) ids.push(defender);
-    if (meta.spellUnlock && !ids.includes(meta.spellUnlock)) ids.push(meta.spellUnlock);
+    collectUnlocks(meta, ids);
   }
   return ids;
 }
@@ -152,10 +151,15 @@ function earnedUnlocks(p: CampaignProgress): string[] {
     if (!p[id]?.cleared) continue;
     const meta = META[id];
     if (!meta) continue;
-    for (const unlock of meta.unlocks) if (!ids.includes(unlock)) ids.push(unlock);
-    if (meta.spellUnlock && !ids.includes(meta.spellUnlock)) ids.push(meta.spellUnlock);
+    collectUnlocks(meta, ids);
   }
   return ids;
+}
+
+/** Append a level's defender + spell unlocks to `ids`, skipping duplicates, in order. */
+function collectUnlocks(meta: LevelMeta, ids: string[]): void {
+  for (const unlock of meta.unlocks) if (!ids.includes(unlock)) ids.push(unlock);
+  if (meta.spellUnlock && !ids.includes(meta.spellUnlock)) ids.push(meta.spellUnlock);
 }
 
 // Mana flowers spawn on a steady cadence so collection is a live part of play.
@@ -250,10 +254,12 @@ function persistSave(): void {
 }
 
 /**
- * Apply a freshly-loaded save to the in-memory state, persist a clean save when
- * progress was recovered (so the notice is one-time), and refresh the Trail.
+ * Apply a save load outcome to the in-memory campaign state. When progress was
+ * recovered (an incompatible epoch or corruption), persist a clean save bound to
+ * the current epoch so the recovery notice is one-time on the next reload
+ * (issue #27 AC3/AC4). Shared by the boot-time load and injectSaveRaw.
  */
-function applyLoadedSave(outcome: SaveLoadOutcome): void {
+function applySaveOutcome(outcome: SaveLoadOutcome): void {
   progress = outcome.progress;
   savedLoadouts = outcome.loadouts;
   savedUnlocks = outcome.unlocks;
@@ -262,8 +268,6 @@ function applyLoadedSave(outcome: SaveLoadOutcome): void {
     // Replace the unrecoverable raw with a clean fresh save bound to this epoch.
     persistSave();
   }
-  refreshTrail();
-  showSaveNotice(saveNotice);
 }
 
 let progress: CampaignProgress = emptyProgress();
@@ -278,14 +282,7 @@ let saveNotice: SaveNotice | null = null;
 // reflects saved progress (issue #27). On any recovery the unrecoverable raw is
 // archived (in loadCampaignSave) and replaced with a clean fresh save here, so
 // the notice is one-time on the next reload.
-{
-  const outcome = loadCampaignSave();
-  progress = outcome.progress;
-  savedLoadouts = outcome.loadouts;
-  savedUnlocks = outcome.unlocks;
-  saveNotice = outcome.notice;
-  if (outcome.notice) persistSave();
-}
+applySaveOutcome(loadCampaignSave());
 
 // Deterministic outcome-band summary for the author preview level (if any).
 const summary: PreviewSummary | undefined = options.preview
@@ -1211,9 +1208,11 @@ function openLoadout(levelId: string): void {
   // Restore the Guardian's last chosen Loadout for this level when it is still
   // valid and startable against the live pool; otherwise fall back to the valid
   // starter (issue #27: Loadouts survive reload).
-  const restored = savedLoadouts[levelId] ? restoreLoadout(savedLoadouts[levelId]!, currentLoadoutCtx) : null;
+  const saved = savedLoadouts[levelId];
+  const restored = saved ? restoreLoadout(saved, currentLoadoutCtx) : null;
   const verdict = restored ? validateLoadout(restored, currentLoadoutCtx) : null;
-  currentLoadout = verdict?.valid && verdict.canStart ? restored! : starterLoadout(currentLoadoutCtx);
+  currentLoadout =
+    verdict && verdict.valid && verdict.canStart && restored ? restored : starterLoadout(currentLoadoutCtx);
   loadoutTitle.textContent = `Loadout — ${level.name}`;
   closeDetail();
   trailScreen.hidden = true;
@@ -1417,7 +1416,7 @@ function makeDebugApi(): ForestRescueDebug {
       currentLoadoutCtx
         ? buildPool(currentLoadoutCtx).map(({ kind, id, name }) => ({ kind, id, name }))
         : [],
-    loadoutSlots: () => currentLoadout.map((slot) => (slot ? { kind: slot.kind, id: slot.id } : null)),
+    loadoutSlots: () => toSavedLoadout(currentLoadout),
     loadoutCanStart: () => canStart(currentLoadout),
     loadoutAdvice: () =>
       currentLoadoutCtx
@@ -1451,9 +1450,11 @@ function makeDebugApi(): ForestRescueDebug {
     saveNotice: () => saveNotice,
     injectSaveRaw: (raw: string | null) => {
       // Deterministically drive the reload / migration / epoch / corruption
-      // journeys: write a raw value, re-load it, and re-render.
+      // journeys: write a raw value, re-load it, apply it, and re-render.
       writeSaveRaw(raw);
-      applyLoadedSave(loadCampaignSave());
+      applySaveOutcome(loadCampaignSave());
+      refreshTrail();
+      showSaveNotice(saveNotice);
     },
     clearSave: () => {
       try {

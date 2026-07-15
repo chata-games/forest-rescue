@@ -147,22 +147,22 @@ export function loadSave(raw: string | null | undefined, ctx: SaveContext): Save
   try {
     parsed = JSON.parse(raw);
   } catch {
-    return recover(raw, ctx, 'corrupted', CORRUPT_MESSAGE);
+    return recover(raw, 'corrupted', CORRUPT_MESSAGE);
   }
   if (!isObject(parsed)) {
-    return recover(raw, ctx, 'corrupted', CORRUPT_MESSAGE);
+    return recover(raw, 'corrupted', CORRUPT_MESSAGE);
   }
 
   let migrated: SaveData;
   try {
     migrated = runMigrations(parsed, ctx);
   } catch {
-    return recover(raw, ctx, 'corrupted', CORRUPT_MESSAGE);
+    return recover(raw, 'corrupted', CORRUPT_MESSAGE);
   }
 
   const aliased = applyAliases(migrated, ctx.aliases);
   if (aliased.contentEpoch !== ctx.contentEpoch) {
-    return recover(raw, ctx, 'epoch', EPOCH_MESSAGE);
+    return recover(raw, 'epoch', EPOCH_MESSAGE);
   }
   return {
     progress: aliased.progress,
@@ -237,7 +237,7 @@ function runMigrations(parsed: unknown, ctx: SaveContext): SaveData {
     if (!migrate) throw new Error(`no migration from schema ${version}`);
     current = migrate(current, ctx);
   }
-  return normalizeSave(current, ctx);
+  return normalizeSave(current);
 }
 
 /**
@@ -246,7 +246,7 @@ function runMigrations(parsed: unknown, ctx: SaveContext): SaveData {
  * (bad entries are dropped) instead of hard-failing. Only a missing/invalid
  * schemaVersion or a thrown migration surfaces as corruption (handled upstream).
  */
-function normalizeSave(data: unknown, _ctx: SaveContext): SaveData {
+function normalizeSave(data: unknown): SaveData {
   if (!isObject(data)) throw new Error('save is not an object');
   return {
     schemaVersion: SAVE_SCHEMA_VERSION,
@@ -320,7 +320,7 @@ const EPOCH_MESSAGE =
   'The Forest Rescue campaign has been updated. Your previous progress was set aside and a fresh campaign has started.';
 
 /** Build a recovery outcome: a fresh campaign, a notice, and the raw preserved. */
-function recover(raw: string, _ctx: SaveContext, kind: SaveNoticeKind, message: string): SaveLoadOutcome {
+function recover(raw: string, kind: SaveNoticeKind, message: string): SaveLoadOutcome {
   return {
     progress: emptyProgress(),
     unlocks: [],
