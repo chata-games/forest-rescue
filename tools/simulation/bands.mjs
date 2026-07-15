@@ -50,29 +50,33 @@ export const OUTCOME_BANDS = {
   any: { outcome: "any" },
 };
 
+/** Plural suffix for a count: "s" unless exactly one. */
+function plural(n) {
+  return n === 1 ? "" : "s";
+}
+
 /** Human-readable description of an observed result. */
 export function outcomeLabel(result) {
   const hearts = result.hearts ?? 0;
   return result.won
-    ? `win with ${hearts} heart${hearts === 1 ? "" : "s"}`
-    : `loss/timed out with ${hearts} heart${hearts === 1 ? "" : "s"} left`;
+    ? `win with ${hearts} heart${plural(hearts)}`
+    : `loss/timed out with ${hearts} heart${plural(hearts)} left`;
+}
+
+/** Human-readable description of a band's heart-count window, or null when unset. */
+function heartRangeLabel(band) {
+  const { heartsMin: lo, heartsMax: hi } = band;
+  if (lo != null && hi != null) return `between ${lo} and ${hi} heart${plural(hi)}`;
+  if (lo != null) return `at least ${lo} heart${plural(lo)}`;
+  if (hi != null) return `at most ${hi} heart${plural(hi)}`;
+  return null;
 }
 
 /** Human-readable description of a band's expectation. */
 export function bandLabel(band) {
-  const lo = band.heartsMin;
-  const hi = band.heartsMax;
-  const range =
-    lo != null && hi != null
-      ? `between ${lo} and ${hi} heart${hi === 1 ? "" : "s"}`
-      : lo != null
-        ? `at least ${lo} heart${lo === 1 ? "" : "s"}`
-        : hi != null
-          ? `at most ${hi} heart${hi === 1 ? "" : "s"}`
-          : null;
-  if (band.outcome === "win") return range ? `win with ${range}` : "win";
-  if (band.outcome === "loss") return range ? `loss with ${range}` : "loss";
-  return range ? `any outcome with ${range}` : "any outcome";
+  const range = heartRangeLabel(band);
+  const head = band.outcome === "any" ? "any outcome" : band.outcome;
+  return range ? `${head} with ${range}` : head;
 }
 
 function heartBounds(band, result) {
@@ -103,7 +107,7 @@ export function evaluateBand(result, band) {
       return { ok: false, actual, expected, reason: `expected a win, but the strategy ${actual}` };
     }
     if (!inHeartRange) {
-      return { ok: false, actual, expected, reason: `expected ${expected}, but ${hearts} heart${hearts === 1 ? "" : "s"} survived` };
+      return { ok: false, actual, expected, reason: `expected ${expected}, but ${hearts} heart${plural(hearts)} survived` };
     }
     return { ok: true, actual, expected };
   }
@@ -117,7 +121,7 @@ export function evaluateBand(result, band) {
 
   // outcome === "any": gate only on the heart range, if any.
   if (!inHeartRange) {
-    return { ok: false, actual, expected, reason: `expected ${expected}, but ${hearts} heart${hearts === 1 ? "" : "s"} survived` };
+    return { ok: false, actual, expected, reason: `expected ${expected}, but ${hearts} heart${plural(hearts)} survived` };
   }
   return { ok: true, actual, expected };
 }

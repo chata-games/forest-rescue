@@ -401,6 +401,7 @@ export function validateOutcomeBands(levelsById) {
  */
 export function validateAll({ intents, compiled, manifest, catalogs }) {
   const errors = [];
+  const levelsById = new Map(compiled.map((c) => [c.id, c.level]));
   for (const { id, intent, source } of intents) {
     errors.push(...validateIntentRules(intent, catalogs, source || `intent:${id}`));
   }
@@ -408,14 +409,12 @@ export function validateAll({ intents, compiled, manifest, catalogs }) {
     errors.push(...validateCompiledRules(level, catalogs, source || `compiled:${id}`));
   }
   if (manifest) {
-    const compiledLevels = new Map(compiled.map((c) => [c.id, c.level]));
     const intentIds = new Set(intents.map((i) => i.id));
-    errors.push(...validateManifest(manifest, catalogs, { intentIds, compiledLevels }));
+    errors.push(...validateManifest(manifest, catalogs, { intentIds, compiledLevels: levelsById }));
   }
   errors.push(...validateStableIds({ intents, compiled, manifest }));
   errors.push(...validateConvergence(intents.map(({ id, intent }) => ({ id, intent }))));
   errors.push(...validateReplay({ intents, compiled }));
-  const levelsById = new Map(compiled.map((c) => [c.id, c.level]));
   errors.push(...validateOutcomeBands(levelsById));
   return errors;
 }

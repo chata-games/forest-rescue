@@ -159,14 +159,12 @@ export class BattleScene extends Phaser.Scene {
     }
 
     for (const hazard of summary.hazards) {
-      if (hazard.kind === 'water' && hazard.region) {
-        const mask = hazard.region as { x: number; y: number; rx: number; ry: number };
+      if (hazard.kind === 'water') {
         g.fillStyle(0x2f6fb0, 0.35);
-        g.fillEllipse(mask.x, mask.y, mask.rx * 2, mask.ry * 2);
-      } else if (hazard.kind === 'air-lane' && hazard.region) {
-        const lane = hazard.region as { from: { x: number; y: number }; to: { x: number; y: number } };
+        g.fillEllipse(hazard.region.x, hazard.region.y, hazard.region.rx * 2, hazard.region.ry * 2);
+      } else if (hazard.kind === 'air-lane') {
         g.lineStyle(3, 0x8ea0ff, 0.5);
-        g.lineBetween(lane.from.x, lane.from.y, lane.to.x, lane.to.y);
+        g.lineBetween(hazard.region.from.x, hazard.region.from.y, hazard.region.to.x, hazard.region.to.y);
       }
     }
 

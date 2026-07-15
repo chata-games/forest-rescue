@@ -38,7 +38,10 @@ function simulateLevel(levelPath) {
       };
     }
     results[bot] = entry;
-    const verdict = entry.bandEvaluation ? (entry.bandEvaluation.ok ? "in-band" : "OUT OF BAND") : "no-band";
+    let verdict;
+    if (!entry.bandEvaluation) verdict = "no-band";
+    else if (entry.bandEvaluation.ok) verdict = "in-band";
+    else verdict = "OUT OF BAND";
     console.log(`  ${bot}: won=${result.won} hearts=${result.hearts} ticks=${result.ticks} [${verdict}]`);
   }
 

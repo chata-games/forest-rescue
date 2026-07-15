@@ -213,7 +213,8 @@ function renderPreviewLegend(): void {
   if (summary.simulation?.length) {
     const sims = summary.simulation
       .map((s) => {
-        const verdict = s.band ? `${s.band}: ${s.inBand ? 'in band' : 'OUT OF BAND'}` : 'no band';
+        const status = s.inBand ? 'in band' : 'OUT OF BAND';
+        const verdict = s.band ? `${s.band}: ${status}` : 'no band';
         return `<li>${s.bot} — ${s.won ? 'win' : 'loss'} (${s.hearts}♥) <span class="preview__band">${verdict}</span></li>`;
       })
       .join('');

@@ -43,12 +43,27 @@ export interface RouteSummary {
   width: number;
 }
 
-export interface HazardSummary {
-  kind: 'fire' | 'darkness' | 'water' | 'air-lane';
+/** A water-crossing hazard with drawable geometry. */
+export interface WaterHazard {
+  kind: 'water';
   label: string;
-  /** Optional geometry the overlay can draw (e.g. water masks / air lanes). */
-  region?: WaterMask | AirLane;
+  region: WaterMask;
 }
+
+/** A flying-enemy lane that bypasses the ground trail. */
+export interface AirLaneHazard {
+  kind: 'air-lane';
+  label: string;
+  region: AirLane;
+}
+
+/** A whole-level modifier hazard with no geometry to draw. */
+export interface ModifierHazard {
+  kind: 'fire' | 'darkness';
+  label: string;
+}
+
+export type HazardSummary = WaterHazard | AirLaneHazard | ModifierHazard;
 
 export interface WaveGroupSummary {
   type: string;
