@@ -10,15 +10,23 @@
 import Phaser from 'phaser';
 import { STEP } from '../domain/battle';
 import type { BattleState } from '../domain/battle';
+import { getDefender } from '../domain/content';
 import type { Ring } from '../domain/types';
 
 export interface BattleSceneApi {
   battle: BattleState;
-  /** Called when the Guardian taps a fairy ring (null = tapped empty ground). */
-  onRingClick: (ringId: string | null) => void;
+  /**
+   * Called when a tap commits on a fairy ring (null = released on empty ground).
+   * typeId is the tool snapshotted at touch-down so a second thumb changing the
+   * selection mid-gesture can never buy the wrong defender (issue #22 AC5).
+   */
+  onRingClick: (ringId: string | null, typeId?: string) => void;
 }
 
 const MAX_STEPS_PER_FRAME = 60;
+// A tap commits only if the pointer stays within this many CSS pixels of its
+// touch-down point — a drag or a sliding thumb cancels and spends nothing.
+const MOVE_THRESHOLD_PX = 12;
 
 // Painterly meadow-edge palette (vector composition; generated art is a future task).
 const COLOR = {
@@ -27,6 +35,7 @@ const COLOR = {
   trail: 0xb9824e,
   trailEdge: 0x8a5f37,
   ring: 0x77e0c1,
+  ringHint: 0xa7f0d6,
   ringOccupied: 0xf7d66f,
   heartwood: 0xf7d66f,
   enemy: 0xe8845c,
@@ -35,11 +44,29 @@ const COLOR = {
   hpLow: 0xff6f5b,
   projectile: 0xd7ff8f,
   bramble: 0x5bbf73,
+  invalid: 0xff6f5b,
 };
+
+/**
+ * An in-flight tap. One entry per active pointer, so two thumbs can each carry
+ * their own snapshotted tool and each release creates at most one defender.
+ */
+interface Gesture {
+  ringId: string;
+  /** Defender type captured at touch-down; the release commits this exact tool. */
+  typeId: string;
+  /** Whether placement would succeed right now (drives ghost colour). */
+  valid: boolean;
+  /** CSS-pixel touch-down origin for the movement threshold. */
+  downX: number;
+  downY: number;
+  /** Set once the pointer exceeds the movement threshold — commit is forfeit. */
+  movedTooFar: boolean;
+}
 
 export class BattleScene extends Phaser.Scene {
   private battle!: BattleState;
-  private onRingClick!: (ringId: string | null) => void;
+  private onRingClick!: (ringId: string | null, typeId?: string) => void;
 
   private terrain!: Phaser.GameObjects.Graphics;
   private dynamic!: Phaser.GameObjects.Graphics;
@@ -47,6 +74,10 @@ export class BattleScene extends Phaser.Scene {
 
   private accumulator = 0;
   private timeScale = 1;
+
+  /** Active taps, keyed by pointer id (one gesture per thumb). */
+  private gestures = new Map<number, Gesture>();
+  private wasPaused = false;
 
   constructor() {
     super('battle');
@@ -64,8 +95,23 @@ export class BattleScene extends Phaser.Scene {
     this.dynamic = this.add.graphics();
     this.drawTerrain();
 
-    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      this.onRingClick(this.ringAt(pointer.worldX, pointer.worldY));
+    // Tap-tap placement (issue #22). A second pointer is allowed so two thumbs
+    // can play simultaneously; each carries its own tool snapshot. Placement
+    // commits only on pointer-up on the same ring within the movement threshold.
+    this.input.addPointer();
+    this.input.on('pointerdown', (p: Phaser.Input.Pointer) => this.onPointerDown(p));
+    this.input.on('pointermove', (p: Phaser.Input.Pointer) => this.onPointerMove(p));
+    this.input.on('pointerup', (p: Phaser.Input.Pointer) => this.onPointerUp(p, false));
+    this.input.on('pointerupoutside', (p: Phaser.Input.Pointer) => this.onPointerUp(p, true));
+
+    // Cancellation: any of these abandons in-flight taps and spends nothing.
+    const cancelAll = (): void => this.gestures.clear();
+    this.events.once('shutdown', cancelAll);
+    this.input.on('gameout', cancelAll);
+    window.addEventListener('blur', cancelAll);
+    window.addEventListener('orientationchange', cancelAll);
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) cancelAll();
     });
   }
 
@@ -81,10 +127,61 @@ export class BattleScene extends Phaser.Scene {
     // Shed any backlog so a long pause can't spiral the loop.
     if (steps >= MAX_STEPS_PER_FRAME) this.accumulator = 0;
 
+    // Pause or the battle ending abandons any tap mid-gesture (issue #22 AC4).
+    if (this.battle.paused && !this.wasPaused) this.gestures.clear();
+    this.wasPaused = this.battle.paused;
+    if (this.battle.phase === 'won' || this.battle.phase === 'lost') this.gestures.clear();
+
     this.drawDynamic();
 
     const onFrame = this.registry.get('onFrame') as ((s: unknown) => void) | undefined;
     onFrame?.(this.battle.snapshot());
+  }
+
+  // --- Tap-tap placement gesture ---------------------------------------
+
+  private onPointerDown(p: Phaser.Input.Pointer): void {
+    const ringId = this.ringAt(p.worldX, p.worldY);
+    if (!ringId) return; // empty ground: nothing to start
+    this.gestures.set(p.id, {
+      ringId,
+      typeId: this.battle.selectedDefenderType,
+      valid: this.battle.canPlaceDefender(ringId, this.battle.selectedDefenderType).ok,
+      downX: this.clientX(p),
+      downY: this.clientY(p),
+      movedTooFar: false,
+    });
+  }
+
+  private onPointerMove(p: Phaser.Input.Pointer): void {
+    const g = this.gestures.get(p.id);
+    if (!g || g.movedTooFar) return;
+    const moved = Math.hypot(this.clientX(p) - g.downX, this.clientY(p) - g.downY);
+    if (moved > MOVE_THRESHOLD_PX) g.movedTooFar = true;
+  }
+
+  private onPointerUp(p: Phaser.Input.Pointer, cancelled: boolean): void {
+    const g = this.gestures.get(p.id);
+    if (!g) return;
+    this.gestures.delete(p.id);
+    // Cancellation, excessive movement, or a release on a different ring all
+    // return to the pre-gesture state and spend nothing (issue #22 AC2/AC4).
+    if (cancelled || g.movedTooFar) return;
+    if (this.ringAt(p.worldX, p.worldY) !== g.ringId) return;
+    // Commit with the touch-down tool snapshot; placeDefender re-validates and
+    // reports any problem, so an invalid/unaffordable attempt still spends nothing.
+    this.onRingClick(g.ringId, g.typeId);
+  }
+
+  /** CSS-pixel pointer origin for the movement threshold (scale-independent). */
+  private clientX(p: Phaser.Input.Pointer): number {
+    const e = p.event as unknown as { clientX?: number } | undefined;
+    return e?.clientX ?? p.x;
+  }
+
+  private clientY(p: Phaser.Input.Pointer): number {
+    const e = p.event as unknown as { clientY?: number } | undefined;
+    return e?.clientY ?? p.y;
   }
 
   // --- Rendering --------------------------------------------------------
@@ -140,6 +237,19 @@ export class BattleScene extends Phaser.Scene {
       }
     }
 
+    // Redundant visual cues on the empty fairy rings compatible with the
+    // selected tool, so a tap-tap player can see every legal target at once.
+    const selected = this.battle.selectedDefenderType;
+    for (const ring of this.rings) {
+      const occupied = this.battle.defenders.some((d) => d.ringId === ring.id && !d.dead);
+      if (occupied) continue;
+      if (!this.battle.canPlaceDefender(ring.id, selected).ok) continue;
+      g.lineStyle(2, COLOR.ringHint, 0.9);
+      g.strokeCircle(ring.x, ring.y, ring.radius + 6);
+      g.fillStyle(COLOR.ringHint, 0.18);
+      g.fillCircle(ring.x, ring.y, ring.radius);
+    }
+
     // Enemies (and their hit points) advancing along the trail.
     for (const enemy of this.battle.enemies) {
       if (enemy.dead) continue;
@@ -183,6 +293,22 @@ export class BattleScene extends Phaser.Scene {
       const alpha = Math.max(0, 1 - age / p.ttl);
       g.lineStyle(3, COLOR.projectile, alpha);
       g.lineBetween(p.fromX, p.fromY, p.toX, p.toY);
+    }
+
+    // Defender ghost + range preview for each in-flight tap (issue #22 AC2).
+    for (const gesture of this.gestures.values()) {
+      const ring = this.rings.find((r) => r.id === gesture.ringId);
+      if (!ring) continue;
+      const colour = gesture.valid ? COLOR.ring : COLOR.invalid;
+      const range = getDefender(gesture.typeId)?.range ?? 0;
+      if (range > 0) {
+        g.lineStyle(1, colour, 0.3);
+        g.strokeCircle(ring.x, ring.y, range);
+      }
+      g.lineStyle(2, colour, 0.85);
+      g.strokeCircle(ring.x, ring.y, ring.radius + 4);
+      g.fillStyle(colour, 0.4);
+      g.fillCircle(ring.x, ring.y, 18);
     }
   }
 
