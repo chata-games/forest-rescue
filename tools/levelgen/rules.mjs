@@ -140,6 +140,11 @@ function ref(catalog, id) {
   return Boolean(catalog[id]);
 }
 
+/** Whether a point lies within the battlefield bounds [0, WORLD_W] × [0, WORLD_H]. */
+function pointInBounds(p) {
+  return p.x >= 0 && p.x <= WORLD_W && p.y >= 0 && p.y <= WORLD_H;
+}
+
 /**
  * Semantic checks for a single LevelIntent: catalog references, topology /
  * budget-curve / ring-role validity, forbidden geometry, and teaching rules.
@@ -229,7 +234,7 @@ export function validateCompiledRules(compiled, catalogs, source) {
       at("geometry/ring-position", `ring '${ring.id}' is missing x/y`);
       continue;
     }
-    if (ring.x < 0 || ring.x > WORLD_W || ring.y < 0 || ring.y > WORLD_H) {
+    if (!pointInBounds(ring)) {
       at("geometry/ring-out-of-bounds", `ring '${ring.id}' leaves the battlefield`);
     }
     if (ring.role && !catalogs.ringRoles.has(ring.role)) {
@@ -277,10 +282,7 @@ export function validateCompiledRules(compiled, catalogs, source) {
       at("geometry/air-lane-shape", `air lane for '${lane.forEnemy}' is missing from/to endpoints`);
       continue;
     }
-    if (
-      from.x < 0 || from.x > WORLD_W || from.y < 0 || from.y > WORLD_H ||
-      to.x < 0 || to.x > WORLD_W || to.y < 0 || to.y > WORLD_H
-    ) {
+    if (!pointInBounds(from) || !pointInBounds(to)) {
       at("geometry/air-lane-out-of-bounds", `air lane for '${lane.forEnemy}' leaves the battlefield`);
     }
     // The air lane must actually "cut across" the winding ground trail: its
