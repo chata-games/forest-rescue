@@ -4,7 +4,7 @@
 // validated CompiledLevel.
 
 import type { CompiledPath, Vec2 } from './types';
-import { lerp } from './geometry';
+import { clamp, lerp } from './geometry';
 
 export class PathCurve {
   readonly id: string;
@@ -67,7 +67,7 @@ export class PathCurve {
       const dy = b.y - a.y;
       const len2 = dx * dx + dy * dy;
       let t = len2 > 0 ? ((px - a.x) * dx + (py - a.y) * dy) / len2 : 0;
-      t = Math.max(0, Math.min(1, t));
+      t = clamp(t, 0, 1);
       const qx = a.x + t * dx;
       const qy = a.y + t * dy;
       const d = Math.hypot(px - qx, py - qy);

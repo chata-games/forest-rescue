@@ -12,7 +12,7 @@
 
 import { PathCurve } from './path';
 import { getDefender, getEnemy } from './content';
-import type { CompiledLevel, DefenderStats, EnemyStats, Ring } from './types';
+import type { CompiledLevel, DefenderStats, Ring } from './types';
 
 export const STEP = 1 / 60;
 
@@ -102,6 +102,9 @@ interface ScheduledSpawn {
 
 const PROJECTILE_TTL = 0.22;
 const REMOVE_REFUND = 0.7;
+// On-path brambles block movement; enemies chip them until they fall.
+const BRAMBLE_CHIP_DAMAGE = 8;
+const BLOCKER_PROXIMITY = 48;
 
 export class BattleState {
   readonly level: CompiledLevel;
@@ -279,7 +282,7 @@ export class BattleState {
         enemy.blockedBy = blocker.ringId;
         enemy.attackTimer -= dt;
         if (enemy.attackTimer <= 0) {
-          blocker.hp -= 8; // loggers chip brambles; brambles are HP sinks, not targets
+          blocker.hp -= BRAMBLE_CHIP_DAMAGE; // brambles are HP sinks, not ranged targets
           enemy.attackTimer = enemy.attackInterval;
           if (blocker.hp <= 0) {
             blocker.dead = true;
@@ -362,7 +365,7 @@ export class BattleState {
       if (d.dead || !d.blocksPath) continue;
       const near = this.path.distanceAlong(d.x, d.y);
       const onPath = near.distance < this.path.width * 0.5;
-      const close = Math.abs(near.s - enemy.s) < 48;
+      const close = Math.abs(near.s - enemy.s) < BLOCKER_PROXIMITY;
       if (onPath && close) return d;
     }
     return null;
@@ -417,7 +420,7 @@ function buildSchedule(level: CompiledLevel): ScheduledSpawn[] {
 }
 
 function spawnEnemy(typeId: string, path: PathCurve): ActiveEnemy {
-  const stats: EnemyStats | null = getEnemy(typeId);
+  const stats = getEnemy(typeId);
   if (!stats) throw new Error(`Unknown enemy type: ${typeId}`);
   const start = path.positionAt(0);
   return {

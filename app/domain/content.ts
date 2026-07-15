@@ -54,6 +54,3 @@ export function getDefender(id: string): DefenderStats | null {
 export function getEnemy(id: string): EnemyStats | null {
   return ENEMIES[id] ?? null;
 }
-
-/** Default loadout for the Meadow's Edge tutorial: the level's unlocks. */
-export const DEFAULT_LOADOUT: string[] = ['sprig-sentinel', 'thornvine-bramble'];
