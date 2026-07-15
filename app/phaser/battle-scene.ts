@@ -8,7 +8,7 @@
 // lives in BattleState.
 
 import Phaser from 'phaser';
-import { STEP, MANA_FLOWER_HIT } from '../domain/battle';
+import { STEP, MANA_FLOWER_HIT, FIELD_WIDTH } from '../domain/battle';
 import type { BattleState } from '../domain/battle';
 import { getDefender, getSpell } from '../domain/content';
 import type { Ring } from '../domain/types';
@@ -34,8 +34,6 @@ const MAX_STEPS_PER_FRAME = 60;
 // A tap commits only if the pointer stays within this many CSS pixels of its
 // touch-down point — a drag or a sliding thumb cancels and spends nothing.
 const MOVE_THRESHOLD_PX = 12;
-// Logical battlefield width (the FIT-scaled game width) for CSS->world scaling.
-const FIELD_W = 1536;
 // Minimum Mana-flower radius in CSS pixels, so every flower is a >=48x48 target.
 const MIN_FLOWER_CSS_RADIUS = MANA_FLOWER_HIT / 2;
 
@@ -290,7 +288,7 @@ export class BattleScene extends Phaser.Scene {
   /** World-unit flower radius that renders (and hit-tests) as >=48 CSS pixels. */
   private flowerHitRadius(): number {
     const cssWidth = this.game.canvas.clientWidth;
-    const cssToWorld = cssWidth > 0 ? FIELD_W / cssWidth : 1;
+    const cssToWorld = cssWidth > 0 ? FIELD_WIDTH / cssWidth : 1;
     return Math.max(MIN_FLOWER_CSS_RADIUS, MIN_FLOWER_CSS_RADIUS * cssToWorld);
   }
 

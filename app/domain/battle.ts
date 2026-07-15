@@ -23,8 +23,10 @@ export const STEP = 1 / 60;
  * steals a tap from an actionable target (issue #31 AC5). */
 export const MANA_FLOWER_HIT = 48;
 const FLOWER_MANA = 15;
-const FIELD_WIDTH = 1536;
-const FIELD_HEIGHT = 1024;
+/** Logical battlefield dimensions, in world units. Shared with the renderer so
+ * the FIT-scaled canvas and the domain's bounds can never drift apart. */
+export const FIELD_WIDTH = 1536;
+export const FIELD_HEIGHT = 1024;
 
 export type Phase = 'planning' | 'running' | 'won' | 'lost';
 export type Outcome = 'victory' | 'defeat' | null;
@@ -536,11 +538,7 @@ export class BattleState {
   /** Explicitly leave spell targeting and restore the previously Selected Defender. */
   cancelSpell(): void {
     if (this.armedSpell === null) return;
-    this.armedSpell = null;
-    if (this.previousDefenderType) {
-      this.selectedDefenderType = this.previousDefenderType;
-      this.previousDefenderType = null;
-    }
+    this.endTargeting();
   }
 
   /**
@@ -562,11 +560,7 @@ export class BattleState {
     this.spellCooldowns[spell.id] = spell.cooldown;
     this.applySpellEffect(spell, x, y);
     // Restore the Defender selection and leave targeting mode.
-    this.armedSpell = null;
-    if (this.previousDefenderType) {
-      this.selectedDefenderType = this.previousDefenderType;
-      this.previousDefenderType = null;
-    }
+    this.endTargeting();
     return { ok: true };
   }
 
@@ -731,6 +725,16 @@ export class BattleState {
     return this.phase === 'won' || this.phase === 'lost';
   }
 
+  /** Leave spell targeting: clear the armed spell and restore the Defender tool
+   * that was active before a spell was armed (issue #31 AC3). */
+  private endTargeting(): void {
+    this.armedSpell = null;
+    if (this.previousDefenderType) {
+      this.selectedDefenderType = this.previousDefenderType;
+      this.previousDefenderType = null;
+    }
+  }
+
   /**
    * Validate a spell arm/cast attempt without committing. A target point (when
    * given) must land inside the battlefield; arming omits it. affordability and
@@ -740,7 +744,7 @@ export class BattleState {
     typeId: string | null,
     x?: number,
     y?: number,
-  ): { ok: true; stats: SpellStats } | { ok: false; reason: string; stats?: SpellStats } {
+  ): { ok: true; stats: SpellStats } | { ok: false; reason: string } {
     if (this.phase !== 'planning' && this.phase !== 'running') {
       return { ok: false, reason: 'battle-over' };
     }
@@ -748,10 +752,10 @@ export class BattleState {
     if (!this.availableSpells.includes(typeId)) return { ok: false, reason: 'spell-locked' };
     const stats = getSpell(typeId);
     if (!stats) return { ok: false, reason: 'unknown-spell' };
-    if (this.mana < stats.cost) return { ok: false, reason: 'insufficient-mana', stats };
-    if ((this.spellCooldowns[typeId] ?? 0) > 0) return { ok: false, reason: 'spell-cooldown', stats };
+    if (this.mana < stats.cost) return { ok: false, reason: 'insufficient-mana' };
+    if ((this.spellCooldowns[typeId] ?? 0) > 0) return { ok: false, reason: 'spell-cooldown' };
     if (x !== undefined && y !== undefined && !inField(x, y)) {
-      return { ok: false, reason: 'invalid-target', stats };
+      return { ok: false, reason: 'invalid-target' };
     }
     return { ok: true, stats };
   }
@@ -802,8 +806,7 @@ export class BattleState {
 
   private tickSpellCooldowns(dt: number): void {
     for (const id of Object.keys(this.spellCooldowns)) {
-      const next = (this.spellCooldowns[id] ?? 0) - dt;
-      this.spellCooldowns[id] = next <= 0 ? 0 : next;
+      this.spellCooldowns[id] = Math.max(0, (this.spellCooldowns[id] ?? 0) - dt);
     }
   }
 

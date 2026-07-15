@@ -738,9 +738,10 @@ function reconcileSpellToolbar(snap: BattleSnapshot): void {
     }
     btn.disabled = !s.available;
     btn.setAttribute('aria-pressed', String(snap.armedSpell === id));
+    const text = spellStateText(s);
     const state = btn.querySelector('.spell__state');
-    if (state) state.textContent = spellStateText(s);
-    btn.setAttribute('aria-label', `${s.name}, ${s.cost} mana, ${spellStateText(s)}`);
+    if (state) state.textContent = text;
+    btn.setAttribute('aria-label', `${s.name}, ${s.cost} mana, ${text}`);
   }
   // While a spell is armed, no Defender tool reads as pressed (targeting owns the
   // battlefield); otherwise the active Defender selection is pressed.
