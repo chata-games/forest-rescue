@@ -26,3 +26,26 @@ test("compiled levels exist for all intents", () => {
     assert.ok(compiled.waves.length >= 1);
   }
 });
+
+test("the versioned compiler is bit-for-bit reproducible across the whole contract", () => {
+  // Same intent + seed must produce identical geometry, rings, waves,
+  // decorations, metrics, source hash, and compiler version. Deep-equal the
+  // entire compiled document so any non-determinism fails the lock.
+  const intentFiles = readdirSync(join(ROOT, "levels/intents")).filter((f) => f.endsWith(".json"));
+  for (const f of intentFiles) {
+    const intent = readJson(join(ROOT, "levels/intents", f));
+    const a = compileIntent(intent, { candidates: 40 });
+    const b = compileIntent(intent, { candidates: 40 });
+    assert.equal(a.compilerVersion, b.compilerVersion, `${intent.id}: compilerVersion stable`);
+    assert.equal(a.intentHash, b.intentHash, `${intent.id}: source hash stable`);
+    assert.equal(a.intentHash, intentHash(intent), `${intent.id}: hash matches intent`);
+    assert.deepEqual(a, b, `${intent.id}: full compiled output is reproducible`);
+    // Sanity: the locked fields are present and non-empty where required.
+    assert.ok(a.paths.length >= 1 && a.paths[0].samples?.length > 1, `${intent.id}: geometry present`);
+    assert.ok(a.rings.length >= 1, `${intent.id}: rings present`);
+    assert.ok(a.waves.length >= 1, `${intent.id}: waves present`);
+    assert.ok(typeof a.metrics.pathLength === "number", `${intent.id}: metrics present`);
+    assert.ok(Array.isArray(a.decorations), `${intent.id}: decorations present`);
+  }
+});
+

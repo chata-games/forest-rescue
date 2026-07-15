@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "id": "heartwood-v1",
+  "title": "Forest Rescue: Heartwood",
+  "description": "The polished v1 three-act Guardian campaign against ChopCo.",
+  "acts": [
+    {
+      "id": "act-1-first-sprouts",
+      "title": "First Sprouts",
+      "blurb": "Learn to place defenders and weather the first logging crews.",
+      "levels": ["01-meadows-edge", "02-old-stump-crossroads", "03-whispering-river"]
+    },
+    {
+      "id": "act-2-deepening-shadow",
+      "title": "Deepening Shadow",
+      "blurb": "Push into the dark hollow and stop the sawmill.",
+      "levels": ["04-mushroom-hollow", "05-sawmill-clearing"]
+    },
+    {
+      "id": "act-3-heartwood-stand",
+      "title": "Heartwood Stand",
+      "blurb": "Hold the line against fire and machinery at the Heartwood gate.",
+      "levels": ["06-ashfall-scar", "07-boulder-pass"]
+    }
+  ],
+  "levels": [
+    {
+      "id": "01-meadows-edge",
+      "act": "act-1-first-sprouts",
+      "mapPosition": { "x": 0.12, "y": 0.72 },
+      "unlocks": ["sprig-sentinel", "thornvine-bramble"]
+    },
+    {
+      "id": "02-old-stump-crossroads",
+      "act": "act-1-first-sprouts",
+      "mapPosition": { "x": 0.28, "y": 0.58 },
+      "unlocks": ["wisp-willow"]
+    },
+    {
+      "id": "03-whispering-river",
+      "act": "act-1-first-sprouts",
+      "mapPosition": { "x": 0.44, "y": 0.48 },
+      "unlocks": ["wisp-willow", "dewdrop-nymph"]
+    },
+    {
+      "id": "04-mushroom-hollow",
+      "act": "act-2-deepening-shadow",
+      "mapPosition": { "x": 0.58, "y": 0.38 },
+      "unlocks": ["firefly-beacon", "mushroom-shaman"]
+    },
+    {
+      "id": "05-sawmill-clearing",
+      "act": "act-2-deepening-shadow",
+      "mapPosition": { "x": 0.72, "y": 0.32 },
+      "unlocks": [],
+      "spellUnlock": "root-snare"
+    },
+    {
+      "id": "06-ashfall-scar",
+      "act": "act-3-heartwood-stand",
+      "mapPosition": { "x": 0.82, "y": 0.42 },
+      "unlocks": [],
+      "spellUnlock": "cleansing-rain"
+    },
+    {
+      "id": "07-boulder-pass",
+      "act": "act-3-heartwood-stand",
+      "mapPosition": { "x": 0.9, "y": 0.55 },
+      "unlocks": ["mossback-golem"]
+    }
+  ]
+}

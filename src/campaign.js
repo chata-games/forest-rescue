@@ -1,16 +1,13 @@
 import { loadLevel, loadCatalog } from "./level/loader.js";
 import { initHeartwoodGame } from "./heartwood-game.js";
 import { loadSprites, loadUnitsAtlas, loadCatalogSprites } from "./rendering/sprites.js";
+import { campaignLevels, cumulativeUnlocks, cumulativeSpellUnlock } from "./campaign-data.js";
 
-const LEVELS = [
-  { id: "01-meadows-edge", name: "Meadow's Edge", x: 0.12, y: 0.72, unlocks: ["sprig-sentinel", "thornvine-bramble"] },
-  { id: "02-old-stump-crossroads", name: "Old Stump Crossroads", x: 0.28, y: 0.58, unlocks: ["wisp-willow"] },
-  { id: "03-whispering-river", name: "Whispering River", x: 0.44, y: 0.48, unlocks: ["dewdrop-nymph"] },
-  { id: "04-mushroom-hollow", name: "Mushroom Hollow", x: 0.58, y: 0.38, unlocks: ["firefly-beacon", "mushroom-shaman"] },
-  { id: "05-sawmill-clearing", name: "Sawmill Clearing", x: 0.72, y: 0.32, unlocks: [], spellUnlock: "root-snare" },
-  { id: "06-ashfall-scar", name: "Ashfall Scar", x: 0.82, y: 0.42, unlocks: [], spellUnlock: "cleansing-rain" },
-  { id: "07-boulder-pass", name: "Boulder Pass", x: 0.9, y: 0.55, unlocks: ["mossback-golem"] },
-];
+async function loadCampaignManifest() {
+  const res = await fetch("levels/campaign.json");
+  if (!res.ok) throw new Error("Failed to load campaign manifest");
+  return res.json();
+}
 
 export async function initCampaign(dom) {
   const $ = (id) => dom.getElementById(id);
@@ -23,6 +20,7 @@ export async function initCampaign(dom) {
   const levelTitle = $("levelTitle");
 
   const catalog = await loadCatalog();
+  const manifest = await loadCampaignManifest();
   const [atlas, uiSprites] = await Promise.all([
     loadUnitsAtlas(),
     Promise.resolve(loadSprites({
@@ -70,9 +68,9 @@ export async function initCampaign(dom) {
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, w, h);
     }
-    for (const lvl of LEVELS) {
-      const px = lvl.x * w;
-      const py = lvl.y * h;
+    campaignLevels(manifest).forEach((lvl, index) => {
+      const px = lvl.mapPosition.x * w;
+      const py = lvl.mapPosition.y * h;
       const starCount = stars[lvl.id] || 0;
       ctx.fillStyle = starCount > 0 ? "#ffd765" : "#ffffff";
       ctx.beginPath();
@@ -81,21 +79,20 @@ export async function initCampaign(dom) {
       ctx.fillStyle = "#1a3a22";
       ctx.font = "bold 14px system-ui";
       ctx.textAlign = "center";
-      ctx.fillText(String(LEVELS.indexOf(lvl) + 1), px, py + 5);
+      ctx.fillText(String(index + 1), px, py + 5);
       if (starCount > 0) {
         ctx.fillStyle = "#ffd765";
         ctx.font = "12px system-ui";
         ctx.fillText("★".repeat(starCount), px, py + 22);
       }
-    }
+    });
   }
 
   async function startLevel(levelId) {
     const level = await loadLevel(levelId);
-    const levelIndex = LEVELS.findIndex((l) => l.id === levelId);
-    const cumulativeUnlocks = LEVELS.slice(0, levelIndex + 1).flatMap((l) => l.unlocks);
-    const spellUnlock = LEVELS.slice(0, levelIndex + 1).map((l) => l.spellUnlock).filter(Boolean).at(-1);
-    level.unlocks = [...new Set([...(level.unlocks || []), ...cumulativeUnlocks])];
+    const earnedUnlocks = cumulativeUnlocks(manifest, levelId);
+    const spellUnlock = cumulativeSpellUnlock(manifest, levelId);
+    level.unlocks = [...new Set([...(level.unlocks || []), ...earnedUnlocks])];
     if (spellUnlock) level.spellUnlock = spellUnlock;
     campaignScreen?.classList.add("hidden");
     gameScreen?.classList.remove("hidden");
@@ -128,8 +125,8 @@ export async function initCampaign(dom) {
       const y = (e.clientY - rect.top) / rect.height;
       let best = null;
       let bestD = Infinity;
-      for (const lvl of LEVELS) {
-        const d = Math.hypot(x - lvl.x, y - lvl.y);
+      for (const lvl of campaignLevels(manifest)) {
+        const d = Math.hypot(x - lvl.mapPosition.x, y - lvl.mapPosition.y);
         if (d < bestD) { bestD = d; best = lvl; }
       }
       if (best && bestD < 0.08) startLevel(best.id);
