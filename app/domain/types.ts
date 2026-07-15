@@ -66,6 +66,15 @@ export interface CompiledLevel {
   /** Optional hazard geometry authored by specific biomes/topologies. */
   waterMasks?: WaterMask[];
   airLanes?: AirLane[];
+  /** Decorative + gameplay landmarks the compiler places (e.g. glow mushroom clusters). */
+  landmarks?: Landmark[];
+}
+
+/** A placed landmark: a gameplay-relevant decoration such as a glow mushroom cluster. */
+export interface Landmark {
+  type: string;
+  x: number;
+  y: number;
 }
 
 /** Shape + difficulty metrics the compiler emits for each level. */
@@ -126,6 +135,12 @@ export interface DefenderStats {
   poisonDps?: number;
   poisonDuration?: number;
   armorPierce?: number;
+  /**
+   * World-unit radius of light this Defender casts in a darkness level (the
+   * Firefly Beacon). A glow source reveals enemies so ranged Defenders can strike
+   * them and lifts the dark mask so the Guardian sees the trail.
+   */
+  glowRadius?: number;
   /** Upgrade ladder; tier 0 is the base, each entry lifts the Defender one tier. */
   upgrades?: UpgradeTier[];
 }
@@ -141,4 +156,14 @@ export interface EnemyStats {
   armor?: number;
   tags: string[];
   flying?: boolean;
+  /**
+   * A cloaked enemy (the Poacher) is only targetable and visible while standing
+   * in light. In a darkness level this is the rule for every enemy; the flag
+   * keeps a cloaked foe hidden even if it ever appears outside the dark.
+   */
+  cloaked?: boolean;
+  /** Walks straight through on-path blockers (Thornvine Bramble) instead of chewing. */
+  ignoresBlockers?: boolean;
+  /** Drains Mana from a nearby Mana flower on a cooldown (the Poacher's theft). */
+  stealsFlowers?: boolean;
 }

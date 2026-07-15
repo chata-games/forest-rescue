@@ -115,6 +115,22 @@ body.force-landscape .app-root {
   margin-right: auto;
 }
 
+/* Darkness modifier tag (Mushroom Hollow): readable by text + shape, never the
+   only signal — the canvas veil communicates the same effect (issue #36 AC1). */
+.hud__badge {
+  align-self: center;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: #d7e8ff;
+  background: #1a2348;
+  border: 1px solid #6fd0ff66;
+  border-radius: 999px;
+  padding: 4px 10px;
+  margin-right: 8px;
+}
+
 .hud__stat {
   display: flex;
   flex-direction: column;

@@ -82,6 +82,13 @@ describe('tutorial concepts per level (issue #33 AC2)', () => {
     expect(step.title.length).toBeGreaterThan(0);
     expect(step.body.length).toBeGreaterThan(0);
   });
+
+  it('teaches light management for the Mushroom Hollow learning goal (issue #36 AC4)', () => {
+    const concepts = tutorialConceptsFor({ learningGoal: 'light-management', levelModifiers: ['darkness'] });
+    expect(concepts).toContain('light');
+    const steps = tutorialStepsFor({ learningGoal: 'light-management', levelModifiers: ['darkness'] });
+    expect(steps.map((s) => s.concept)).toEqual(['light']);
+  });
 });
 
 describe('tutorial one-concept-at-a-time sequencing (issue #33 AC2)', () => {

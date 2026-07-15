@@ -105,6 +105,39 @@ export const DEFENDERS: Record<string, DefenderStats> = {
     sprite: 'dewdrop-nymph-idle',
     projectile: 'dew-splash',
   },
+  'firefly-beacon': {
+    id: 'firefly-beacon',
+    name: 'Firefly Beacon',
+    cost: 60,
+    range: 0,
+    damage: 0,
+    cooldown: 0,
+    hp: 65,
+    tags: ['support', 'light'],
+    placement: 'beside-path',
+    sprite: 'firefly-beacon-idle',
+    projectile: '',
+    // A support Defender: it casts no attacks of its own (range 0 skips combat),
+    // but its glow pushes back the dark so other Defenders can strike, and it
+    // emboldens nearby allies with extra reach and punch.
+    supportOnly: true,
+    glowRadius: 210,
+  },
+  'mushroom-shaman': {
+    id: 'mushroom-shaman',
+    name: 'Mushroom Shaman',
+    cost: 80,
+    range: 130,
+    damage: 8,
+    cooldown: 1.1,
+    hp: 85,
+    tags: ['poison', 'aoe'],
+    placement: 'beside-path',
+    sprite: 'mushroom-shaman-idle',
+    projectile: 'spore-cloud',
+    poisonDps: 10,
+    poisonDuration: 4,
+  },
 };
 
 export const ENEMIES: Record<string, EnemyStats> = {
@@ -149,6 +182,21 @@ export const ENEMIES: Record<string, EnemyStats> = {
     tags: ['machine', 'flying'],
     // Flies the river's air lane, bypassing the winding ground trail (issue #35).
     flying: true,
+  },
+  poacher: {
+    id: 'poacher',
+    name: 'Poacher',
+    hp: 90,
+    speed: 52,
+    damage: 20,
+    attackInterval: 1.0,
+    manaBounty: 11,
+    tags: ['crew', 'ground', 'cloaked', 'steals-flowers'],
+    // A cloaked sneak: only visible and strikeable in light, slips past Brambles,
+    // and snatches Mana flowers as it passes — so lighting the trail matters.
+    cloaked: true,
+    ignoresBlockers: true,
+    stealsFlowers: true,
   },
 };
 

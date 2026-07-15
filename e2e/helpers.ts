@@ -47,6 +47,9 @@ export interface FrApi {
   pause(): void;
   resume(): void;
   ringIds(): string[];
+  // Darkness / light seam (issue #36 AC6): the level's darkness flag + live glow.
+  darkness(): boolean;
+  glow(): { x: number; y: number; r: number; kind: 'ring' | 'mushroom' | 'beacon' }[];
   // Loadout seam (issue #21): observable during the pre-battle Loadout step.
   loadoutCapacity(): number;
   loadoutPool(): FrLoadoutItem[];

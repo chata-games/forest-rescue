@@ -56,6 +56,11 @@ export const TUTORIAL_CONCEPTS: Record<string, TutorialStep> = {
     title: 'Mind Both Roads',
     body: 'Two paths meet at the Heartwood here, so crews can come from either gate. Spread your Defenders so each road is covered before the streams merge.',
   },
+  light: {
+    concept: 'light',
+    title: 'Light the Hollow',
+    body: 'In the dark your Defenders can only strike enemies they can see. Plant a Firefly Beacon to push back the shadows and light the trail so your allies can fight.',
+  },
 };
 
 /**
@@ -80,6 +85,9 @@ const KEYWORD_TO_CONCEPT: Record<string, string> = {
   coverage: 'air-coverage',
   split: 'split-pressure',
   pressure: 'split-pressure',
+  light: 'light',
+  lighting: 'light',
+  illumination: 'light',
 };
 
 /** What a level carries that the tutorial resolves against. */

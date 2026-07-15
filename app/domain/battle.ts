@@ -22,6 +22,14 @@ import {
   type SpellStats,
 } from './content';
 import { scoreStars as scoreStarsRule, type BattleScoreInput } from './scoring';
+import {
+  hasDarkness,
+  glowSources as buildGlowSources,
+  inGlow,
+  fireflyBuff,
+  type GlowSource,
+  type BeaconGlow,
+} from './light';
 import type { CompiledLevel, DefenderStats, Ring, Wave } from './types';
 
 export const STEP = 1 / 60;
@@ -31,6 +39,11 @@ export const STEP = 1 / 60;
  * steals a tap from an actionable target (issue #31 AC5). */
 export const MANA_FLOWER_HIT = 48;
 const FLOWER_MANA = 15;
+// A Poacher snatches a Mana flower when it comes within this many world units,
+// draining its Mana and resetting a short theft cooldown (issue #36 AC2).
+const POACHER_STEAL_MANA = 20;
+const POACHER_STEAL_COOLDOWN = 2.5;
+const POACHER_STEAL_RANGE = 80;
 /** Logical battlefield dimensions, in world units. Shared with the renderer so
  * the FIT-scaled canvas and the domain's bounds can never drift apart. */
 export const FIELD_WIDTH = 1536;
@@ -123,6 +136,14 @@ export interface ActiveEnemy {
   rootTime: number;
   /** Ring id of a blocking bramble this enemy is currently chewing through. */
   blockedBy: string | null;
+  /** True when the foe is only strikeable/visible in light (the Poacher). */
+  cloaked: boolean;
+  /** True when the foe walks through on-path blockers instead of chewing them. */
+  ignoresBlockers: boolean;
+  /** True when the foe drains Mana from a nearby flower on a cooldown. */
+  stealsFlowers: boolean;
+  /** Seconds of theft cooldown remaining (Poacher). */
+  stealCooldown: number;
 }
 
 export interface ProjectileView {
@@ -289,6 +310,9 @@ export class BattleState {
   outcome: Outcome = null;
   paused = false;
 
+  /** True when the level shrouds the battlefield in darkness (Mushroom Hollow). */
+  readonly darkness: boolean;
+
   mana: number;
   hearts: number;
   readonly maxHearts: number;
@@ -334,6 +358,7 @@ export class BattleState {
     this.level = config.level;
     const compiledPath = config.level.paths[0];
     if (!compiledPath) throw new Error(`Level ${config.level.id} has no path`);
+    this.darkness = hasDarkness(config.level);
     this.path = new PathCurve(compiledPath);
     this.rings = config.level.rings ?? [];
     this.maxHearts = config.level.maxHearts ?? 5;
@@ -919,6 +944,25 @@ export class BattleState {
     for (const enemy of this.enemies) {
       if (enemy.dead || enemy.reached) continue;
 
+      // Tick down the Poacher's theft cooldown whether or not it steals this step.
+      if (enemy.stealCooldown > 0) enemy.stealCooldown = Math.max(0, enemy.stealCooldown - dt);
+
+      // A flower-thief (Poacher) snatches the nearest Mana flower it is passing,
+      // draining Mana on a cooldown so a single flower is lost once, not every
+      // frame (issue #36 AC2). Done before movement so a steal pauses its advance
+      // for the step, mirroring the legacy engine.
+      if (enemy.stealsFlowers && enemy.stealCooldown <= 0 && this.manaFlowers.length > 0) {
+        const flower = this.manaFlowers
+          .filter((f) => Math.hypot(f.x - enemy.x, f.y - enemy.y) <= POACHER_STEAL_RANGE)
+          .sort((a, b) => Math.hypot(a.x - enemy.x, a.y - enemy.y) - Math.hypot(b.x - enemy.x, b.y - enemy.y))[0];
+        if (flower) {
+          this.manaFlowers = this.manaFlowers.filter((f) => f.id !== flower.id);
+          this.mana = Math.max(0, this.mana - POACHER_STEAL_MANA);
+          enemy.stealCooldown = POACHER_STEAL_COOLDOWN;
+          continue;
+        }
+      }
+
       if (enemy.poisonTime > 0) {
         enemy.poisonTime -= dt;
         enemy.hp -= enemy.poisonDps * dt;
@@ -969,16 +1013,22 @@ export class BattleState {
   }
 
   private resolveCombat(dt: number): void {
+    // Glow is computed once per combat step: in the dark a Defender can only
+    // strike an enemy that stands in light (issue #36 AC1/AC2).
+    const glow = this.darkness ? this.currentGlow() : null;
     for (const defender of this.defenders) {
       if (defender.dead) continue;
       if (defender.blocksPath || defender.range <= 0) continue;
       defender.cooldown -= dt;
       if (defender.cooldown > 0) continue;
 
-      const target = this.acquireTarget(defender);
+      // A Firefly Beacon emboldens nearby Defenders with extra reach and punch;
+      // computed once and shared between target acquisition and the hit.
+      const buff = fireflyBuff(defender, this.beaconPositions());
+      const target = this.acquireTarget(defender, glow, defender.range * buff.rangeMul);
       if (!target) continue;
 
-      const dmg = applyArmor(defender.damage, target.armor, defender.armorPierce);
+      const dmg = applyArmor(defender.damage * buff.damageMul, target.armor, defender.armorPierce);
       target.hp -= dmg;
       if (defender.poisonDps > 0 && defender.poisonDuration > 0) {
         target.poisonTime = defender.poisonDuration;
@@ -1003,13 +1053,19 @@ export class BattleState {
     this.enemies = this.enemies.filter((e) => !e.dead);
   }
 
-  private acquireTarget(defender: PlacedDefender): ActiveEnemy | null {
+  private acquireTarget(
+    defender: PlacedDefender,
+    glow: GlowSource[] | null,
+    range: number,
+  ): ActiveEnemy | null {
     let best: ActiveEnemy | null = null;
     let bestProgress = -1;
     for (const enemy of this.enemies) {
       if (enemy.dead || enemy.reached) continue;
+      // In the dark only a lit enemy is strikeable (a cloaked Poacher is dark-only).
+      if (glow !== null && !inGlow(enemy.x, enemy.y, glow)) continue;
       const d = Math.hypot(enemy.x - defender.x, enemy.y - defender.y);
-      if (d > defender.range) continue;
+      if (d > range) continue;
       if (enemy.pathProgress > bestProgress) {
         bestProgress = enemy.pathProgress;
         best = enemy;
@@ -1018,7 +1074,34 @@ export class BattleState {
     return best;
   }
 
+  /** Live Firefly Beacons as positions (for the embolden buff). */
+  private beaconPositions(): { x: number; y: number }[] {
+    const out: { x: number; y: number }[] = [];
+    for (const d of this.defenders) {
+      if (d.dead) continue;
+      if (getDefender(d.typeId)?.glowRadius) out.push({ x: d.x, y: d.y });
+    }
+    return out;
+  }
+
+  /**
+   * Every glow source on the battlefield right now: rings, glow-mushroom
+   * landmarks, and each living Firefly Beacon. Public so the renderer lifts the
+   * dark mask at exactly these points (issue #36 AC1).
+   */
+  currentGlow(): GlowSource[] {
+    const beacons: BeaconGlow[] = [];
+    for (const d of this.defenders) {
+      if (d.dead) continue;
+      const r = getDefender(d.typeId)?.glowRadius;
+      if (r) beacons.push({ x: d.x, y: d.y, glowRadius: r });
+    }
+    return buildGlowSources(this.level, beacons);
+  }
+
   private findBlocker(enemy: ActiveEnemy): PlacedDefender | null {
+    // A Poacher slips straight through on-path brambles instead of chewing them.
+    if (enemy.ignoresBlockers) return null;
     for (const d of this.defenders) {
       if (d.dead || !d.blocksPath) continue;
       const near = this.path.distanceAlong(d.x, d.y);
@@ -1176,6 +1259,10 @@ function spawnEnemy(typeId: string, path: PathCurve): ActiveEnemy {
     reached: false,
     rootTime: 0,
     blockedBy: null,
+    cloaked: stats.cloaked ?? false,
+    ignoresBlockers: stats.ignoresBlockers ?? false,
+    stealsFlowers: stats.stealsFlowers ?? false,
+    stealCooldown: 0,
   };
 }
 

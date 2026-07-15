@@ -313,12 +313,16 @@ function loadCampaignSave(): SaveLoadOutcome {
 
 /** Persist the current campaign (progress + earned unlocks + chosen Loadouts + Guidance). */
 function persistSave(): void {
+  // The earned-unlocks snapshot is derived from progress, so keep the in-memory
+  // copy in sync with what is persisted — a victory that clears a level makes its
+  // unlocks observable through the save seam without a reload (issue #36 AC3).
+  savedUnlocks = earnedUnlocks(progress);
   writeSaveRaw(
     serializeSave(
       buildSave({
         ctx: SAVE_CTX,
         progress,
-        unlocks: earnedUnlocks(progress),
+        unlocks: savedUnlocks,
         loadouts: savedLoadouts,
         guidance,
       }),
@@ -390,6 +394,7 @@ const loadoutStartBtn = $<HTMLButtonElement>('loadoutStart');
 const loadoutBackBtn = $<HTMLButtonElement>('loadoutBack');
 
 const levelName = $<HTMLElement>('levelName');
+const darknessBadge = $<HTMLElement>('darknessBadge');
 const manaValue = $<HTMLSpanElement>('manaValue');
 const heartsValue = $<HTMLSpanElement>('heartsValue');
 const waveValue = $<HTMLSpanElement>('waveValue');
@@ -1865,6 +1870,9 @@ function enterLevel(levelId: string, loadout: Loadout): void {
   });
 
   levelName.textContent = level.name;
+  // Surface the darkness modifier so the Guardian understands why visibility is
+  // reduced and learns to place a Firefly Beacon (issue #36 AC1/AC4).
+  darknessBadge.hidden = !battle.darkness;
   buildDefenderToolbar(defenders);
   buildSpellToolbar(spells);
   resetBattleHud();
@@ -1965,6 +1973,9 @@ function makeDebugApi(): ForestRescueDebug {
     ringIds: () => (battle ? battle.rings.map((r) => r.id) : []),
     spellIds: () => (battle ? battle.snapshot().spells.map((s) => s.id) : []),
     flowerIds: () => (battle ? battle.manaFlowers.map((f) => f.id) : []),
+    // --- Darkness / light seam (issue #36 AC6) ---
+    darkness: () => battle?.darkness ?? false,
+    glow: () => (battle ? battle.currentGlow().map(({ x, y, r, kind }) => ({ x, y, r, kind })) : []),
     // --- Loadout seam (issue #21) ---
     loadoutCapacity: () => (currentLoadoutCtx ? loadoutCapacity(currentLoadoutCtx.levelOrder) : 0),
     loadoutPool: () =>
@@ -2085,6 +2096,9 @@ export interface ForestRescueDebug {
   ringIds(): string[];
   spellIds(): string[];
   flowerIds(): string[];
+  // --- Darkness / light seam (issue #36 AC6) ---
+  darkness(): boolean;
+  glow(): { x: number; y: number; r: number; kind: 'ring' | 'mushroom' | 'beacon' }[];
   // --- Loadout seam (issue #21) ---
   loadoutCapacity(): number;
   loadoutPool(): LoadoutDebugItem[];

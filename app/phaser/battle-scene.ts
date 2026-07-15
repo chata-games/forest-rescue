@@ -10,7 +10,8 @@
 import Phaser from 'phaser';
 import { STEP, MANA_FLOWER_HIT, FIELD_WIDTH } from '../domain/battle';
 import type { BattleState } from '../domain/battle';
-import { getDefender, getSpell } from '../domain/content';
+import { getDefender, getEnemy, getSpell } from '../domain/content';
+import { inGlow, type GlowSource } from '../domain/light';
 import type { Ring } from '../domain/types';
 import type { PreviewSummary } from '../domain/preview';
 
@@ -59,6 +60,12 @@ const COLOR = {
   flower: 0xf77fb0,
   flowerCore: 0xffe08a,
   spellReady: 0x8ea0ff,
+  // Darkness (Mushroom Hollow): the night veil dimming unlit ground, the warm
+  // glow that lifts it, and the Firefly Beacon's light.
+  night: 0x05060f,
+  glow: 0xbfdfff,
+  beacon: 0xfff3b0,
+  poacher: 0xc98ad0,
 };
 
 /**
@@ -393,6 +400,14 @@ export class BattleScene extends Phaser.Scene {
     const g = this.dynamic;
     g.clear();
 
+    // Darkness (Mushroom Hollow, issue #36 AC1): a night veil dims the ground
+    // outside every glow source so the Guardian can read where light reaches.
+    // Essential HUD lives in the DOM overlay and is never darkened; battlefield
+    // geometry near a ring/Beacon/landmark stays lit. Cloaked Poachers in the
+    // dark are hidden entirely (they are only visible in light).
+    const glow = this.battle.darkness ? this.battle.currentGlow() : null;
+    if (glow) this.drawDarkness(g, glow);
+
     // Overlay each fairy ring once: occupied rings glow gold, while empty rings
     // that accept the selected tool get a soft hint so a tap-tap player can see
     // every legal target at once.
@@ -427,8 +442,11 @@ export class BattleScene extends Phaser.Scene {
     // Enemies (and their hit points) advancing along the trail.
     for (const enemy of this.battle.enemies) {
       if (enemy.dead) continue;
+      // A cloaked Poacher in the dark is invisible outside the light.
+      if (glow && getEnemy(enemy.typeId)?.cloaked && !inGlow(enemy.x, enemy.y, glow)) continue;
+      const cloaked = !!getEnemy(enemy.typeId)?.cloaked;
       const r = 16;
-      g.fillStyle(COLOR.enemy, 1);
+      g.fillStyle(cloaked ? COLOR.poacher : COLOR.enemy, 1);
       g.fillCircle(enemy.x, enemy.y, r);
       g.lineStyle(2, COLOR.enemyEdge, 1);
       g.strokeCircle(enemy.x, enemy.y, r);
@@ -450,6 +468,17 @@ export class BattleScene extends Phaser.Scene {
           const a = (i / 6) * Math.PI * 2;
           g.fillCircle(defender.x + Math.cos(a) * 16, defender.y + Math.sin(a) * 16, 7);
         }
+      } else if (getDefender(defender.typeId)?.glowRadius) {
+        // A Firefly Beacon: a soft luminous orb (support-only, casts no attacks).
+        const gr = getDefender(defender.typeId)!.glowRadius!;
+        g.fillStyle(COLOR.beacon, 0.08);
+        g.fillCircle(defender.x, defender.y, gr * 0.5);
+        g.fillStyle(COLOR.beacon, 0.16);
+        g.fillCircle(defender.x, defender.y, gr * 0.28);
+        g.fillStyle(COLOR.beacon, 1);
+        g.fillCircle(defender.x, defender.y, 12);
+        g.fillStyle(0xffffff, 0.9);
+        g.fillCircle(defender.x, defender.y, 5);
       } else {
         g.lineStyle(1, COLOR.ring, 0.18);
         g.strokeCircle(defender.x, defender.y, defender.range);
@@ -527,6 +556,23 @@ export class BattleScene extends Phaser.Scene {
         g.lineBetween(gesture.x - 24, gesture.y, gesture.x + 24, gesture.y);
         g.lineBetween(gesture.x, gesture.y - 24, gesture.x, gesture.y + 24);
       }
+    }
+  }
+
+  /**
+   * The darkness veil (issue #36 AC1): a translucent night fill dims the ground,
+   * then each glow source lifts it with a soft light disc so the Guardian sees
+   * exactly where their Defenders can strike. Drawn under the entities, so
+   * planted Defenders and visible foes stay legible at phone scale.
+   */
+  private drawDarkness(g: Phaser.GameObjects.Graphics, glow: GlowSource[]): void {
+    g.fillStyle(COLOR.night, 0.62);
+    g.fillRect(0, 0, 1536, 1024);
+    for (const s of glow) {
+      g.fillStyle(COLOR.glow, 0.10);
+      g.fillCircle(s.x, s.y, s.r);
+      g.fillStyle(COLOR.glow, 0.08);
+      g.fillCircle(s.x, s.y, s.r * 0.6);
     }
   }
 
