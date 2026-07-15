@@ -194,7 +194,7 @@ describe('tap-tap placement safety (issue #22)', () => {
     expect(battle.mana).toBe(100);
     expect(battle.snapshot().canUndo).toBe(true);
 
-    const undo = battle.undoLastPlacement();
+    const undo = battle.undoLastAction();
     expect(undo.ok).toBe(true);
     if (undo.ok) expect(undo.refund).toBe(50); // full refund, not the 70% uproot rate
     expect(battle.mana).toBe(150);
@@ -207,7 +207,7 @@ describe('tap-tap placement safety (issue #22)', () => {
     battle.placeDefender('ring-7', 'sprig-sentinel'); // -50 -> 100
     battle.placeDefender('ring-onpath-6', 'thornvine-bramble'); // -35 -> 65
 
-    const undo = battle.undoLastPlacement();
+    const undo = battle.undoLastAction();
     expect(undo.ok).toBe(true);
     if (undo.ok) expect(undo.refund).toBe(35);
     // The bramble (last placed) is gone; the sentinel stays.
@@ -222,7 +222,7 @@ describe('tap-tap placement safety (issue #22)', () => {
     for (let i = 0; i < 4 * 60; i++) battle.tick(); // exactly 4s -> still within window
     expect(battle.snapshot().canUndo).toBe(true);
     battle.tick(); // one step past 4s -> expired
-    const undo = battle.undoLastPlacement();
+    const undo = battle.undoLastAction();
     expect(undo.ok).toBe(false);
     if (!undo.ok) expect(undo.reason).toBe('undo-expired');
     expect(battle.defenders).toHaveLength(1); // expired undo does not remove it
@@ -235,22 +235,28 @@ describe('tap-tap placement safety (issue #22)', () => {
     battle.setPaused(true);
     for (let i = 0; i < 10 * 60; i++) battle.tick(); // paused: battle clock frozen
     expect(battle.snapshot().canUndo).toBe(true);
-    const undo = battle.undoLastPlacement();
+    const undo = battle.undoLastAction();
     expect(undo.ok).toBe(true);
     if (undo.ok) expect(undo.refund).toBe(50);
   });
 
-  it('a manual uproot clears the undoable placement', () => {
+  it('a manual uproot becomes the undoable action and restores on undo', () => {
     const battle = new BattleState({ level: meadows });
-    battle.placeDefender('ring-7', 'sprig-sentinel');
-    battle.removeDefender('ring-7'); // 70% uproot
-    expect(battle.snapshot().canUndo).toBe(false);
-    expect(battle.undoLastPlacement().ok).toBe(false);
+    battle.placeDefender('ring-7', 'sprig-sentinel'); // -50 -> 100
+    battle.removeDefender('ring-7'); // uproot: +round(50*0.7)=35 -> 135, ring freed
+    // The removal is now the reversible action (the placement is no longer undoable).
+    expect(battle.snapshot().canUndo).toBe(true);
+    const undo = battle.undoLastAction();
+    expect(undo.ok).toBe(true);
+    if (undo.ok) expect(undo.kind).toBe('remove');
+    // The Defender is replanted and the removal refund is clawed back.
+    expect(battle.defenders.map((d) => d.typeId)).toEqual(['sprig-sentinel']);
+    expect(battle.mana).toBe(100);
   });
 
   it('reports nothing-to-undo when no placement was made', () => {
     const battle = new BattleState({ level: meadows });
-    const undo = battle.undoLastPlacement();
+    const undo = battle.undoLastAction();
     expect(undo.ok).toBe(false);
     if (!undo.ok) expect(undo.reason).toBe('nothing-to-undo');
   });
@@ -264,7 +270,7 @@ describe('combined star result (issue #29)', () => {
     const battle = new BattleState({ level: meadows }); // 150 mana
     battle.placeDefender('ring-7', 'sprig-sentinel'); // +50
     expect(battle.manaSpent).toBe(50);
-    battle.undoLastPlacement(); // full refund reverses the spend
+    battle.undoLastAction(); // full refund reverses the spend
     expect(battle.manaSpent).toBe(0);
 
     battle.placeDefender('ring-7', 'sprig-sentinel'); // +50
@@ -299,5 +305,134 @@ describe('combined star result (issue #29)', () => {
     expect(battle.snapshot().stars).toBe(0);
     // Everything leaked past the Heartwood; no bounty was gathered.
     expect(battle.resourcesCollected).toBe(0);
+});
+});
+
+// Modeless Defender management: inspect any planted Defender without losing the
+// selected tool, then upgrade or remove it through explicit, reversible actions
+// that share the four-second undo window (issue #30, blocked by #22).
+describe('inspect / upgrade / remove modelessly (issue #30)', () => {
+  it('inspect returns null for an empty ring and keeps selection untouched (AC1)', () => {
+    const battle = new BattleState({ level: meadows });
+    battle.selectDefender('thornvine-bramble');
+    expect(battle.inspect('ring-7')).toBeNull();
+    // Inspecting — or having nothing to inspect — never clobbers the active tool.
+    expect(battle.selectedDefenderType).toBe('thornvine-bramble');
+  });
+
+  it('inspect surfaces decisive stats, invested Mana, the refund, and the upgrade preview (AC2/AC3/AC4)', () => {
+    const battle = new BattleState({ level: meadows });
+    battle.placeDefender('ring-7', 'sprig-sentinel'); // costs 50
+    const info = battle.inspect('ring-7')!;
+    expect(info.typeId).toBe('sprig-sentinel');
+    expect(info.tier).toBe(0);
+    expect(info.maxTier).toBe(2);
+    expect(info.damage).toBe(35);
+    expect(info.range).toBe(160);
+    expect(info.invested).toBe(50);
+    expect(info.removalRefund).toBe(35); // round(50 * 0.7)
+    expect(info.upgrade).not.toBeNull();
+    const up = info.upgrade!;
+    expect(up.nextTier).toBe(1);
+    expect(up.cost).toBe(45);
+    expect(up.available).toBe(true);
+    expect(up.statChanges.damage).toEqual({ from: 35, to: 55 });
+    expect(up.statChanges.range).toEqual({ from: 160, to: 175 });
+    // Untouched stats are omitted from the delta.
+    expect(up.statChanges.hp).toBeUndefined();
+  });
+
+  it('upgrade commits the exact cost, raises the tier, applies the stat change, and full-heals (AC3)', () => {
+    const battle = new BattleState({ level: meadows, startingMana: 9999 });
+    battle.placeDefender('ring-7', 'sprig-sentinel'); // invested 50
+    const result = battle.upgradeDefender('ring-7');
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.cost).toBe(45);
+      expect(result.tier).toBe(1);
+    }
+    const d = battle.defenders[0]!;
+    expect(d.tier).toBe(1);
+    expect(d.damage).toBe(55);
+    expect(d.range).toBe(175);
+    expect(d.invested).toBe(95); // 50 placement + 45 upgrade
+    expect(d.hp).toBe(d.maxHp); // upgrading re-blooms to full health
+  });
+
+  it('upgrade explains an unavailable upgrade: max tier reached (AC3)', () => {
+    const battle = new BattleState({ level: meadows, startingMana: 9999 });
+    battle.placeDefender('ring-7', 'sprig-sentinel');
+    battle.upgradeDefender('ring-7'); // -> tier 1
+    battle.upgradeDefender('ring-7'); // -> tier 2 (max)
+    const maxed = battle.upgradeDefender('ring-7');
+    expect(maxed.ok).toBe(false);
+    if (!maxed.ok) expect(maxed.reason).toBe('max-tier');
+    // At the top of the ladder there is no upgrade preview to offer.
+    expect(battle.inspect('ring-7')!.upgrade).toBeNull();
+  });
+
+  it('upgrade explains an unavailable upgrade: not enough Mana, spending nothing (AC3)', () => {
+    const battle = new BattleState({ level: meadows, startingMana: 50 });
+    battle.placeDefender('ring-7', 'sprig-sentinel'); // -> 0 mana
+    const before = battle.defenders[0]!;
+    const result = battle.upgradeDefender('ring-7');
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toBe('insufficient-mana');
+    expect(battle.mana).toBe(0);
+    expect(battle.defenders[0]).toEqual(before); // nothing changed
+  });
+
+  it('remove refunds 70% of total invested Mana, not just the base cost (AC4)', () => {
+    const battle = new BattleState({ level: meadows, startingMana: 9999 });
+    battle.placeDefender('ring-7', 'sprig-sentinel'); // invested 50
+    battle.upgradeDefender('ring-7'); // invested 95
+    const result = battle.removeDefender('ring-7');
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.refund).toBe(67); // round(95 * 0.7)
+    expect(battle.defenders).toHaveLength(0); // the ring is freed
+  });
+
+  it('undo rolls back an upgrade within the window, refunding the cost (AC5)', () => {
+    const battle = new BattleState({ level: meadows, startingMana: 9999 });
+    battle.placeDefender('ring-7', 'sprig-sentinel'); // 9999 -> 9949, tier 0
+    battle.upgradeDefender('ring-7'); // -> 9904, tier 1, damage 55
+    const undo = battle.undoLastAction();
+    expect(undo.ok).toBe(true);
+    if (undo.ok) expect(undo.kind).toBe('upgrade');
+    const d = battle.defenders[0]!;
+    expect(d.tier).toBe(0); // back to the prior tier snapshot
+    expect(d.damage).toBe(35);
+    expect(d.range).toBe(160);
+    expect(battle.mana).toBe(9949); // upgrade cost refunded
+  });
+
+  it('undo replays a removal, restoring the Defender and clawing back the refund (AC5)', () => {
+    const battle = new BattleState({ level: meadows, startingMana: 9999 });
+    battle.placeDefender('ring-7', 'sprig-sentinel');
+    battle.upgradeDefender('ring-7'); // invested 95, tier 1
+    const beforeRemove = battle.mana;
+    const rm = battle.removeDefender('ring-7');
+    expect(rm.ok).toBe(true);
+    if (!rm.ok) return;
+    expect(battle.mana).toBe(beforeRemove + rm.refund);
+    const undo = battle.undoLastAction();
+    expect(undo.ok).toBe(true);
+    if (undo.ok) expect(undo.kind).toBe('remove');
+    // Restored at the tier it was removed at, and the refund is paid back.
+    expect(battle.defenders.map((d) => d.tier)).toEqual([1]);
+    expect(battle.mana).toBe(beforeRemove);
+  });
+
+  it('undo of an upgrade expires once the four-second window elapses (AC5/AC6)', () => {
+    const battle = new BattleState({ level: meadows, startingMana: 9999 });
+    battle.placeDefender('ring-7', 'sprig-sentinel');
+    battle.upgradeDefender('ring-7'); // -> tier 1
+    battle.start();
+    for (let i = 0; i < 4 * 60; i++) battle.tick();
+    battle.tick(); // past the window
+    const undo = battle.undoLastAction();
+    expect(undo.ok).toBe(false);
+    if (!undo.ok) expect(undo.reason).toBe('undo-expired');
+    expect(battle.defenders[0]!.tier).toBe(1); // not rolled back
   });
 });

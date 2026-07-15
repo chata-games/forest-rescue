@@ -92,6 +92,23 @@ export interface AirLane {
   to: Vec2;
 }
 
+/**
+ * One step on a Defender's upgrade ladder. Each tier is a sparse delta applied on
+ * top of the previous tier (replace semantics for any stat it names); an omitted
+ * field keeps the prior tier's value. Index 0 is the upgrade FROM tier 0 → 1.
+ */
+export interface UpgradeTier {
+  /** Mana cost to upgrade TO this tier. */
+  cost: number;
+  range?: number;
+  damage?: number;
+  hp?: number;
+  cooldown?: number;
+  poisonDps?: number;
+  poisonDuration?: number;
+  armorPierce?: number;
+}
+
 export interface DefenderStats {
   id: string;
   name: string;
@@ -109,6 +126,8 @@ export interface DefenderStats {
   poisonDps?: number;
   poisonDuration?: number;
   armorPierce?: number;
+  /** Upgrade ladder; tier 0 is the base, each entry lifts the Defender one tier. */
+  upgrades?: UpgradeTier[];
 }
 
 export interface EnemyStats {

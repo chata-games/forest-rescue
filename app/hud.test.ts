@@ -1,6 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { heartsGlyph, humanReason, renderHud, starsGlyph, waveText, type HudElements } from './hud';
-import type { BattleSnapshot } from './domain/battle';
+import {
+  heartsGlyph,
+  humanReason,
+  renderHud,
+  starsGlyph,
+  waveText,
+  buildContextPanel,
+  type HudElements,
+} from './hud';
+import type { BattleSnapshot, DefenderInspection } from './domain/battle';
 
 function stubs(): HudElements {
   return {
@@ -94,5 +102,107 @@ describe('HUD rendering', () => {
     expect(starsGlyph(2)).toBe('★★☆');
     expect(starsGlyph(1)).toBe('★☆☆');
     expect(starsGlyph(0)).toBe(''); // a defeat shows no stars
+  });
+
+  it('translates the new management rejections into Guardian-facing hints', () => {
+    expect(humanReason('no-defender')).toBe('No defender there');
+    expect(humanReason('max-tier')).toBe('Already at max tier');
+    expect(humanReason('battle-over')).toBe('The battle is over');
+  });
+});
+
+// Modeless context-panel projection (issue #30): the pure view the DOM panel
+// renders for an inspected Defender — stats, upgrade preview, removal refund.
+describe('context panel projection (issue #30)', () => {
+  function inspection(partial: Partial<DefenderInspection> = {}): DefenderInspection {
+    return {
+      ringId: 'ring-7',
+      typeId: 'sprig-sentinel',
+      name: 'Sprig Sentinel',
+      tier: 0,
+      maxTier: 2,
+      range: 160,
+      damage: 35,
+      hp: 95,
+      maxHp: 95,
+      cooldown: 1.15,
+      blocksPath: false,
+      poisonDps: 0,
+      invested: 50,
+      removalRefund: 35,
+      upgrade: {
+        nextTier: 1,
+        cost: 45,
+        available: true,
+        statChanges: { damage: { from: 35, to: 55 }, range: { from: 160, to: 175 } },
+      },
+      ...partial,
+    };
+  }
+
+  it('returns null when there is no Defender to inspect (panel hides)', () => {
+    expect(buildContextPanel(null)).toBeNull();
+  });
+
+  it('shows the name, tier ladder, and decisive ranged stats (AC2)', () => {
+    const view = buildContextPanel(inspection())!;
+    expect(view.title).toBe('Sprig Sentinel');
+    expect(view.tierLabel).toBe('Tier 1 of 3');
+    const labels = view.stats.map((s) => s.label);
+    expect(labels).toEqual(['Damage', 'Range', 'Fire rate', 'Health']);
+    const health = view.stats.find((s) => s.label === 'Health')!;
+    expect(health.value).toBe('95/95');
+  });
+
+  it('previews exact upgrade cost and stat changes for an available upgrade (AC3)', () => {
+    const view = buildContextPanel(inspection())!;
+    expect(view.upgrade.summary).toBe('Upgrade to tier 2 — 45 mana');
+    expect(view.upgrade.detail).toBe('Damage 35 → 55, Range 160 → 175');
+    expect(view.upgrade.buttonLabel).toBe('Upgrade (45)');
+    expect(view.upgrade.available).toBe(true);
+  });
+
+  it('explains an upgrade the Guardian cannot afford (AC3)', () => {
+    const info = inspection({
+      upgrade: { nextTier: 1, cost: 45, available: false, reason: 'insufficient-mana', statChanges: {} },
+    });
+    const view = buildContextPanel(info)!;
+    expect(view.upgrade.available).toBe(false);
+    expect(view.upgrade.detail).toBe('Not enough mana');
+  });
+
+  it('reports the max tier with no upgrade to offer (AC3)', () => {
+    const info = inspection({ tier: 2, upgrade: null });
+    const view = buildContextPanel(info)!;
+    expect(view.upgrade.summary).toBe('Max tier reached');
+    expect(view.upgrade.available).toBe(false);
+  });
+
+  it('shows the exact 70% removal refund in summary and confirm prompt (AC4)', () => {
+    const info = inspection({ invested: 95, removalRefund: 67 });
+    const view = buildContextPanel(info)!;
+    expect(view.remove.summary).toBe('Remove — 67 mana refunded (70%)');
+    expect(view.remove.confirm).toBe('Remove this Defender? 67 mana will be refunded.');
+  });
+
+  it('renders blocker stats (Health + role) for an on-path Bramble', () => {
+    const info = inspection({
+      typeId: 'thornvine-bramble',
+      name: 'Thornvine Bramble',
+      range: 0,
+      damage: 0,
+      cooldown: 0,
+      hp: 180,
+      maxHp: 180,
+      blocksPath: true,
+      invested: 35,
+      removalRefund: 25,
+      upgrade: { nextTier: 1, cost: 30, available: true, statChanges: { hp: { from: 180, to: 300 } } },
+    });
+    const view = buildContextPanel(info)!;
+    const labels = view.stats.map((s) => s.label);
+    expect(labels).toEqual(['Health', 'Role']);
+    expect(view.stats.at(-1)!.value).toBe('Blocks the path');
+    expect(view.upgrade.detail).toBe('Health 180 → 300');
   });
 });

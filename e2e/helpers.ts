@@ -8,6 +8,9 @@ export const TURBO = '16'; // sim speed-up so a full battle resolves in a few se
 
 export interface FrApi {
   placeOnRing(ringId: string): void;
+  inspectRing(ringId: string): void;
+  upgradeRing(ringId: string): unknown;
+  removeRing(ringId: string): unknown;
   selectDefender(typeId: string): void;
   start(): void;
   ringIds(): string[];

@@ -297,6 +297,140 @@ body.force-landscape .app-root {
   color: var(--mana);
 }
 
+/* --- Modeless Defender context panel (issue #30) --- */
+/* Non-modal: floats over a corner of the stage, never traps focus or blocks the
+   battlefield. Pointer events land only on the card itself. */
+.context-panel {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 6;
+  width: min(260px, 64vw);
+  padding: 12px 14px 14px;
+  background: #0c2a1dee;
+  border: 1px solid var(--leaf);
+  border-radius: 14px;
+  box-shadow: 0 12px 40px #03110eaa;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.context-panel[hidden] {
+  display: none;
+}
+
+.context-panel__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.context-panel__title {
+  margin: 0;
+  font-size: 16px;
+}
+
+.context-panel__close {
+  border: 0;
+  background: transparent;
+  color: #aedbbd;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 8px;
+  padding: 2px 8px;
+}
+
+.context-panel__tier {
+  margin: 2px 0 8px;
+  color: var(--mana);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.context-panel__stats {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 12px;
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  list-style: none;
+  background: #08201788;
+  border-radius: 10px;
+}
+
+.context-panel__stats .cp__label {
+  color: #9fd0b8;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.context-panel__stats .cp__value {
+  font-weight: 700;
+  text-align: right;
+}
+
+.context-panel__block {
+  margin-bottom: 8px;
+}
+
+.context-panel__line {
+  margin: 0 0 6px;
+  color: #cfeede;
+}
+
+.context-panel__detail {
+  color: #f3bfa6;
+  font-size: 12px;
+}
+
+.context-panel__action {
+  width: 100%;
+  border: 1px solid #6fd49a55;
+  background: #122d22;
+  color: var(--ink);
+  border-radius: 10px;
+  padding: 9px 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.context-panel__action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.context-panel__action--danger {
+  border-color: #ff6f5b77;
+  color: #ffb3a6;
+}
+
+.context-panel__confirm {
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: #2a140ecc;
+  border: 1px solid #ff6f5b55;
+}
+
+.context-panel__confirm[hidden] {
+  display: none;
+}
+
+.context-panel__confirm-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.context-panel__confirm-actions .primary-btn {
+  flex: 1;
+  padding: 9px 12px;
+}
+
 /* Portrait collapses the side legend so the FIT-scaled battlefield fills the
    phone; the on-canvas route/hazard overlays still render. */
 @media (orientation: portrait), (max-width: 640px) {

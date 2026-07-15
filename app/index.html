@@ -85,6 +85,34 @@
       <!-- Author preview legend: routes, hazards, waves, metrics, simulation
            summaries. Hidden unless ?preview=1. -->
       <aside id="previewPanel" class="preview" aria-label="Level preview summary" hidden></aside>
+
+      <!-- Modeless Defender context panel (issue #30): inspect, upgrade, or
+           remove the Defender on a tapped occupied ring without dropping the
+           selected placement tool. Non-modal — the battlefield stays live. -->
+      <section id="contextPanel" class="context-panel" role="region" aria-label="Defender context panel" hidden>
+        <div class="context-panel__head">
+          <h3 id="cpTitle" class="context-panel__title"></h3>
+          <button id="cpClose" class="context-panel__close" type="button" aria-label="Close context panel">×</button>
+        </div>
+        <p id="cpTier" class="context-panel__tier"></p>
+        <ul id="cpStats" class="context-panel__stats"></ul>
+        <div class="context-panel__block">
+          <p id="cpUpgradeSummary" class="context-panel__line"></p>
+          <p id="cpUpgradeDetail" class="context-panel__line context-panel__detail" hidden></p>
+          <button id="cpUpgradeBtn" class="context-panel__action" type="button">Upgrade</button>
+        </div>
+        <div class="context-panel__block">
+          <p id="cpRemoveSummary" class="context-panel__line"></p>
+          <div id="cpConfirm" class="context-panel__confirm" hidden>
+            <p id="cpConfirmText" class="context-panel__line context-panel__detail"></p>
+            <div class="context-panel__confirm-actions">
+              <button id="cpConfirmBtn" class="primary-btn" type="button">Confirm remove</button>
+              <button id="cpCancelBtn" class="context-panel__action" type="button">Cancel</button>
+            </div>
+          </div>
+          <button id="cpRemoveBtn" class="context-panel__action context-panel__action--danger" type="button">Remove</button>
+        </div>
+      </section>
     </div>
 
     <nav class="toolbar" aria-label="Defender selection">

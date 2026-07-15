@@ -11,7 +11,7 @@
 // outcome, frame for frame.
 
 import { PathCurve } from './path';
-import { getDefender, getEnemy } from './content';
+import { effectiveStats, getDefender, getEnemy, maxTier, upgradeCost } from './content';
 import { scoreStars as scoreStarsRule, type BattleScoreInput } from './scoring';
 import type { CompiledLevel, DefenderStats, Ring } from './types';
 
@@ -44,6 +44,10 @@ export interface PlacedDefender {
   poisonDuration: number;
   armorPierce: number;
   dead: boolean;
+  /** Current upgrade tier (0 = base). */
+  tier: number;
+  /** Total Mana sunk into this Defender (placement cost + every upgrade cost). */
+  invested: number;
 }
 
 export interface ActiveEnemy {
@@ -99,11 +103,75 @@ export interface BattleSnapshot {
   stars: number;
 }
 
+/** A before→after delta for one decisive stat, for the upgrade preview (issue #30 AC3). */
+export interface StatChange {
+  from: number;
+  to: number;
+}
+
+/** Before→after stat deltas for an upgrade preview (unchanged stats omitted). */
+export interface StatChanges {
+  damage?: StatChange;
+  range?: StatChange;
+  hp?: StatChange;
+  cooldown?: StatChange;
+}
+
+/** What the next upgrade would cost and change, and why it may be unavailable. */
+export interface UpgradePreview {
+  /** The tier upgrading would reach. */
+  nextTier: number;
+  cost: number;
+  /** True when the Guardian can pay for and commit the upgrade right now. */
+  available: boolean;
+  /** Why the upgrade is unavailable, when it is not. */
+  reason?: 'max-tier' | 'insufficient-mana' | 'battle-over';
+  statChanges: StatChanges;
+}
+
+/**
+ * A modeless read on one planted Defender (issue #30 AC1/AC2): its decisive
+ * current stats, the Mana invested and the exact removal refund, and the next
+ * upgrade preview. Pure projection off the simulation — the UI renders from it.
+ */
+export interface DefenderInspection {
+  ringId: string;
+  typeId: string;
+  name: string;
+  tier: number;
+  maxTier: number;
+  range: number;
+  damage: number;
+  hp: number;
+  maxHp: number;
+  cooldown: number;
+  blocksPath: boolean;
+  poisonDps: number;
+  /** Total Mana sunk into this Defender (placement + upgrades). */
+  invested: number;
+  /** Exact 70% refund a removal would return, in whole Mana (issue #30 AC4). */
+  removalRefund: number;
+  /** The next upgrade preview, or null at the ladder's top tier. */
+  upgrade: UpgradePreview | null;
+}
+
 interface ScheduledSpawn {
   type: string;
   at: number;
   wave: number;
 }
+
+/**
+ * The most recent reversible action, tracked so a tap can undo it within the
+ * UNDO_WINDOW (issue #22 placement + issue #30 upgrade/removal). A later
+ * reversible action replaces it. Each variant carries exactly what reversing
+ * requires: a placement is uprooted for a full refund, an upgrade is rolled back
+ * to its prior tier snapshot, and a removal is replayed by giving back the refund.
+ */
+type UndoableAction =
+  | { kind: 'place'; ringId: string; cost: number; placedAt: number }
+  | { kind: 'upgrade'; ringId: string; cost: number; placedAt: number; prev: PlacedDefender }
+  | { kind: 'remove'; ringId: string; refund: number; placedAt: number; defender: PlacedDefender };
 
 const PROJECTILE_TTL = 0.22;
 const REMOVE_REFUND = 0.7;
@@ -146,10 +214,9 @@ export class BattleState {
   private currentWave = 0;
   leaked = 0;
   private projectileSeq = 1;
-  // The most recent placement, tracked so a tap can be fully undone within the
-  // UNDO_WINDOW. A later placement replaces it; a manual uproot clears it.
-  private lastPlacement: { ringId: string; typeId: string; cost: number; placedAt: number } | null =
-    null;
+  // The most recent reversible action (placement, upgrade, or removal), tracked
+  // so it can be undone within the UNDO_WINDOW. A later action replaces it.
+  private lastAction: UndoableAction | null = null;
 
   constructor(config: BattleConfig) {
     this.level = config.level;
@@ -198,7 +265,7 @@ export class BattleState {
     this.manaSpent += stats.cost;
     const defender = makeDefender(ring, stats);
     this.defenders.push(defender);
-    this.lastPlacement = { ringId, typeId: stats.id, cost: stats.cost, placedAt: this.battleClock };
+    this.lastAction = { kind: 'place', ringId, cost: stats.cost, placedAt: this.battleClock };
     return { ok: true, defender };
   }
 
@@ -216,40 +283,159 @@ export class BattleState {
   }
 
   /**
-   * Fully refund and remove the most recent placement, but only within the
-   * UNDO_WINDOW of battle time. Works with touch, mouse, pen, and keyboard
-   * because it is a plain state command the UI binds to any input (issue #22 AC6).
+   * Undo the most recent reversible action — a placement, an upgrade, or a
+   * removal (issue #22 AC6 + issue #30 AC5) — but only within the UNDO_WINDOW of
+   * battle time. A placement is uprooted for a FULL refund; an upgrade rolls back
+   * to its prior tier and refunds the upgrade cost; a removal replays the
+   * Defender and gives back the refund it paid out. Works with touch, mouse, pen,
+   * and keyboard because it is a plain state command the UI binds to any input.
    */
-  undoLastPlacement(): { ok: true; refund: number } | { ok: false; reason: string } {
-    const last = this.lastPlacement;
+  undoLastAction():
+    | { ok: true; kind: UndoableAction['kind']; refund: number }
+    | { ok: false; reason: string } {
+    const last = this.lastAction;
     if (!last) return { ok: false, reason: 'nothing-to-undo' };
     if (this.battleClock - last.placedAt > UNDO_WINDOW) return { ok: false, reason: 'undo-expired' };
+
+    if (last.kind === 'remove') {
+      // Replay the uprooted Defender and claw back the refund it paid out.
+      this.defenders.push(last.defender);
+      this.mana -= last.refund;
+      this.manaSpent += last.refund;
+      this.lastAction = null;
+      return { ok: true, kind: 'remove', refund: last.refund };
+    }
+
+    // place / upgrade both target a living Defender on a ring.
     const idx = this.defenders.findIndex((d) => d.ringId === last.ringId && !d.dead);
     if (idx === -1) {
-      // The placed defender is already gone (e.g. destroyed in combat); nothing
-      // remains to undo.
-      this.lastPlacement = null;
+      // The Defender is already gone (e.g. destroyed in combat); nothing remains.
+      this.lastAction = null;
       return { ok: false, reason: 'nothing-to-undo' };
     }
-    this.defenders.splice(idx, 1);
-    this.mana += last.cost; // full refund, not the 70% uproot rate
-    this.manaSpent = Math.max(0, this.manaSpent - last.cost); // a full undo reverses the spend
-    this.lastPlacement = null;
-    return { ok: true, refund: last.cost };
+    if (last.kind === 'place') {
+      this.defenders.splice(idx, 1);
+      this.mana += last.cost; // full refund, not the 70% uproot rate
+      this.manaSpent = Math.max(0, this.manaSpent - last.cost);
+    } else {
+      // upgrade: restore the prior tier snapshot and refund the upgrade cost.
+      this.defenders[idx] = last.prev;
+      this.mana += last.cost;
+      this.manaSpent = Math.max(0, this.manaSpent - last.cost);
+    }
+    this.lastAction = null;
+    return { ok: true, kind: last.kind, refund: last.cost };
   }
 
-  /** Uproot a defender, returning 70% of its cost (rounded to whole Mana). */
-  removeDefender(ringId: string): { ok: true; refund: number } | { ok: false; reason: string } {
+  /**
+   * Upgrade the Defender on a fairy ring by one tier (issue #30 AC3). Previews
+   * the exact cost via {@link inspect}; this commit re-validates and spends
+   * nothing on a failed attempt. Upgrading restores the Defender to its new
+   * full health and tracks the cost in `invested` so a later removal refunds it.
+   */
+  upgradeDefender(
+    ringId: string,
+  ): { ok: true; cost: number; tier: number } | { ok: false; reason: string } {
+    if (this.phase !== 'planning' && this.phase !== 'running') {
+      return { ok: false, reason: 'battle-over' };
+    }
     const idx = this.defenders.findIndex((d) => d.ringId === ringId && !d.dead);
     if (idx === -1) return { ok: false, reason: 'no-defender' };
-    const stats = getDefender(this.defenders[idx].typeId);
-    const refund = stats ? Math.round(stats.cost * REMOVE_REFUND) : 0;
+    const defender = this.defenders[idx];
+    const stats = getDefender(defender.typeId);
+    if (!stats) return { ok: false, reason: 'unknown-defender' };
+    const cost = upgradeCost(stats, defender.tier);
+    if (cost === null) return { ok: false, reason: 'max-tier' };
+    if (this.mana < cost) return { ok: false, reason: 'insufficient-mana' };
+
+    const nextTier = defender.tier + 1;
+    const eff = effectiveStats(stats, nextTier);
+    const prev: PlacedDefender = { ...defender };
+    this.mana -= cost;
+    this.manaSpent += cost;
+    defender.tier = nextTier;
+    defender.invested += cost;
+    defender.range = eff.range;
+    defender.damage = eff.damage;
+    defender.maxHp = eff.hp;
+    defender.hp = eff.hp; // upgrading re-blooms the Defender to full health
+    defender.cooldownMax = eff.cooldown;
+    defender.cooldown = Math.min(defender.cooldown, eff.cooldown);
+    defender.poisonDps = eff.poisonDps;
+    defender.poisonDuration = eff.poisonDuration;
+    defender.armorPierce = eff.armorPierce;
+    this.lastAction = { kind: 'upgrade', ringId, cost, placedAt: this.battleClock, prev };
+    return { ok: true, cost, tier: nextTier };
+  }
+
+  /**
+   * Uproot a Defender, returning 70% of the total Mana invested in it (placement
+   * + upgrades), rounded to whole Mana (issue #30 AC4). Reversible within the
+   * UNDO_WINDOW via {@link undoLastAction}.
+   */
+  removeDefender(ringId: string): { ok: true; refund: number } | { ok: false; reason: string } {
+    if (this.phase !== 'planning' && this.phase !== 'running') {
+      return { ok: false, reason: 'battle-over' };
+    }
+    const idx = this.defenders.findIndex((d) => d.ringId === ringId && !d.dead);
+    if (idx === -1) return { ok: false, reason: 'no-defender' };
+    const defender = this.defenders[idx];
+    const refund = Math.round(defender.invested * REMOVE_REFUND);
     this.defenders.splice(idx, 1);
     this.mana += refund;
     // The 70% refund is returned to the pool; the 30% loss stays as Mana spent.
     this.manaSpent = Math.max(0, this.manaSpent - refund);
-    if (this.lastPlacement?.ringId === ringId) this.lastPlacement = null;
+    this.lastAction = { kind: 'remove', ringId, refund, placedAt: this.battleClock, defender };
     return { ok: true, refund };
+  }
+
+  /**
+   * A modeless read on the Defender planted on a fairy ring (issue #30 AC1/AC2):
+   * decisive current stats, invested Mana with the exact 70% removal refund, and
+   * the next upgrade preview (cost + stat deltas + any unavailable reason).
+   * Returns null when the ring has no living Defender to inspect.
+   */
+  inspect(ringId: string): DefenderInspection | null {
+    const defender = this.defenders.find((d) => d.ringId === ringId && !d.dead);
+    if (!defender) return null;
+    const stats = getDefender(defender.typeId);
+    if (!stats) return null;
+    const top = maxTier(stats);
+    const refund = Math.round(defender.invested * REMOVE_REFUND);
+
+    let upgrade: UpgradePreview | null = null;
+    const cost = upgradeCost(stats, defender.tier);
+    if (cost !== null) {
+      const now = effectiveStats(stats, defender.tier);
+      const next = effectiveStats(stats, defender.tier + 1);
+      const battleOver = this.phase !== 'planning' && this.phase !== 'running';
+      const reason = battleOver ? 'battle-over' : this.mana < cost ? 'insufficient-mana' : undefined;
+      upgrade = {
+        nextTier: defender.tier + 1,
+        cost,
+        available: reason === undefined,
+        ...(reason ? { reason } : {}),
+        statChanges: diffStats(now, next),
+      };
+    }
+
+    return {
+      ringId,
+      typeId: defender.typeId,
+      name: stats.name,
+      tier: defender.tier,
+      maxTier: top,
+      range: defender.range,
+      damage: defender.damage,
+      hp: defender.hp,
+      maxHp: defender.maxHp,
+      cooldown: defender.cooldownMax,
+      blocksPath: defender.blocksPath,
+      poisonDps: defender.poisonDps,
+      invested: defender.invested,
+      removalRefund: refund,
+      upgrade,
+    };
   }
 
   // --- Simulation -------------------------------------------------------
@@ -348,9 +534,9 @@ export class BattleState {
     return { ok: true, ring, stats };
   }
 
-  /** Whether the most recent placement is still inside its undo window. */
+  /** Whether the most recent reversible action is still inside its undo window. */
   private isUndoable(): boolean {
-    return !!this.lastPlacement && this.battleClock - this.lastPlacement.placedAt <= UNDO_WINDOW;
+    return !!this.lastAction && this.battleClock - this.lastAction.placedAt <= UNDO_WINDOW;
   }
 
   /** Award a felled enemy's Mana bounty to both the spendable pool and the collected total. */
@@ -562,23 +748,39 @@ function spawnEnemy(typeId: string, path: PathCurve): ActiveEnemy {
 }
 
 function makeDefender(ring: Ring, stats: DefenderStats): PlacedDefender {
+  const eff = effectiveStats(stats, 0);
   return {
     ringId: ring.id,
     typeId: stats.id,
     x: ring.x,
     y: ring.y,
-    hp: stats.hp,
-    maxHp: stats.hp,
-    range: stats.range,
-    damage: stats.damage,
+    hp: eff.hp,
+    maxHp: eff.hp,
+    range: eff.range,
+    damage: eff.damage,
     cooldown: 0,
-    cooldownMax: stats.cooldown,
+    cooldownMax: eff.cooldown,
     blocksPath: stats.blocksPath ?? false,
-    poisonDps: stats.poisonDps ?? 0,
-    poisonDuration: stats.poisonDuration ?? 0,
-    armorPierce: stats.armorPierce ?? 0,
+    poisonDps: eff.poisonDps,
+    poisonDuration: eff.poisonDuration,
+    armorPierce: eff.armorPierce,
     dead: false,
+    tier: 0,
+    invested: stats.cost,
   };
+}
+
+/** Build the upgrade-preview deltas between two resolved tiers (omits unchanged). */
+function diffStats(
+  now: ReturnType<typeof effectiveStats>,
+  next: ReturnType<typeof effectiveStats>,
+): StatChanges {
+  const changes: StatChanges = {};
+  if (now.damage !== next.damage) changes.damage = { from: now.damage, to: next.damage };
+  if (now.range !== next.range) changes.range = { from: now.range, to: next.range };
+  if (now.hp !== next.hp) changes.hp = { from: now.hp, to: next.hp };
+  if (now.cooldown !== next.cooldown) changes.cooldown = { from: now.cooldown, to: next.cooldown };
+  return changes;
 }
 
 function applyArmor(base: number, armor: number, pierce: number): number {

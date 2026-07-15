@@ -15,7 +15,7 @@ import Phaser from 'phaser';
 import { BattleState } from './domain/battle';
 import { getDefender } from './domain/content';
 import { BattleScene } from './phaser/battle-scene';
-import { humanReason, renderHud, type HudElements } from './hud';
+import { buildContextPanel, humanReason, renderHud, type HudElements } from './hud';
 import { renderTrail, renderDetail, type TrailElements, type DetailElements } from './trail';
 import {
   resolveTrail,
@@ -165,6 +165,23 @@ const hint = $<HTMLOutputElement>('hint');
 const levelSelect = $<HTMLSelectElement>('levelSelect');
 const layoutBtn = $<HTMLButtonElement>('layoutBtn');
 const previewPanel = $<HTMLElement>('previewPanel');
+
+// Modeless Defender context panel (issue #30): inspect/upgrade/remove the
+// Defender on a tapped occupied ring without dropping the selected placement tool.
+const contextPanel = $<HTMLElement>('contextPanel');
+const cpTitle = $<HTMLHeadingElement>('cpTitle');
+const cpTier = $<HTMLElement>('cpTier');
+const cpStats = $<HTMLUListElement>('cpStats');
+const cpUpgradeSummary = $<HTMLParagraphElement>('cpUpgradeSummary');
+const cpUpgradeDetail = $<HTMLParagraphElement>('cpUpgradeDetail');
+const cpUpgradeBtn = $<HTMLButtonElement>('cpUpgradeBtn');
+const cpRemoveSummary = $<HTMLParagraphElement>('cpRemoveSummary');
+const cpRemoveBtn = $<HTMLButtonElement>('cpRemoveBtn');
+const cpConfirm = $<HTMLElement>('cpConfirm');
+const cpConfirmText = $<HTMLParagraphElement>('cpConfirmText');
+const cpConfirmBtn = $<HTMLButtonElement>('cpConfirmBtn');
+const cpCancelBtn = $<HTMLButtonElement>('cpCancelBtn');
+const cpCloseBtn = $<HTMLButtonElement>('cpClose');
 
 const hudElements: HudElements = {
   mana: manaValue,
@@ -369,30 +386,53 @@ pauseBtn.addEventListener('click', () => {
   pauseBtn.textContent = next ? 'Resume' : 'Pause';
 });
 
-/** Fully refund the most recent placement within its 4-second window (issue #22 AC6). */
-function undoLastPlacement(): void {
+replayBtn.addEventListener('click', () => location.reload());
+
+/** Undo the most recent placement / upgrade / removal within its 4-second window (issue #22 AC6, #30 AC5). */
+function undoLastAction(): void {
   if (!battle) return;
-  const result = battle.undoLastPlacement();
-  if (result.ok) showHint(`Undone — ${result.refund} mana refunded`);
-  else showHint(humanReason(result.reason));
+  const result = battle.undoLastAction();
+  if (result.ok) {
+    showHint(
+      result.kind === 'remove'
+        ? `Restored defender — ${result.refund} mana re-spent`
+        : `Undone — ${result.refund} mana refunded`,
+    );
+    // An upgrade/partial rollback on the inspected Defender refreshes its panel.
+    if (inspectedRingId) syncContextPanel();
+  } else {
+    showHint(humanReason(result.reason));
+  }
 }
 
-undoBtn.addEventListener('click', undoLastPlacement);
+undoBtn.addEventListener('click', undoLastAction);
 
-// Keyboard parity: the same Undo works with touch, mouse, pen, and keyboard.
+// Keyboard parity: the same Undo works with touch, mouse, pen, and keyboard;
+// Escape cancels an armed removal or closes the modeless panel (issue #30 AC5).
 window.addEventListener('keydown', (e) => {
   if (e.defaultPrevented) return;
   const typing = e.target instanceof HTMLElement && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
   if (typing) return;
+  if (e.key === 'Escape' && inspectedRingId) {
+    e.preventDefault();
+    if (removeConfirming) {
+      removeConfirming = false;
+      syncContextPanel();
+    } else {
+      closeInspect();
+    }
+    return;
+  }
   if (e.key === 'z' || e.key === 'Z' || e.key === 'Backspace') {
     if (!undoBtn.disabled) {
       e.preventDefault();
-      undoLastPlacement();
+      undoLastAction();
     }
   }
 });
 
-function handleRingClick(ringId: string | null, typeId?: string): void {
+/** Commit a placement on an empty ring (issue #22); never inspects (issue #30). */
+function commitPlacement(ringId: string, typeId?: string): void {
   if (!ringId || !battle) return;
   if (battle.phase !== 'planning' && battle.phase !== 'running') return;
   // typeId is the tool snapshotted at touch-down; committing it means a second
@@ -406,6 +446,108 @@ function handleRingClick(ringId: string | null, typeId?: string): void {
   }
 }
 
+/**
+ * Scene tap seam (issue #30 AC1): an occupied ring opens the modeless context
+ * panel and RETAINS the selected placement tool; an empty ring places. The
+ * decision is made here, at the shell, so the scene stays a pure renderer.
+ */
+function handleRingTap(ringId: string | null, typeId?: string): void {
+  if (!ringId || !battle) return;
+  const occupied = battle.defenders.some((d) => d.ringId === ringId && !d.dead);
+  if (occupied) inspectRing(ringId);
+  else commitPlacement(ringId, typeId);
+}
+
+// --- Modeless Defender context panel (issue #30) --------------------------
+let inspectedRingId: string | null = null;
+/** Inline-confirmation gate for removal (issue #30 AC4): Remove → Confirm. */
+let removeConfirming = false;
+
+function inspectRing(ringId: string): void {
+  if (!battle) return;
+  inspectedRingId = ringId;
+  removeConfirming = false;
+  game?.registry.set('inspected', ringId);
+  syncContextPanel();
+  contextPanel.hidden = false;
+  cpUpgradeBtn.focus();
+}
+
+function closeInspect(): void {
+  inspectedRingId = null;
+  removeConfirming = false;
+  game?.registry.set('inspected', null);
+  contextPanel.hidden = true;
+}
+
+/** Re-project the inspected Defender onto the panel; closes it if the ring emptied. */
+function syncContextPanel(): void {
+  if (!battle || !inspectedRingId) {
+    closeInspect();
+    return;
+  }
+  const view = buildContextPanel(battle.inspect(inspectedRingId));
+  if (!view) {
+    closeInspect();
+    return;
+  }
+  cpTitle.textContent = view.title;
+  cpTier.textContent = view.tierLabel;
+  cpStats.innerHTML = view.stats
+    .map((s) => `<li><span class="cp__label">${s.label}</span><span class="cp__value">${s.value}</span></li>`)
+    .join('');
+  cpUpgradeSummary.textContent = view.upgrade.summary;
+  cpUpgradeDetail.textContent = view.upgrade.detail ?? '';
+  cpUpgradeDetail.hidden = !view.upgrade.detail;
+  cpUpgradeBtn.textContent = view.upgrade.buttonLabel;
+  cpUpgradeBtn.disabled = !view.upgrade.available;
+  cpRemoveSummary.textContent = view.remove.summary;
+  cpConfirmText.textContent = view.remove.confirm;
+  cpConfirm.hidden = !removeConfirming;
+  cpRemoveBtn.hidden = removeConfirming;
+}
+
+cpCloseBtn.addEventListener('click', closeInspect);
+
+cpUpgradeBtn.addEventListener('click', () => {
+  if (!battle || !inspectedRingId) return;
+  const result = battle.upgradeDefender(inspectedRingId);
+  if (result.ok) {
+    showHint(`Upgraded to tier ${result.tier + 1} — ${result.cost} mana`);
+    removeConfirming = false;
+    syncContextPanel();
+  } else {
+    showHint(humanReason(result.reason));
+  }
+});
+
+// Removal is a two-step, reversible action: the first tap arms an inline
+// confirmation showing the exact refund; the second commits (issue #30 AC4).
+cpRemoveBtn.addEventListener('click', () => {
+  removeConfirming = true;
+  syncContextPanel();
+  cpConfirmBtn.focus();
+});
+
+cpConfirmBtn.addEventListener('click', () => {
+  if (!battle || !inspectedRingId) return;
+  const result = battle.removeDefender(inspectedRingId);
+  if (result.ok) {
+    showHint(`Removed — ${result.refund} mana refunded`);
+    closeInspect();
+  } else {
+    removeConfirming = false;
+    syncContextPanel();
+    showHint(humanReason(result.reason));
+  }
+});
+
+cpCancelBtn.addEventListener('click', () => {
+  removeConfirming = false;
+  syncContextPanel();
+  cpRemoveBtn.focus();
+});
+
 function resetBattleHud(): void {
   lastSync = '';
   outcomeRecorded = false;
@@ -415,6 +557,7 @@ function resetBattleHud(): void {
   pauseBtn.setAttribute('aria-pressed', 'false');
   pauseBtn.textContent = 'Pause';
   hint.textContent = '';
+  closeInspect();
   selectDefender('sprig-sentinel');
 }
 
@@ -466,6 +609,13 @@ function syncHud(snap: BattleSnapshot): void {
   // coarser HUD sync key, so it lights up the instant a placement is refundable.
   undoBtn.disabled = !snap.canUndo;
 
+  // The modeless panel follows its inspected Defender live, and dismisses once
+  // the battle resolves (issue #30 AC2).
+  if (inspectedRingId) {
+    if (snap.phase === 'won' || snap.phase === 'lost') closeInspect();
+    else syncContextPanel();
+  }
+
   const key = `${snap.phase}|${snap.mana}|${snap.hearts}|${snap.waveNumber}|${snap.paused}`;
   if (key === lastSync) {
     if (hintTimer > 0) hintTimer -= 1 / 60;
@@ -487,7 +637,7 @@ function bootBattleScene(): void {
     render: { antialias: true },
     scene: [BattleScene],
   });
-  game.registry.set('battleApi', { battle, onRingClick: handleRingClick });
+  game.registry.set('battleApi', { battle, onRingClick: handleRingTap });
   game.registry.set('timeScale', options.timeScale);
   game.registry.set('onFrame', syncHud);
   // Author overlays: the scene tints rings by role when preview is on, and the
@@ -552,7 +702,10 @@ returnToTrailBtn.addEventListener('click', returnToTrail);
 // level from the Trail. The domain and HUD still do all the real work.
 function makeDebugApi() {
   return {
-    placeOnRing: (ringId: string) => handleRingClick(ringId),
+    placeOnRing: (ringId: string) => commitPlacement(ringId),
+    inspectRing: (ringId: string) => inspectRing(ringId),
+    upgradeRing: (ringId: string) => battle?.upgradeDefender(ringId) ?? null,
+    removeRing: (ringId: string) => battle?.removeDefender(ringId) ?? null,
     selectDefender,
     start: () => battle?.start(),
     ringIds: () => (battle ? battle.rings.map((r) => r.id) : []),
@@ -561,6 +714,9 @@ function makeDebugApi() {
 
 export interface ForestRescueDebug {
   placeOnRing(ringId: string): void;
+  inspectRing(ringId: string): void;
+  upgradeRing(ringId: string): { ok: true; cost: number; tier: number } | { ok: false; reason: string } | null;
+  removeRing(ringId: string): { ok: true; refund: number } | { ok: false; reason: string } | null;
   selectDefender(typeId: string): void;
   start(): void;
   ringIds(): string[];

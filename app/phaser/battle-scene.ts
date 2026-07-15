@@ -19,7 +19,9 @@ export interface BattleSceneApi {
   /**
    * Called when a tap commits on a fairy ring (null = released on empty ground).
    * typeId is the tool snapshotted at touch-down so a second thumb changing the
-   * selection mid-gesture can never buy the wrong defender (issue #22 AC5).
+   * selection mid-gesture can never buy the wrong defender (issue #22 AC5). The
+   * shell decides intent: an occupied ring inspects (issue #30), an empty one
+   * places — so the scene reports every committed ring tap through this seam.
    */
   onRingClick: (ringId: string | null, typeId?: string) => void;
 }
@@ -46,6 +48,8 @@ const COLOR = {
   projectile: 0xd7ff8f,
   bramble: 0x5bbf73,
   invalid: 0xff6f5b,
+  inspect: 0xf7d66f,
+  selected: 0x8ef0b6,
 };
 
 /**
@@ -63,6 +67,11 @@ interface Gesture {
   downY: number;
   /** Set once the pointer exceeds the movement threshold — commit is forfeit. */
   movedTooFar: boolean;
+  /**
+   * Captured at touch-down: an occupied ring inspects (issue #30), an empty ring
+   * places. Drives the in-flight visual — a selection ring vs a placement ghost.
+   */
+  mode: 'place' | 'inspect';
 }
 
 // Preview-overlay tints (author mode only): role-coded rings + hazard regions.
@@ -160,6 +169,9 @@ export class BattleScene extends Phaser.Scene {
     if (!ringId) return; // empty ground: nothing to start
     const { x, y } = this.clientPos(p);
     const typeId = this.battle.selectedDefenderType;
+    // An occupied ring is an inspect target (issue #30), not a placement one —
+    // the shell branches on occupancy at commit, and this drives the visual.
+    const occupied = this.battle.defenders.some((d) => d.ringId === ringId && !d.dead);
     this.gestures.set(p.id, {
       ringId,
       typeId,
@@ -167,6 +179,7 @@ export class BattleScene extends Phaser.Scene {
       downX: x,
       downY: y,
       movedTooFar: false,
+      mode: occupied ? 'inspect' : 'place',
     });
   }
 
@@ -301,6 +314,19 @@ export class BattleScene extends Phaser.Scene {
       g.fillCircle(ring.x, ring.y, ring.radius);
     }
 
+    // Persistent selection highlight on the inspected Defender's ring (issue #30
+    // AC2): the modeless panel follows whichever occupied ring was last tapped.
+    const inspectedId = this.registry.get('inspected') as string | null | undefined;
+    if (inspectedId) {
+      const ring = this.rings.find((r) => r.id === inspectedId);
+      if (ring) {
+        g.lineStyle(4, COLOR.selected, 1);
+        g.strokeCircle(ring.x, ring.y, ring.radius + 10);
+        g.lineStyle(2, COLOR.inspect, 0.9);
+        g.strokeCircle(ring.x, ring.y, ring.radius + 4);
+      }
+    }
+
     // Enemies (and their hit points) advancing along the trail.
     for (const enemy of this.battle.enemies) {
       if (enemy.dead) continue;
@@ -346,10 +372,17 @@ export class BattleScene extends Phaser.Scene {
       g.lineBetween(p.fromX, p.fromY, p.toX, p.toY);
     }
 
-    // Defender ghost + range preview for each in-flight tap (issue #22 AC2).
+    // Defender ghost + range preview for each in-flight placement tap (issue
+    // #22 AC2); an inspect tap instead draws a selection cue on the occupied
+    // ring (issue #30) and never previews a purchase.
     for (const gesture of this.gestures.values()) {
       const ring = this.rings.find((r) => r.id === gesture.ringId);
       if (!ring) continue;
+      if (gesture.mode === 'inspect') {
+        g.lineStyle(3, COLOR.inspect, 0.95);
+        g.strokeCircle(ring.x, ring.y, ring.radius + 8);
+        continue;
+      }
       const colour = gesture.valid ? COLOR.ring : COLOR.invalid;
       const range = getDefender(gesture.typeId)?.range ?? 0;
       if (range > 0) {
