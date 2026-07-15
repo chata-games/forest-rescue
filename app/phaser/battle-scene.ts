@@ -55,7 +55,7 @@ interface Gesture {
   ringId: string;
   /** Defender type captured at touch-down; the release commits this exact tool. */
   typeId: string;
-  /** Whether placement would succeed right now (drives ghost colour). */
+  /** Whether placement would succeed at touch-down (drives ghost colour). */
   valid: boolean;
   /** CSS-pixel touch-down origin for the movement threshold. */
   downX: number;
@@ -143,12 +143,14 @@ export class BattleScene extends Phaser.Scene {
   private onPointerDown(p: Phaser.Input.Pointer): void {
     const ringId = this.ringAt(p.worldX, p.worldY);
     if (!ringId) return; // empty ground: nothing to start
+    const { x, y } = this.clientPos(p);
+    const typeId = this.battle.selectedDefenderType;
     this.gestures.set(p.id, {
       ringId,
-      typeId: this.battle.selectedDefenderType,
-      valid: this.battle.canPlaceDefender(ringId, this.battle.selectedDefenderType).ok,
-      downX: this.clientX(p),
-      downY: this.clientY(p),
+      typeId,
+      valid: this.battle.canPlaceDefender(ringId, typeId).ok,
+      downX: x,
+      downY: y,
       movedTooFar: false,
     });
   }
@@ -156,7 +158,8 @@ export class BattleScene extends Phaser.Scene {
   private onPointerMove(p: Phaser.Input.Pointer): void {
     const g = this.gestures.get(p.id);
     if (!g || g.movedTooFar) return;
-    const moved = Math.hypot(this.clientX(p) - g.downX, this.clientY(p) - g.downY);
+    const { x, y } = this.clientPos(p);
+    const moved = Math.hypot(x - g.downX, y - g.downY);
     if (moved > MOVE_THRESHOLD_PX) g.movedTooFar = true;
   }
 
@@ -173,15 +176,10 @@ export class BattleScene extends Phaser.Scene {
     this.onRingClick(g.ringId, g.typeId);
   }
 
-  /** CSS-pixel pointer origin for the movement threshold (scale-independent). */
-  private clientX(p: Phaser.Input.Pointer): number {
-    const e = p.event as unknown as { clientX?: number } | undefined;
-    return e?.clientX ?? p.x;
-  }
-
-  private clientY(p: Phaser.Input.Pointer): number {
-    const e = p.event as unknown as { clientY?: number } | undefined;
-    return e?.clientY ?? p.y;
+  /** CSS-pixel pointer position for the movement threshold (scale-independent). */
+  private clientPos(p: Phaser.Input.Pointer): { x: number; y: number } {
+    const e = p.event as unknown as { clientX?: number; clientY?: number } | undefined;
+    return { x: e?.clientX ?? p.x, y: e?.clientY ?? p.y };
   }
 
   // --- Rendering --------------------------------------------------------
@@ -228,21 +226,17 @@ export class BattleScene extends Phaser.Scene {
     const g = this.dynamic;
     g.clear();
 
-    // Highlight occupied rings on top of the static slot.
+    // Overlay each fairy ring once: occupied rings glow gold, while empty rings
+    // that accept the selected tool get a soft hint so a tap-tap player can see
+    // every legal target at once.
+    const selected = this.battle.selectedDefenderType;
     for (const ring of this.rings) {
       const occupied = this.battle.defenders.some((d) => d.ringId === ring.id && !d.dead);
       if (occupied) {
         g.lineStyle(3, COLOR.ringOccupied, 1);
         g.strokeCircle(ring.x, ring.y, ring.radius);
+        continue;
       }
-    }
-
-    // Redundant visual cues on the empty fairy rings compatible with the
-    // selected tool, so a tap-tap player can see every legal target at once.
-    const selected = this.battle.selectedDefenderType;
-    for (const ring of this.rings) {
-      const occupied = this.battle.defenders.some((d) => d.ringId === ring.id && !d.dead);
-      if (occupied) continue;
       if (!this.battle.canPlaceDefender(ring.id, selected).ok) continue;
       g.lineStyle(2, COLOR.ringHint, 0.9);
       g.strokeCircle(ring.x, ring.y, ring.radius + 6);
