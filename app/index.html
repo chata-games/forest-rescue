@@ -18,6 +18,9 @@
     <header class="trail__header">
       <h1 class="trail__title" id="trailTitle">Forest Rescue: Heartwood</h1>
       <p class="trail__subtitle">Follow the Trail to the Heartwood. Select a level to inspect it.</p>
+      <div class="trail__tools">
+        <button id="trailAudioBtn" class="hud__btn" type="button" aria-label="Audio controls">Audio</button>
+      </div>
     </header>
 
     <!-- One-time save recovery notice (issue #27 AC3/AC4): shown only when a save
@@ -50,6 +53,7 @@
       <p id="detailUnlock" class="detail__unlock" role="note"></p>
       <div class="detail__actions">
         <button id="detailBack" class="detail__back" type="button" autofocus>Back to Trail</button>
+        <button id="detailStory" class="detail__story" type="button">Story</button>
         <button id="detailEnter" class="primary-btn" type="button">Enter</button>
       </div>
     </div>
@@ -110,6 +114,7 @@
       </div>
 
       <button id="pauseBtn" class="hud__btn" type="button" aria-pressed="false" aria-label="Pause battle">Pause</button>
+      <button id="audioBtn" class="hud__btn" type="button" aria-label="Audio controls">Audio</button>
     </header>
 
     <div class="stage-wrap">
@@ -155,6 +160,22 @@
         <h3 class="wave-preview__title">Incoming Waves</h3>
         <div id="wavePreviewBody" class="wave-preview__body"></div>
       </section>
+
+      <!-- Tutorial tip (issue #33 AC2): a dismissible, non-modal prompt shown in
+           the planning phase only — never a mandatory overlay during active
+           defense. Teaches one concept at a time; "Got it" advances to the next,
+           "Skip tutorials" dismisses the rest for the session. -->
+      <section id="tutorialHint" class="tutorial" role="region" aria-label="Tutorial tip" hidden>
+        <div class="tutorial__head">
+          <h3 id="tutorialTitle" class="tutorial__title"></h3>
+          <button id="tutorialClose" class="tutorial__close" type="button" aria-label="Close tutorial tip">×</button>
+        </div>
+        <p id="tutorialBody" class="tutorial__body"></p>
+        <div class="tutorial__actions">
+          <button id="tutorialSkip" class="tutorial__action" type="button">Skip tutorials</button>
+          <button id="tutorialAdvance" class="primary-btn" type="button">Got it</button>
+        </div>
+      </section>
     </div>
 
     <nav id="toolbar" class="toolbar" aria-label="Defender selection" hidden>
@@ -169,6 +190,7 @@
     <div class="start-row">
       <button id="startBtn" class="primary-btn" type="button">Start Wave</button>
       <button id="undoBtn" class="hud__btn" type="button" disabled aria-label="Undo last placement (Z)">Undo</button>
+      <button id="tipsBtn" class="hud__btn" type="button" aria-label="Show tutorial tips again">Tips</button>
       <output id="hint" class="hint" role="status" aria-live="polite"></output>
     </div>
 
@@ -213,8 +235,11 @@
           <button id="exitBtn" class="overlay__btn overlay__btn--danger" type="button">Exit to Campaign</button>
         </div>
         <div id="pauseSettings" class="overlay__settings" hidden>
-          <button id="pauseLayoutBtn" class="overlay__btn" type="button">Layout</button>
-          <p class="overlay__note">Two-thumb landscape is preferred; portrait scales the whole battlefield to fit.</p>
+          <div class="overlay__settings-row">
+            <button id="pauseLayoutBtn" class="overlay__btn" type="button">Layout</button>
+            <button id="pauseAudioBtn" class="overlay__btn" type="button">Audio</button>
+          </div>
+          <p class="overlay__note">Two-thumb landscape is preferred; portrait scales the whole battlefield to fit. Music and effects are controlled independently under Audio.</p>
         </div>
         <div id="pauseConfirm" class="overlay__confirm" role="alertdialog" aria-label="Confirm action" hidden>
           <p id="pauseConfirmText" class="overlay__note"></p>
@@ -226,6 +251,52 @@
       </div>
     </section>
   </div>
+
+  <!-- Story panel (issue #33 AC1): an optional, readable narrative beat shown
+       before a battle (pre) and after a victory (post), and replayable from the
+       campaign detail surface. Skippable: "Skip" dismisses without reading.
+       position:fixed so it overlays the Trail, Loadout, or Battle alike. -->
+  <section id="storyPanel" class="sheet" role="dialog" aria-modal="true" aria-labelledby="storyTitle" hidden>
+    <div class="sheet__panel">
+      <h2 id="storyTitle" class="sheet__title"></h2>
+      <div id="storyBody" class="sheet__body"></div>
+      <div class="sheet__actions">
+        <button id="storySkip" class="sheet__btn" type="button">Skip</button>
+        <button id="storyPrimary" class="primary-btn" type="button">Begin</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Audio controls (issue #33 AC4): master, music, and effects are controlled
+       independently; nothing required is audio-only. Each channel has a level
+       slider and a mute toggle. Persisted to localStorage; reachable from the
+       Trail, the HUD, and the pause Settings. -->
+  <section id="audioPanel" class="sheet" role="dialog" aria-modal="true" aria-label="Audio controls" hidden>
+    <div class="sheet__panel audio">
+      <h2 class="sheet__title">Audio</h2>
+      <ul class="audio__channels">
+        <li class="audio__channel" data-channel="master">
+          <label class="audio__label" for="audioMaster">Master</label>
+          <input id="audioMaster" class="audio__slider" type="range" min="0" max="1" step="0.1" value="1" aria-label="Master volume" />
+          <button id="audioMasterMute" class="audio__mute" type="button" aria-pressed="false">Mute</button>
+        </li>
+        <li class="audio__channel" data-channel="music">
+          <label class="audio__label" for="audioMusic">Music</label>
+          <input id="audioMusic" class="audio__slider" type="range" min="0" max="1" step="0.1" value="0.8" aria-label="Music volume" />
+          <button id="audioMusicMute" class="audio__mute" type="button" aria-pressed="false">Mute</button>
+        </li>
+        <li class="audio__channel" data-channel="effects">
+          <label class="audio__label" for="audioEffects">Effects</label>
+          <input id="audioEffects" class="audio__slider" type="range" min="0" max="1" step="0.1" value="0.8" aria-label="Effects volume" />
+          <button id="audioEffectsMute" class="audio__mute" type="button" aria-pressed="false">Mute</button>
+        </li>
+      </ul>
+      <p class="audio__note">Sound is optional. Every audio cue also appears on screen, so you never miss anything by playing muted.</p>
+      <div class="sheet__actions">
+        <button id="audioClose" class="primary-btn" type="button">Close</button>
+      </div>
+    </div>
+  </section>
 
   <script type="module" src="./main.ts"></script>
 </body>

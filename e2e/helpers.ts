@@ -58,6 +58,17 @@ export interface FrApi {
   saveNotice(): FrSaveNotice | null;
   injectSaveRaw(raw: string | null): void;
   clearSave(): void;
+  // Story / tutorial / audio seam (issue #33 AC6).
+  storyFor(levelId: string, kind: 'pre' | 'post'): { title: string; body: string } | null;
+  storySeen(): Record<string, boolean>;
+  storyReplay(levelId: string): void;
+  tutorialSteps(): string[];
+  tutorialDismissed(): Record<string, boolean>;
+  tutorialReset(): void;
+  audioSettings(): { master: number; music: number; effects: number };
+  audioEffective(channel: 'master' | 'music' | 'effects'): number;
+  audioSet(channel: 'master' | 'music' | 'effects', value: number): void;
+  audioMute(channel: 'master' | 'music' | 'effects'): void;
 }
 
 /**

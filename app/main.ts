@@ -70,6 +70,37 @@ import {
   type SaveLoadOutcome,
   type SaveNotice,
 } from './domain/save';
+import {
+  buildStoryPanel,
+  markStorySeen,
+  shouldShowStory,
+  storyForLevel,
+  type StoryKind,
+  type StorySeen,
+} from './domain/story';
+import {
+  buildTutorialView,
+  currentTutorialStep,
+  dismissAllTutorials,
+  dismissTutorial,
+  resetTutorials,
+  tutorialStepsFor,
+  type TutorialDismissed,
+  type TutorialInput,
+  type TutorialStep,
+} from './domain/tutorial';
+import {
+  AUDIO_CHANNELS,
+  effectiveVolume,
+  isChannelMuted,
+  isMuted,
+  loadAudio,
+  serializeAudio,
+  setChannel,
+  toggleChannelMute,
+  type AudioChannel,
+  type AudioSettings,
+} from './domain/audio';
 import { recordResult } from './domain/scoring';
 import { buildPreviewSummary, type PreviewSummary, type SimulationFile } from './domain/preview';
 import type { CompiledLevel } from './domain/types';
@@ -81,6 +112,16 @@ import lvl04 from '../levels/compiled/04-mushroom-hollow.json';
 import lvl05 from '../levels/compiled/05-sawmill-clearing.json';
 import lvl06 from '../levels/compiled/06-ashfall-scar.json';
 import lvl07 from '../levels/compiled/07-boulder-pass.json';
+// Level intents supply the authored learning goal that drives each level's
+// optional tutorial (issue #33 AC2). Intents are coordinate-free authoring briefs
+// (see ADR-001); only the stable learning-goal concept tag is read at runtime.
+import intent01 from '../levels/intents/01-meadows-edge.json';
+import intent02 from '../levels/intents/02-old-stump-crossroads.json';
+import intent03 from '../levels/intents/03-whispering-river.json';
+import intent04 from '../levels/intents/04-mushroom-hollow.json';
+import intent05 from '../levels/intents/05-sawmill-clearing.json';
+import intent06 from '../levels/intents/06-ashfall-scar.json';
+import intent07 from '../levels/intents/07-boulder-pass.json';
 
 const manifest = manifestRaw as CampaignManifest;
 
@@ -121,6 +162,28 @@ function buildMeta(level: CompiledLevel): LevelMeta {
 
 const META: Record<string, LevelMeta> = {};
 for (const id of Object.keys(COMPILED)) META[id] = buildMeta(COMPILED[id]);
+
+// Authored level intents, keyed by stable id. Only the learning-goal concept tag
+// (and the compiled level's modifiers) feed the optional tutorial (issue #33).
+const INTENTS: Record<string, { learningGoal?: string; levelModifiers?: string[] }> = {
+  '01-meadows-edge': intent01,
+  '02-old-stump-crossroads': intent02,
+  '03-whispering-river': intent03,
+  '04-mushroom-hollow': intent04,
+  '05-sawmill-clearing': intent05,
+  '06-ashfall-scar': intent06,
+  '07-boulder-pass': intent07,
+};
+
+/** The tutorial input for a level: its learning goal + authored modifiers. */
+function tutorialInputFor(levelId: string): TutorialInput {
+  const compiled = COMPILED[levelId];
+  const intent = INTENTS[levelId];
+  return {
+    learningGoal: intent?.learningGoal,
+    levelModifiers: compiled?.levelModifiers ?? intent?.levelModifiers ?? [],
+  };
+}
 
 /**
  * Defenders AND spells immediately available for a level's Loadout: every reward
@@ -374,10 +437,41 @@ const restartBtn = $<HTMLButtonElement>('restartBtn');
 const exitBtn = $<HTMLButtonElement>('exitBtn');
 const pauseSettings = $<HTMLElement>('pauseSettings');
 const pauseLayoutBtn = $<HTMLButtonElement>('pauseLayoutBtn');
+const pauseAudioBtn = $<HTMLButtonElement>('pauseAudioBtn');
 const pauseConfirm = $<HTMLElement>('pauseConfirm');
 const pauseConfirmText = $<HTMLParagraphElement>('pauseConfirmText');
 const pauseConfirmYes = $<HTMLButtonElement>('pauseConfirmYes');
 const pauseConfirmNo = $<HTMLButtonElement>('pauseConfirmNo');
+
+// Issue #33 surfaces: optional story panels, dismissible tutorial tips, and
+// independent audio controls.
+const storyPanel = $<HTMLElement>('storyPanel');
+const storyTitle = $<HTMLHeadingElement>('storyTitle');
+const storyBody = $<HTMLElement>('storyBody');
+const storyPrimaryBtn = $<HTMLButtonElement>('storyPrimary');
+const storySkipBtn = $<HTMLButtonElement>('storySkip');
+const detailStoryBtn = $<HTMLButtonElement>('detailStory');
+
+const tutorialHint = $<HTMLElement>('tutorialHint');
+const tutorialTitle = $<HTMLHeadingElement>('tutorialTitle');
+const tutorialBody = $<HTMLParagraphElement>('tutorialBody');
+const tutorialAdvanceBtn = $<HTMLButtonElement>('tutorialAdvance');
+const tutorialSkipBtn = $<HTMLButtonElement>('tutorialSkip');
+const tutorialCloseBtn = $<HTMLButtonElement>('tutorialClose');
+
+const audioBtn = $<HTMLButtonElement>('audioBtn');
+const trailAudioBtn = $<HTMLButtonElement>('trailAudioBtn');
+const audioPanel = $<HTMLElement>('audioPanel');
+const audioCloseBtn = $<HTMLButtonElement>('audioClose');
+/** A channel's slider + mute button, looked up by data-channel. */
+function audioControls(channel: AudioChannel): { slider: HTMLInputElement; mute: HTMLButtonElement; row: HTMLElement } {
+  const row = audioPanel.querySelector<HTMLElement>(`.audio__channel[data-channel="${channel}"]`)!;
+  return {
+    row,
+    slider: row.querySelector<HTMLInputElement>('.audio__slider')!,
+    mute: row.querySelector<HTMLButtonElement>('.audio__mute')!,
+  };
+}
 
 const hudElements: HudElements = {
   mana: manaValue,
@@ -402,6 +496,283 @@ const detailElements: DetailElements = {
   unlock: $<HTMLParagraphElement>('detailUnlock'),
   enterBtn: detailEnterBtn,
 };
+
+// --- Audio settings (issue #33 AC4) ---------------------------------------
+// Independent master/music/effects levels, persisted to localStorage under a
+// dedicated key. The domain module owns the rules (clamp, channel resolution,
+// safe load); the shell owns IO + the range/mute controls. Audio never gates
+// gameplay — it only scales volume — so muting everything loses nothing.
+const AUDIO_KEY = 'heartwood-audio-v1';
+
+function readAudioRaw(): string | null {
+  try {
+    return localStorage.getItem(AUDIO_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function writeAudioRaw(raw: string): void {
+  try {
+    localStorage.setItem(AUDIO_KEY, raw);
+  } catch {
+    /* localStorage may be unavailable — settings stay in-memory. */
+  }
+}
+
+let audioSettings: AudioSettings = loadAudio(readAudioRaw());
+
+function persistAudio(): void {
+  writeAudioRaw(serializeAudio(audioSettings));
+}
+
+/** Reflect the live settings onto the sliders + mute buttons + muted state. */
+function syncAudioPanel(): void {
+  for (const channel of AUDIO_CHANNELS) {
+    const { slider, mute, row } = audioControls(channel);
+    slider.value = String(audioSettings[channel]);
+    const muted = isChannelMuted(audioSettings, channel);
+    mute.setAttribute('aria-pressed', String(muted));
+    mute.textContent = muted ? 'Muted' : 'Mute';
+    row.dataset.muted = String(muted);
+  }
+}
+
+/** Apply one channel change from a slider, persist, and refresh the panel. */
+function applyAudioChannel(channel: AudioChannel, value: number): void {
+  audioSettings = setChannel(audioSettings, channel, value);
+  persistAudio();
+  syncAudioPanel();
+}
+
+/** Toggle a channel's mute, persist, and refresh the panel. */
+function applyAudioMute(channel: AudioChannel): void {
+  audioSettings = toggleChannelMute(audioSettings, channel);
+  persistAudio();
+  syncAudioPanel();
+  // A user gesture on a control is the right moment to (re)start the audio bus.
+  ensureAudioBus();
+}
+
+// --- Audio bus + cues (issue #33 AC4) -------------------------------------
+// A guarded Web Audio cue player so the independent volume levels actually
+// drive output. Created lazily on the first user gesture (autoplay policy) and
+// fully wrapped so audio can never break gameplay. Every cue also has an on-
+// screen representation (see AUDIO_CUES), so the game is fully playable muted.
+let audioCtx: AudioContext | null = null;
+
+/** Lazily create the audio bus on a user gesture (browsers require it). */
+function ensureAudioBus(): void {
+  if (audioCtx) {
+    if (audioCtx.state === 'suspended') void audioCtx.resume();
+    return;
+  }
+  try {
+    const Ctor: typeof AudioContext | undefined =
+      window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!Ctor) return;
+    audioCtx = new Ctor();
+  } catch {
+    /* Web Audio unavailable — the game stays fully playable (audio is supplementary). */
+  }
+}
+
+/** A short, gentle confirmation tone per cue, scaled by the effects channel. */
+const CUE_FREQ: Record<string, number> = {
+  place: 523.25,
+  cast: 659.25,
+  collect: 783.99,
+  victory: 880,
+  defeat: 196,
+  unlock: 698.46,
+  upgrade: 587.33,
+};
+
+function playCue(id: string): void {
+  if (!audioCtx || isMuted(audioSettings)) return;
+  const vol = effectiveVolume(audioSettings, 'effects');
+  if (vol <= 0) return;
+  try {
+    const now = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = CUE_FREQ[id] ?? 440;
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.linearRampToValueAtTime(vol * 0.16, now + 0.012);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
+    osc.connect(gain).connect(audioCtx.destination);
+    osc.start(now);
+    osc.stop(now + 0.24);
+  } catch {
+    /* never let audio break gameplay */
+  }
+}
+
+/**
+ * Open the audio controls sheet (reachable from the Trail, HUD, and pause
+ * Settings). Non-destructive: it never pauses or interrupts a battle.
+ */
+let audioReturnFocus: HTMLElement | null = null;
+function openAudioPanel(origin: HTMLElement | null): void {
+  audioReturnFocus = origin;
+  syncAudioPanel();
+  audioPanel.hidden = false;
+  audioCloseBtn.focus();
+}
+
+function closeAudioPanel(): void {
+  audioPanel.hidden = true;
+  (audioReturnFocus ?? trailAudioBtn).focus();
+  audioReturnFocus = null;
+}
+
+audioCloseBtn.addEventListener('click', closeAudioPanel);
+audioBtn.addEventListener('click', () => openAudioPanel(audioBtn));
+trailAudioBtn?.addEventListener('click', () => openAudioPanel(trailAudioBtn));
+pauseAudioBtn?.addEventListener('click', () => openAudioPanel(pauseAudioBtn));
+for (const channel of AUDIO_CHANNELS) {
+  const { slider, mute } = audioControls(channel);
+  slider.addEventListener('input', () => applyAudioChannel(channel, Number(slider.value)));
+  mute.addEventListener('click', () => applyAudioMute(channel));
+}
+
+// --- Optional story panels (issue #33 AC1) --------------------------------
+// Pre/post narrative beats, skippable (auto-show once per session) and
+// replayable from the campaign detail surface. A small queue lets a replay walk
+// pre → post, and lets the auto post-victory beat defer the outcome overlay
+// until the Guardian has read (or skipped) it.
+let storySeen: StorySeen = {};
+let storyQueue: { levelId: string; kind: StoryKind }[] = [];
+/** While a post-victory beat is showing, the outcome overlay waits underneath. */
+let deferOutcome = false;
+let storyReturnFocus: HTMLElement | null = null;
+
+function renderStoryBeat(beat: { levelId: string; kind: StoryKind }): void {
+  const story = storyForLevel(beat.levelId, beat.kind);
+  if (!story) {
+    advanceStory();
+    return;
+  }
+  const view = buildStoryPanel(story);
+  storyTitle.textContent = view.title;
+  storyBody.textContent = view.body;
+  storyPrimaryBtn.textContent = view.primaryAction;
+  storySkipBtn.textContent = view.skipAction;
+  storyPanel.hidden = false;
+  storyPrimaryBtn.focus();
+}
+
+/** Advance the story queue; when it empties, close the panel and reveal a
+ *  deferred outcome overlay (post-victory) or restore focus (replay). */
+function advanceStory(): void {
+  const next = storyQueue.shift();
+  if (next) {
+    renderStoryBeat(next);
+    return;
+  }
+  storyPanel.hidden = true;
+  const wasDeferring = deferOutcome;
+  deferOutcome = false;
+  if (wasDeferring) {
+    // The victory outcome was held while the post beat showed; reveal it now.
+    overlay.hidden = false;
+    returnToTrailBtn.focus();
+  } else {
+    storyReturnFocus?.focus();
+    storyReturnFocus = null;
+  }
+}
+
+/** Show a beat once (auto path): only if it has not been seen this session. */
+function openStoryAuto(levelId: string, kind: StoryKind, origin: HTMLElement | null = null): void {
+  if (!shouldShowStory(storySeen, levelId, kind)) return;
+  storyReturnFocus = origin;
+  storyQueue = [{ levelId, kind }];
+  renderStoryBeat({ levelId, kind });
+}
+
+/** Replay a level's story from the campaign surface (bypasses seen-state): pre,
+ *  then post if the level has been cleared. */
+function openStoryReplay(levelId: string, origin: HTMLElement | null = null): void {
+  const queue: { levelId: string; kind: StoryKind }[] = [];
+  if (storyForLevel(levelId, 'pre')) queue.push({ levelId, kind: 'pre' });
+  if (progress[levelId]?.cleared && storyForLevel(levelId, 'post')) queue.push({ levelId, kind: 'post' });
+  if (queue.length === 0) return;
+  storyReturnFocus = origin;
+  storyQueue = queue;
+  renderStoryBeat(queue[0]!);
+}
+
+storyPrimaryBtn.addEventListener('click', () => {
+  // Mark the current beat seen (so it won't auto-repeat) and advance.
+  const head = storyQueue[0];
+  if (head) storySeen = markStorySeen(storySeen, head.levelId, head.kind);
+  advanceStory();
+});
+
+storySkipBtn.addEventListener('click', () => {
+  const head = storyQueue[0];
+  if (head) storySeen = markStorySeen(storySeen, head.levelId, head.kind);
+  storyQueue = [];
+  advanceStory();
+});
+
+// --- Tutorial tips (issue #33 AC2) ----------------------------------------
+// One concept at a time, surfaced as a dismissible, non-modal region in the
+// planning phase only — never a mandatory overlay during active defense.
+let tutorialDismissed: TutorialDismissed = {};
+let currentSteps: TutorialStep[] = [];
+
+function refreshTutorial(): void {
+  const step = currentTutorialStep(currentSteps, tutorialDismissed);
+  if (!step) {
+    tutorialHint.hidden = true;
+    return;
+  }
+  const isLast = currentSteps.indexOf(step) === currentSteps.length - 1;
+  const view = buildTutorialView(step, { isLast });
+  tutorialTitle.textContent = view.title;
+  tutorialBody.textContent = view.body;
+  tutorialAdvanceBtn.textContent = view.advanceAction;
+  tutorialSkipBtn.textContent = view.skipAllAction;
+  tutorialHint.hidden = false;
+}
+
+tutorialAdvanceBtn.addEventListener('click', () => {
+  const step = currentTutorialStep(currentSteps, tutorialDismissed);
+  if (step) tutorialDismissed = dismissTutorial(tutorialDismissed, step.concept);
+  refreshTutorial();
+});
+
+tutorialSkipBtn.addEventListener('click', () => {
+  tutorialDismissed = dismissAllTutorials(currentSteps, tutorialDismissed);
+  refreshTutorial();
+});
+
+tutorialCloseBtn.addEventListener('click', () => {
+  const step = currentTutorialStep(currentSteps, tutorialDismissed);
+  if (step) tutorialDismissed = dismissTutorial(tutorialDismissed, step.concept);
+  refreshTutorial();
+});
+
+// Replay the tutorial tips (issue #33 AC2): a HUD control that re-enables every
+// dismissed concept so the prompts show again in the planning phase.
+const tipsBtn = $<HTMLButtonElement>('tipsBtn');
+tipsBtn.addEventListener('click', () => {
+  tutorialDismissed = resetTutorials(tutorialDismissed);
+  refreshTutorial();
+});
+
+detailStoryBtn.addEventListener('click', () => {
+  if (!selectedId) return;
+  // The detail is a native <dialog> (top layer); a fixed story sheet would render
+  // behind it, so close the detail first and show the story over the Trail. Focus
+  // returns to the level's node once the story is dismissed.
+  const node = nodeButtons.find((b) => b.dataset.level === selectedId) ?? null;
+  closeDetail();
+  openStoryReplay(selectedId, node);
+});
 
 // --- Layout + level selection (author preview) ---------------------------
 // The effective battle layout (issue #24 AC1). A forced `?layout=` override (or a
@@ -690,6 +1061,18 @@ window.addEventListener('keydown', (e) => {
   const typing = e.target instanceof HTMLElement && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
   if (typing) return;
   if (e.key === 'Escape') {
+    // Top-most overlays first: the audio sheet and the story panel sit above the
+    // battlefield, so Escape dismisses them before falling through to spell/inspect.
+    if (!audioPanel.hidden) {
+      e.preventDefault();
+      closeAudioPanel();
+      return;
+    }
+    if (!storyPanel.hidden) {
+      e.preventDefault();
+      storySkipBtn.click();
+      return;
+    }
     if (battle?.armedSpell) {
       e.preventDefault();
       cancelArmedSpell();
@@ -740,6 +1123,7 @@ function commitPlacement(ringId: string, typeId?: string): void {
   if (result.ok) {
     const stats = getDefender(result.defender.typeId);
     showHint(`Planted ${stats?.name ?? 'defender'}`);
+    playCue('place');
   } else {
     showHint(humanReason(result.reason));
   }
@@ -815,6 +1199,7 @@ cpUpgradeBtn.addEventListener('click', () => {
     showHint(`Upgraded to tier ${result.tier + 1} — ${result.cost} mana`);
     removeConfirming = false;
     syncContextPanel();
+    playCue('upgrade');
   } else {
     showHint(humanReason(result.reason));
   }
@@ -876,6 +1261,7 @@ function handleSpellCast(x: number, y: number, typeId?: string): void {
   if (result.ok) {
     const name = getSpell(typeId ?? '')?.name ?? 'Spell';
     showHint(`Cast ${name}`);
+    playCue('cast');
   } else {
     showHint(humanReason(result.reason));
   }
@@ -884,7 +1270,10 @@ function handleSpellCast(x: number, y: number, typeId?: string): void {
 function handleCollectFlower(flowerId: string): void {
   if (!battle) return;
   const result = battle.collectManaFlower(flowerId);
-  if (result.ok) showHint(`Collected +${result.mana} mana`);
+  if (result.ok) {
+    showHint(`Collected +${result.mana} mana`);
+    playCue('collect');
+  }
 }
 
 // --- Wave preview + Planning Pause (issue #32) ----------------------------
@@ -1031,6 +1420,9 @@ function resetBattleHud(): void {
   lastSync = '';
   outcomeRecorded = false;
   overlay.hidden = true;
+  deferOutcome = false;
+  storyPanel.hidden = true;
+  storyQueue = [];
   startBtn.textContent = 'Start Wave';
   startBtn.disabled = false;
   pauseBtn.setAttribute('aria-pressed', 'false');
@@ -1039,6 +1431,7 @@ function resetBattleHud(): void {
   closePauseMenu();
   hint.textContent = '';
   closeInspect();
+  tutorialHint.hidden = true;
   // Default to the Loadout's first Defender so the placement tool the scene
   // snapshots is always one the Guardian actually brought (issue #21).
   const firstDefender = currentLoadout.find(
@@ -1056,6 +1449,17 @@ function recordOutcome(snap: BattleSnapshot): void {
   // result across replays (issue #29 AC1/AC3).
   progress = recordResult(progress, currentLevelId, battle.resultInput());
   persistSave();
+  // Audio cue for the outcome (issue #33 AC4) — every cue also has an on-screen
+  // representation, so this is supplementary, never required.
+  playCue(snap.phase === 'won' ? 'victory' : 'defeat');
+  // The optional post-victory story beat (issue #33 AC1): shown once, and it
+  // holds the outcome overlay underneath until read or skipped, so the victory
+  // narrative and the result panel never compete for focus at once.
+  if (snap.phase === 'won' && shouldShowStory(storySeen, currentLevelId, 'post')) {
+    deferOutcome = true;
+    storyQueue = [{ levelId: currentLevelId, kind: 'post' }];
+    renderStoryBeat({ levelId: currentLevelId, kind: 'post' });
+  }
 }
 
 // --- Preview legend (author overlays) ------------------------------------
@@ -1113,6 +1517,11 @@ function syncHud(snap: BattleSnapshot): void {
   lastSync = key;
   renderHud(snap, hudElements);
 
+  // While a post-victory story beat holds the surface, keep the outcome overlay
+  // hidden underneath (issue #33 AC1); advanceStory reveals it once the beat is
+  // read or skipped.
+  if (deferOutcome) overlay.hidden = true;
+
   // Planning Pause (issue #32): the button, the overlay, and the wave preview all
   // reflect the snapshot, so a backgrounding-driven pause (not a button click) is
   // surfaced too. Combat resumes only through Resume (AC5/AC6).
@@ -1132,6 +1541,10 @@ function syncHud(snap: BattleSnapshot): void {
   const showWavePreview = snap.phase === 'planning' && !snap.paused;
   wavePreviewPanel.hidden = !showWavePreview;
   renderWavePreview(snap);
+  // Tutorial tips (issue #33 AC2) live in the planning phase only — never during
+  // active defense. A pause hides them (planning-planning still shows on Resume).
+  if (snap.phase === 'planning' && !snap.paused) refreshTutorial();
+  else tutorialHint.hidden = true;
 }
 
 /** Project spell availability + armed state onto the toolbar each frame, and keep
@@ -1352,9 +1765,20 @@ function enterLevel(levelId: string, loadout: Loadout): void {
   bootBattleScene();
   if (options.preview) renderPreviewLegend();
   window.fr = makeDebugApi();
-  // Offer the once-per-session portrait recommendation when entering in portrait
-  // (issue #24 AC2). After the first dismissal it never shows again this session.
-  if (shouldShowPortraitAdvice(effectiveLayoutNow(), portraitAdviceShown)) {
+  // Resolve this level's optional tutorial steps (issue #33 AC2): one concept at
+  // a time, surfaced non-modally in the planning phase below.
+  currentSteps = tutorialStepsFor(tutorialInputFor(levelId));
+  refreshTutorial();
+  // A user gesture (the Start that led here) is the moment the audio bus may
+  // legally start under the browser autoplay policy (issue #33 AC4).
+  ensureAudioBus();
+  // Offer the optional pre-battle story beat once per session (issue #33 AC1),
+  // before active defense begins and skippable. The story panel (z-20) takes
+  // precedence over the portrait recommendation (z-9) to avoid stacking two
+  // modals; the once-per-session portrait tip shows on a later entry instead.
+  if (shouldShowStory(storySeen, levelId, 'pre')) {
+    openStoryAuto(levelId, 'pre', pauseBtn);
+  } else if (shouldShowPortraitAdvice(effectiveLayoutNow(), portraitAdviceShown)) {
     showPortraitAdvice();
   }
 }
@@ -1368,6 +1792,11 @@ function returnToTrail(): void {
   currentLevelId = null;
   currentLoadoutCtx = null;
   currentLoadout = emptyLoadout(0);
+  currentSteps = [];
+  tutorialHint.hidden = true;
+  storyPanel.hidden = true;
+  storyQueue = [];
+  deferOutcome = false;
   closeDetail();
   battleRoot.hidden = true;
   loadoutScreen.hidden = true;
@@ -1470,6 +1899,23 @@ function makeDebugApi(): ForestRescueDebug {
       refreshTrail();
       showSaveNotice(null);
     },
+    // --- Story / tutorial / audio seam (issue #33 AC6) ---
+    storyFor: (levelId, kind) => {
+      const beat = storyForLevel(levelId, kind);
+      return beat ? { title: beat.title, body: beat.lines.join('\n\n') } : null;
+    },
+    storySeen: () => Object.fromEntries(Object.keys(storySeen).map((k) => [k, true])),
+    storyReplay: (levelId) => openStoryReplay(levelId),
+    tutorialSteps: () => currentSteps.map((s) => s.concept),
+    tutorialDismissed: () => Object.fromEntries(Object.keys(tutorialDismissed).map((k) => [k, true])),
+    tutorialReset: () => {
+      tutorialDismissed = resetTutorials(tutorialDismissed);
+      refreshTutorial();
+    },
+    audioSettings: () => ({ ...audioSettings }),
+    audioEffective: (channel) => effectiveVolume(audioSettings, channel),
+    audioSet: (channel, value) => applyAudioChannel(channel, value),
+    audioMute: (channel) => applyAudioMute(channel),
   };
 }
 
@@ -1517,6 +1963,17 @@ export interface ForestRescueDebug {
   saveNotice(): SaveNotice | null;
   injectSaveRaw(raw: string | null): void;
   clearSave(): void;
+  // --- Story / tutorial / audio seam (issue #33 AC6) ---
+  storyFor(levelId: string, kind: 'pre' | 'post'): { title: string; body: string } | null;
+  storySeen(): Record<string, boolean>;
+  storyReplay(levelId: string): void;
+  tutorialSteps(): string[];
+  tutorialDismissed(): Record<string, boolean>;
+  tutorialReset(): void;
+  audioSettings(): { master: number; music: number; effects: number };
+  audioEffective(channel: 'master' | 'music' | 'effects'): number;
+  audioSet(channel: 'master' | 'music' | 'effects', value: number): void;
+  audioMute(channel: 'master' | 'music' | 'effects'): void;
 }
 
 /** Observable save snapshot exposed through the debug seam (issue #27 AC6). */

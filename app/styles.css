@@ -1110,3 +1110,243 @@ body[data-layout="portrait"] .stage canvas {
 .overlay__confirm[hidden] {
   display: none;
 }
+
+/* --- Issue #33: optional story, tutorials, and audio controls --- */
+
+/* A full-screen sheet overlay (story + audio). position:fixed so it overlays the
+   Trail, Loadout, or Battle alike; the centered panel reflows for portrait so
+   narrative and audio state stay coherent across layouts (AC3). */
+.sheet {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: #03110ebb;
+  z-index: 20;
+  padding: 16px;
+}
+
+.sheet[hidden] {
+  display: none;
+}
+
+.sheet__panel {
+  max-width: 520px;
+  width: 100%;
+  max-height: 86vh;
+  overflow: auto;
+  text-align: center;
+  background: var(--grove);
+  border: 1px solid var(--leaf);
+  border-radius: 18px;
+  padding: 28px 32px;
+  box-shadow: 0 18px 60px #03110eaa;
+}
+
+.sheet__title {
+  margin: 0 0 10px;
+  font-size: 28px;
+  color: var(--leaf-bright);
+}
+
+.sheet__body {
+  font-size: 17px;
+  line-height: 1.5;
+  white-space: pre-line;
+  margin: 0 0 18px;
+}
+
+.sheet__actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.sheet__btn {
+  min-height: 48px;
+  min-width: 96px;
+  padding: 10px 18px;
+  border-radius: 10px;
+  border: 1px solid var(--leaf);
+  background: transparent;
+  color: var(--ink);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* Story replay entry on the campaign detail surface (AC1). */
+.detail__story {
+  min-height: 48px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--leaf);
+  background: transparent;
+  color: var(--ink);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.trail__tools {
+  margin-top: 10px;
+}
+
+/* --- Tutorial tip (AC2): a non-modal, dismissible planning-phase region --- */
+.tutorial {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  max-width: 320px;
+  background: var(--grove-soft);
+  border: 1px solid var(--leaf);
+  border-radius: 14px;
+  padding: 12px 14px;
+  box-shadow: 0 10px 30px #03110eaa;
+  z-index: 8;
+}
+
+.tutorial[hidden] {
+  display: none;
+}
+
+.tutorial__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.tutorial__title {
+  margin: 0;
+  font-size: 16px;
+  color: var(--leaf-bright);
+}
+
+.tutorial__close {
+  min-width: 36px;
+  min-height: 36px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ink);
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.tutorial__body {
+  margin: 6px 0 10px;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.tutorial__actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.tutorial__action {
+  min-height: 40px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--leaf);
+  background: transparent;
+  color: var(--ink);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* In portrait the tip sits above the reflowed HUD so it never overlaps the
+   full-size controls (AC3). */
+body[data-layout="portrait"] .tutorial {
+  right: 8px;
+  bottom: auto;
+  top: 96px;
+  max-width: 260px;
+}
+
+/* --- Audio panel (AC4): independent master/music/effects controls --- */
+.audio__channels {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  text-align: left;
+}
+
+.audio__channel {
+  display: grid;
+  grid-template-columns: 5.5em 1fr auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.audio__label {
+  font-weight: 700;
+}
+
+.audio__slider {
+  width: 100%;
+  min-height: 28px;
+  accent-color: var(--leaf);
+}
+
+.audio__mute {
+  min-height: 40px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--leaf);
+  background: transparent;
+  color: var(--ink);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.audio__mute[aria-pressed="true"] {
+  background: #2a140e;
+  border-color: var(--heart);
+  color: var(--heart);
+}
+
+.audio__note {
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--ink);
+  opacity: 0.85;
+  margin: 0 0 14px;
+}
+
+/* A muted channel's slider reads as inactive so the state is visible by shape,
+   not colour alone (AC4/a11y). */
+.audio__channel[data-muted="true"] .audio__slider {
+  opacity: 0.5;
+}
+
+/* Settings row keeps Layout + Audio side by side in the pause overlay. */
+.overlay__settings-row {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* On narrow portrait widths the audio channel collapses to stacked rows so every
+   control stays operable (AC3). */
+@media (max-width: 420px) {
+  .audio__channel {
+    grid-template-columns: 1fr auto;
+    grid-template-areas: "label mute" "slider slider";
+  }
+  .audio__label {
+    grid-area: label;
+  }
+  .audio__mute {
+    grid-area: mute;
+  }
+  .audio__slider {
+    grid-area: slider;
+  }
+}
