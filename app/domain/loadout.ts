@@ -136,6 +136,11 @@ export function clearSlot(loadout: Loadout, index: number): Loadout {
   return next;
 }
 
+/** The non-empty slots of a Loadout, in slot order (drops the empty gaps). */
+export function filledSlots(loadout: Loadout): AvailableItem[] {
+  return loadout.filter((slot): slot is AvailableItem => slot !== null);
+}
+
 export type LoadoutProblem = 'unknown-item' | 'duplicate' | 'over-capacity';
 
 export interface LoadoutValidation {
@@ -153,7 +158,7 @@ export interface LoadoutValidation {
  * entries can't arise from the shell but are caught here for corrupt input.
  */
 export function validateLoadout(loadout: Loadout, ctx: LoadoutContext): LoadoutValidation {
-  const filled = loadout.filter((slot): slot is AvailableItem => slot !== null);
+  const filled = filledSlots(loadout);
   const poolKeys = new Set(buildPool(ctx).map(itemKey));
   const seen = new Set<string>();
   for (const item of filled) {
@@ -186,7 +191,7 @@ export function loadoutAdvice(loadout: Loadout, ctx: LoadoutContext): LoadoutAdv
   const poolHasBlocker = pool.some((p) => p.kind === 'defender' && ctx.catalog.defenders[p.id]?.blocksPath);
   const poolHasRanged = pool.some((p) => p.kind === 'defender' && !ctx.catalog.defenders[p.id]?.blocksPath);
 
-  const filled = loadout.filter((slot): slot is AvailableItem => slot !== null);
+  const filled = filledSlots(loadout);
   const defenders = filled.filter((i) => i.kind === 'defender');
   const ranged = defenders.filter((i) => !ctx.catalog.defenders[i.id]?.blocksPath);
   const blockers = defenders.filter((i) => ctx.catalog.defenders[i.id]?.blocksPath);
@@ -201,7 +206,7 @@ export function loadoutAdvice(loadout: Loadout, ctx: LoadoutContext): LoadoutAdv
     warnings.push('No blocker chosen — Loggers may rush the path.');
   }
 
-  const starter = starterLoadout(ctx).filter((slot): slot is AvailableItem => slot !== null);
+  const starter = filledSlots(starterLoadout(ctx));
   const recommendation = starter.length
     ? `Recommended: ${starter.map((i) => i.name).join(' + ')}.`
     : null;

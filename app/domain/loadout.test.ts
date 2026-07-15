@@ -107,7 +107,7 @@ describe('buildPool', () => {
     expect(pool).toEqual([sprig, snare]);
   });
 
-  it('keeps defenders before spells in campaign unlock order', () => {
+  it('preserves the order rewards were earned, across kinds', () => {
     const pool = buildPool(ctx(['root-snare', 'sprig-sentinel']));
     // Order follows the availableIds input, not kind, so the Guardian sees rewards
     // in the order they were earned.

@@ -18,9 +18,11 @@ import { DEFENDERS, SPELLS, getDefender, getSpell } from './domain/content';
 import {
   addToLoadout,
   buildLoadoutView,
+  buildPool,
   canStart,
   clearSlot,
   emptyLoadout,
+  loadoutAdvice,
   loadoutCapacity,
   starterLoadout,
   type AvailableItem,
@@ -840,11 +842,6 @@ function bootBattleScene(): void {
   if (summary) game.registry.set('summary', summary);
 }
 
-/**
- * Mount the battlefield for a level with a chosen Loadout (issue #21). The
- * Loadout's Defenders become the placement toolbar and its spells the armable
- * availableSpells, so the battle is fought only with what the Guardian brought.
- */
 // --- Loadout assembly (issue #21) ----------------------------------------
 // The map-to-Loadout-to-battle journey: the Trail detail's Enter action opens
 // this screen, where the Guardian fills capacity slots from the immediately
@@ -1055,21 +1052,17 @@ function makeDebugApi(): ForestRescueDebug {
     loadoutCapacity: () => (currentLoadoutCtx ? loadoutCapacity(currentLoadoutCtx.levelOrder) : 0),
     loadoutPool: () =>
       currentLoadoutCtx
-        ? buildLoadoutView(currentLoadout, currentLoadoutCtx).pool.map((p) => ({
-            kind: p.kind,
-            id: p.id,
-            name: p.name,
-          }))
+        ? buildPool(currentLoadoutCtx).map(({ kind, id, name }) => ({ kind, id, name }))
         : [],
     loadoutSlots: () => currentLoadout.map((slot) => (slot ? { kind: slot.kind, id: slot.id } : null)),
     loadoutCanStart: () => canStart(currentLoadout),
-    loadoutAdvice: () => {
-      if (!currentLoadoutCtx) return { recommendation: null, warnings: [] };
-      return buildLoadoutView(currentLoadout, currentLoadoutCtx).advice;
-    },
+    loadoutAdvice: () =>
+      currentLoadoutCtx
+        ? loadoutAdvice(currentLoadout, currentLoadoutCtx)
+        : { recommendation: null, warnings: [] },
     loadoutFill: (id: string) => {
       if (!currentLoadoutCtx) return;
-      const item = buildLoadoutView(currentLoadout, currentLoadoutCtx).pool.find((p) => p.id === id);
+      const item = buildPool(currentLoadoutCtx).find((p) => p.id === id);
       if (item) togglePoolItem(item);
     },
     loadoutClear: (index: number) => clearLoadoutSlot(index),
