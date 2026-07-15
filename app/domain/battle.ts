@@ -92,6 +92,8 @@ export interface BattleSnapshot {
   enemyCount: number;
   /** Enemies leaked past the Heartwood so far. */
   leaked: number;
+  /** Whether the most recent placement is still within its 4-second undo window. */
+  canUndo: boolean;
 }
 
 interface ScheduledSpawn {
@@ -105,6 +107,10 @@ const REMOVE_REFUND = 0.7;
 // On-path brambles block movement; enemies chip them until they fall.
 const BRAMBLE_CHIP_DAMAGE = 8;
 const BLOCKER_PROXIMITY = 48;
+// A freshly planted Defender stays fully refundable for this many seconds of
+// battle time. Measured on the battle clock, so Pause / planning freeze it —
+// the Guardian's thinking time can never burn the undo window (issue #22 AC6).
+const UNDO_WINDOW = 4;
 
 export class BattleState {
   readonly level: CompiledLevel;
@@ -132,6 +138,10 @@ export class BattleState {
   private currentWave = 0;
   leaked = 0;
   private projectileSeq = 1;
+  // The most recent placement, tracked so a tap can be fully undone within the
+  // UNDO_WINDOW. A later placement replaces it; a manual uproot clears it.
+  private lastPlacement: { ringId: string; typeId: string; cost: number; placedAt: number } | null =
+    null;
 
   constructor(config: BattleConfig) {
     this.level = config.level;
@@ -162,32 +172,60 @@ export class BattleState {
   }
 
   /**
-   * Plant the currently-selected (or explicit) defender on a fairy ring.
-   * Honours Mana cost, ring occupancy, and placement compatibility.
+   * Plant the snapshotted (or currently-selected) defender on a fairy ring.
+   * The explicit typeId lets the caller commit the exact tool captured at
+   * touch-down, so a second thumb changing the selection mid-gesture can never
+   * buy the wrong defender (issue #22 AC5). Honours Mana cost, ring occupancy,
+   * and placement compatibility; a failed attempt spends nothing.
    */
   placeDefender(
     ringId: string,
     typeId: string = this.selectedDefenderType,
   ): { ok: true; defender: PlacedDefender } | { ok: false; reason: string } {
-    if (this.phase !== 'planning' && this.phase !== 'running') {
-      return { ok: false, reason: 'battle-over' };
-    }
-    const ring = this.rings.find((r) => r.id === ringId);
-    if (!ring) return { ok: false, reason: 'unknown-ring' };
-    if (this.defenders.some((d) => d.ringId === ringId && !d.dead)) {
-      return { ok: false, reason: 'ring-occupied' };
-    }
-    const stats = getDefender(typeId);
-    if (!stats) return { ok: false, reason: 'unknown-defender' };
-    if (stats.placement !== ring.placement) {
-      return { ok: false, reason: 'placement-mismatch' };
-    }
-    if (this.mana < stats.cost) return { ok: false, reason: 'insufficient-mana' };
+    const check = this.validatePlacement(ringId, typeId);
+    if (!check.ok) return { ok: false, reason: check.reason };
+    const { ring, stats } = check;
 
     this.mana -= stats.cost;
     const defender = makeDefender(ring, stats);
     this.defenders.push(defender);
+    this.lastPlacement = { ringId, typeId: stats.id, cost: stats.cost, placedAt: this.battleClock };
     return { ok: true, defender };
+  }
+
+  /**
+   * Preview whether placeDefender would succeed, without spending or planting.
+   * Drives the selection affordance (compatible rings) and the placement ghost,
+   * and lets the UI explain a problem without an unintended purchase.
+   */
+  canPlaceDefender(
+    ringId: string,
+    typeId: string = this.selectedDefenderType,
+  ): { ok: true } | { ok: false; reason: string } {
+    const check = this.validatePlacement(ringId, typeId);
+    return check.ok ? { ok: true } : { ok: false, reason: check.reason };
+  }
+
+  /**
+   * Fully refund and remove the most recent placement, but only within the
+   * UNDO_WINDOW of battle time. Works with touch, mouse, pen, and keyboard
+   * because it is a plain state command the UI binds to any input (issue #22 AC6).
+   */
+  undoLastPlacement(): { ok: true; refund: number } | { ok: false; reason: string } {
+    const last = this.lastPlacement;
+    if (!last) return { ok: false, reason: 'nothing-to-undo' };
+    if (this.battleClock - last.placedAt > UNDO_WINDOW) return { ok: false, reason: 'undo-expired' };
+    const idx = this.defenders.findIndex((d) => d.ringId === last.ringId && !d.dead);
+    if (idx === -1) {
+      // The placed defender is already gone (e.g. destroyed in combat); nothing
+      // remains to undo.
+      this.lastPlacement = null;
+      return { ok: false, reason: 'nothing-to-undo' };
+    }
+    this.defenders.splice(idx, 1);
+    this.mana += last.cost; // full refund, not the 70% uproot rate
+    this.lastPlacement = null;
+    return { ok: true, refund: last.cost };
   }
 
   /** Uproot a defender, returning 70% of its cost (rounded to whole Mana). */
@@ -198,6 +236,7 @@ export class BattleState {
     const refund = stats ? Math.round(stats.cost * REMOVE_REFUND) : 0;
     this.defenders.splice(idx, 1);
     this.mana += refund;
+    if (this.lastPlacement?.ringId === ringId) this.lastPlacement = null;
     return { ok: true, refund };
   }
 
@@ -249,10 +288,36 @@ export class BattleState {
       defenderCount: this.defenders.filter((d) => !d.dead).length,
       enemyCount: this.enemies.filter((e) => !e.dead && !e.reached).length,
       leaked: this.leaked,
+      canUndo: this.isUndoable(),
     };
   }
 
   // --- Internals --------------------------------------------------------
+
+  /** Shared placement validation used by both the preview and the commit. */
+  private validatePlacement(
+    ringId: string,
+    typeId: string,
+  ): { ok: true; ring: Ring; stats: DefenderStats } | { ok: false; reason: string } {
+    if (this.phase !== 'planning' && this.phase !== 'running') {
+      return { ok: false, reason: 'battle-over' };
+    }
+    const ring = this.rings.find((r) => r.id === ringId);
+    if (!ring) return { ok: false, reason: 'unknown-ring' };
+    if (this.defenders.some((d) => d.ringId === ringId && !d.dead)) {
+      return { ok: false, reason: 'ring-occupied' };
+    }
+    const stats = getDefender(typeId);
+    if (!stats) return { ok: false, reason: 'unknown-defender' };
+    if (stats.placement !== ring.placement) return { ok: false, reason: 'placement-mismatch' };
+    if (this.mana < stats.cost) return { ok: false, reason: 'insufficient-mana' };
+    return { ok: true, ring, stats };
+  }
+
+  /** Whether the most recent placement is still inside its undo window. */
+  private isUndoable(): boolean {
+    return !!this.lastPlacement && this.battleClock - this.lastPlacement.placedAt <= UNDO_WINDOW;
+  }
 
   private spawnDue(): void {
     while (this.nextSpawn < this.schedule.length && this.schedule[this.nextSpawn].at <= this.battleClock) {

@@ -33,6 +33,14 @@ export function humanReason(reason: string): string {
       return 'That defender belongs on a different ring';
     case 'battle-over':
       return 'The battle is over';
+    case 'unknown-ring':
+      return 'No fairy ring there';
+    case 'unknown-defender':
+      return 'Unknown defender';
+    case 'nothing-to-undo':
+      return 'Nothing to undo';
+    case 'undo-expired':
+      return 'Undo window expired';
     default:
       return 'Cannot place there';
   }

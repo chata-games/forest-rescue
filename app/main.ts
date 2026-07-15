@@ -125,6 +125,7 @@ const pauseBtn = $<HTMLButtonElement>('pauseBtn');
 const startBtn = $<HTMLButtonElement>('startBtn');
 const replayBtn = $<HTMLButtonElement>('replayBtn');
 const returnToTrailBtn = $<HTMLButtonElement>('returnToTrailBtn');
+const undoBtn = $<HTMLButtonElement>('undoBtn');
 const toolButtons = Array.from(document.querySelectorAll<HTMLButtonElement>('.tool'));
 const overlay = $<HTMLElement>('outcomeOverlay');
 const outcomeTitle = $<HTMLHeadingElement>('outcomeTitle');
@@ -290,10 +291,37 @@ pauseBtn.addEventListener('click', () => {
   pauseBtn.textContent = next ? 'Resume' : 'Pause';
 });
 
-function handleRingClick(ringId: string | null): void {
+replayBtn.addEventListener('click', () => location.reload());
+
+/** Fully refund the most recent placement within its 4-second window (issue #22 AC6). */
+function undoLastPlacement(): void {
+  if (!battle) return;
+  const result = battle.undoLastPlacement();
+  if (result.ok) showHint(`Undone — ${result.refund} mana refunded`);
+  else showHint(humanReason(result.reason));
+}
+
+undoBtn.addEventListener('click', undoLastPlacement);
+
+// Keyboard parity: the same Undo works with touch, mouse, pen, and keyboard.
+window.addEventListener('keydown', (e) => {
+  if (e.defaultPrevented) return;
+  const typing = e.target instanceof HTMLElement && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
+  if (typing) return;
+  if (e.key === 'z' || e.key === 'Z' || e.key === 'Backspace') {
+    if (!undoBtn.disabled) {
+      e.preventDefault();
+      undoLastPlacement();
+    }
+  }
+});
+
+function handleRingClick(ringId: string | null, typeId?: string): void {
   if (!ringId || !battle) return;
   if (battle.phase !== 'planning' && battle.phase !== 'running') return;
-  const result = battle.placeDefender(ringId);
+  // typeId is the tool snapshotted at touch-down; committing it means a second
+  // thumb flipping the selection can never buy the wrong defender (issue #22 AC5).
+  const result = battle.placeDefender(ringId, typeId ?? battle.selectedDefenderType);
   if (result.ok) {
     const stats = getDefender(result.defender.typeId);
     showHint(`Planted ${stats?.name ?? 'defender'}`);
@@ -329,6 +357,10 @@ function recordOutcome(snap: BattleSnapshot): void {
 
 function syncHud(snap: BattleSnapshot): void {
   recordOutcome(snap);
+  // The Undo button reflects the undo window every frame, independent of the
+  // coarser HUD sync key, so it lights up the instant a placement is refundable.
+  undoBtn.disabled = !snap.canUndo;
+
   const key = `${snap.phase}|${snap.mana}|${snap.hearts}|${snap.waveNumber}|${snap.paused}`;
   if (key === lastSync) {
     if (hintTimer > 0) hintTimer -= 1 / 60;

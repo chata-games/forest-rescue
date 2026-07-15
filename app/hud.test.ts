@@ -29,6 +29,7 @@ function snap(partial: Partial<BattleSnapshot>): BattleSnapshot {
     defenderCount: 0,
     enemyCount: 0,
     leaked: 0,
+    canUndo: false,
     ...partial,
   };
 }
@@ -73,7 +74,10 @@ describe('HUD rendering', () => {
   it('translates placement rejections into Guardian-facing hints', () => {
     expect(humanReason('insufficient-mana')).toBe('Not enough mana');
     expect(humanReason('placement-mismatch')).toBe('That defender belongs on a different ring');
-    expect(humanReason('unknown-ring')).toBe('Cannot place there');
+    expect(humanReason('unknown-ring')).toBe('No fairy ring there');
+    expect(humanReason('nothing-to-undo')).toBe('Nothing to undo');
+    expect(humanReason('undo-expired')).toBe('Undo window expired');
+    expect(humanReason('some-unknown-reason')).toBe('Cannot place there');
   });
 
   it('builds the hearts glyph for full and empty health', () => {
