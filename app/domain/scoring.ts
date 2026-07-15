@@ -44,17 +44,17 @@ function clamp01(v: number): number {
 }
 
 /** Hearts-remaining factor: the share of the forest preserved (0..1). */
-export function heartsFactor(input: BattleScoreInput): number {
+function heartsFactor(input: BattleScoreInput): number {
   return input.maxHearts > 0 ? clamp01(input.hearts / input.maxHearts) : 0;
 }
 
 /** Economy factor: the share of available bounty actually collected (0..1). */
-export function economyFactor(input: BattleScoreInput): number {
+function economyFactor(input: BattleScoreInput): number {
   return input.totalBounty > 0 ? clamp01(input.resourcesCollected / input.totalBounty) : 1;
 }
 
 /** Efficiency factor: the share of the total budget NOT spent (0..1). */
-export function efficiencyFactor(input: BattleScoreInput): number {
+function efficiencyFactor(input: BattleScoreInput): number {
   const budget = input.startingMana + input.totalBounty;
   return budget > 0 ? clamp01(1 - input.manaSpent / budget) : 1;
 }

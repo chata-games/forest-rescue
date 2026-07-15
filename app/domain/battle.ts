@@ -353,6 +353,12 @@ export class BattleState {
     return !!this.lastPlacement && this.battleClock - this.lastPlacement.placedAt <= UNDO_WINDOW;
   }
 
+  /** Award a felled enemy's Mana bounty to both the spendable pool and the collected total. */
+  private collectBounty(enemy: ActiveEnemy): void {
+    this.mana += enemy.bounty;
+    this.resourcesCollected += enemy.bounty;
+  }
+
   private spawnDue(): void {
     while (this.nextSpawn < this.schedule.length && this.schedule[this.nextSpawn].at <= this.battleClock) {
       const spawn = this.schedule[this.nextSpawn];
@@ -371,8 +377,7 @@ export class BattleState {
         enemy.hp -= enemy.poisonDps * dt;
         if (enemy.hp <= 0) {
           enemy.dead = true;
-          this.mana += enemy.bounty;
-          this.resourcesCollected += enemy.bounty;
+          this.collectBounty(enemy);
           continue;
         }
       }
@@ -439,8 +444,7 @@ export class BattleState {
 
       if (target.hp <= 0) {
         target.dead = true;
-        this.mana += target.bounty;
-        this.resourcesCollected += target.bounty;
+        this.collectBounty(target);
       }
     }
     this.enemies = this.enemies.filter((e) => !e.dead);
