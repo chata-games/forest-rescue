@@ -39,6 +39,9 @@ export interface Wave {
   delayBefore: number;
   delayAfter: number;
   spawnInterval: number;
+  /** True when an intent override fully authored this wave (boss waves, etc.). */
+  scripted?: boolean;
+  bossId?: string | null;
 }
 
 /** Deterministic compiler output: geometry, rings, and waves. Never authored by hand. */
@@ -58,6 +61,35 @@ export interface CompiledLevel {
   paths: CompiledPath[];
   rings: Ring[];
   waves: Wave[];
+  /** Compiler-derived difficulty/shape metrics (present on shipped levels). */
+  metrics?: LevelMetrics;
+  /** Optional hazard geometry authored by specific biomes/topologies. */
+  waterMasks?: WaterMask[];
+  airLanes?: AirLane[];
+}
+
+/** Shape + difficulty metrics the compiler emits for each level. */
+export interface LevelMetrics {
+  pathLength: number;
+  averageRingCoverage: number;
+  chokepoints: number;
+  ringCount: number;
+  estimatedDifficulty: number;
+}
+
+/** A water hazard region (river-crossings topology). */
+export interface WaterMask {
+  x: number;
+  y: number;
+  rx: number;
+  ry: number;
+}
+
+/** A flying-enemy lane that bypasses the ground trail. */
+export interface AirLane {
+  forEnemy: string;
+  from: Vec2;
+  to: Vec2;
 }
 
 export interface DefenderStats {

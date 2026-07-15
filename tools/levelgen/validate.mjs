@@ -4,7 +4,7 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { dirname } from "node:path";
-import { readJson, ROOT } from "./shared.mjs";
+import { readJson, safeParseJson, ROOT } from "./shared.mjs";
 import { loadCatalogs, validateAll } from "./rules.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -38,6 +38,15 @@ function expandPaths(inputs) {
   return out;
 }
 
+/** Load JSON, capturing parse failures as actionable `parse` errors. */
+function tryReadJson(p, parseErrors) {
+  const { ok, data, error } = safeParseJson(readFileSync(p, "utf8"), p);
+  if (ok) return { ok: true, data };
+  parseErrors.push(error);
+  console.error(`FAIL [parse] ${error.message}`);
+  return { ok: false, data: null };
+}
+
 function schemaCheck(p, data) {
   // Campaign manifest is validated as part of the corpus checks below.
   if (p.endsWith("campaign.json")) return { ok: true };
@@ -64,19 +73,26 @@ if (!args.length) {
   const manifestPath = join(ROOT, "levels/campaign.json");
 
   // Load each file once; the same parsed documents feed both the schema and
-  // semantic checks below.
+  // semantic checks below. Parse failures are captured so one bad file reports
+  // an actionable error instead of aborting the whole gate.
+  const parseErrors = [];
   const intents = readdirSync(intentDir)
     .filter((f) => f.endsWith(".json"))
     .map((f) => {
-      const intent = readJson(join(intentDir, f));
-      return { id: intent.id, intent, source: join(intentDir, f) };
-    });
+      const source = join(intentDir, f);
+      const { ok, data } = tryReadJson(source, parseErrors);
+      return ok ? { id: data.id, intent: data, source } : null;
+    })
+    .filter(Boolean);
   const compiled = readdirSync(compiledDir)
     .filter((f) => f.endsWith(".json") && !f.includes(".simulation"))
     .map((f) => {
-      const level = readJson(join(compiledDir, f));
-      return { id: level.id, level, source: join(compiledDir, f) };
-    });
+      const source = join(compiledDir, f);
+      const { ok, data } = tryReadJson(source, parseErrors);
+      return ok ? { id: data.id, level: data, source } : null;
+    })
+    .filter(Boolean);
+  if (parseErrors.length) failed = true;
 
   for (const { source, intent } of intents) {
     if (!schemaCheck(source, intent).ok) failed = true;
@@ -85,25 +101,31 @@ if (!args.length) {
     if (!schemaCheck(source, level).ok) failed = true;
   }
 
-  const manifest = readJson(manifestPath);
-  if (validateCampaign(manifest)) {
-    console.log(`OK [campaign] ${manifestPath}`);
+  const manifestLoad = tryReadJson(manifestPath, parseErrors);
+  if (parseErrors.length) failed = true;
+  if (!manifestLoad.ok) {
+    failed = true;
   } else {
-    failed = true;
-    console.error(`FAIL [campaign] ${manifestPath}`);
-    console.error(JSON.stringify(validateCampaign.errors));
-  }
-
-  const catalogs = loadCatalogs();
-  const semanticErrors = validateAll({ intents, compiled, manifest, catalogs });
-  if (semanticErrors.length) {
-    failed = true;
-    console.error(`FAIL [rules] ${semanticErrors.length} authoring-contract violation(s):`);
-    for (const err of semanticErrors) {
-      console.error(`  - [${err.code}] ${err.source || ""} ${err.message}`);
+    const manifest = manifestLoad.data;
+    if (validateCampaign(manifest)) {
+      console.log(`OK [campaign] ${manifestPath}`);
+    } else {
+      failed = true;
+      console.error(`FAIL [campaign] ${manifestPath}`);
+      console.error(JSON.stringify(validateCampaign.errors));
     }
-  } else {
-    console.log("OK [rules] authoring contract satisfied");
+
+    const catalogs = loadCatalogs();
+    const semanticErrors = validateAll({ intents, compiled, manifest, catalogs });
+    if (semanticErrors.length) {
+      failed = true;
+      console.error(`FAIL [rules] ${semanticErrors.length} authoring-contract violation(s):`);
+      for (const err of semanticErrors) {
+        console.error(`  - [${err.code}] ${err.source || ""} ${err.message}`);
+      }
+    } else {
+      console.log("OK [rules] authoring contract satisfied");
+    }
   }
 } else {
   // Targeted mode: schema-check only the supplied files/directories.

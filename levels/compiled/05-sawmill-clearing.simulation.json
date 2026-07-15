@@ -5,9 +5,15 @@
       "bot": "cheapest-dps",
       "won": true,
       "hearts": 3,
-      "mana": 936,
-      "ticks": 19870,
-      "defendersPlaced": 6
+      "mana": 938,
+      "ticks": 19530,
+      "defendersPlaced": 6,
+      "band": "hard-win",
+      "bandEvaluation": {
+        "ok": true,
+        "expected": "win with between 1 and 3 hearts",
+        "actual": "win with 3 hearts"
+      }
     },
     "best-coverage": {
       "bot": "best-coverage",
@@ -19,11 +25,17 @@
     },
     "upgrade-first": {
       "bot": "upgrade-first",
-      "won": true,
-      "hearts": 2,
-      "mana": 634,
-      "ticks": 18961,
-      "defendersPlaced": 6
+      "won": false,
+      "hearts": 0,
+      "mana": 999,
+      "ticks": 14301,
+      "defendersPlaced": 6,
+      "band": "loss",
+      "bandEvaluation": {
+        "ok": true,
+        "expected": "loss",
+        "actual": "loss/timed out with 0 hearts left"
+      }
     },
     "defensive-gate": {
       "bot": "defensive-gate",
@@ -31,15 +43,27 @@
       "hearts": 5,
       "mana": 999,
       "ticks": 28799,
-      "defendersPlaced": 6
+      "defendersPlaced": 6,
+      "band": "loss",
+      "bandEvaluation": {
+        "ok": true,
+        "expected": "loss",
+        "actual": "loss/timed out with 5 hearts left"
+      }
     },
     "anti-air-priority": {
       "bot": "anti-air-priority",
       "won": true,
-      "hearts": 2,
-      "mana": 809,
-      "ticks": 17812,
-      "defendersPlaced": 6
+      "hearts": 3,
+      "mana": 804,
+      "ticks": 17521,
+      "defendersPlaced": 6,
+      "band": "hard-win",
+      "bandEvaluation": {
+        "ok": true,
+        "expected": "win with between 1 and 3 hearts",
+        "actual": "win with 3 hearts"
+      }
     }
   }
 }

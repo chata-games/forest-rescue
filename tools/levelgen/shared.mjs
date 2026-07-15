@@ -460,3 +460,27 @@ export function writeCompiled(compiled, outPath) {
 export function readJson(path) {
   return JSON.parse(readFileSync(path, "utf8"));
 }
+
+/**
+ * Parse JSON text, returning either the value or an actionable `parse` error.
+ * Used by the authoring/CI gate so one malformed file is reported clearly
+ * instead of aborting the whole run with a raw stack trace.
+ *
+ * @param {string} text
+ * @param {string} [source]  File path / label for the error message.
+ * @returns {{ ok: true, data: any } | { ok: false, error: { code: string, message: string, source?: string } }}
+ */
+export function safeParseJson(text, source) {
+  try {
+    return { ok: true, data: JSON.parse(text) };
+  } catch (err) {
+    return {
+      ok: false,
+      error: {
+        code: "parse/malformed-json",
+        message: `malformed JSON in ${source ?? "<unknown>"}: ${err.message}`,
+        source,
+      },
+    };
+  }
+}

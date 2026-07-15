@@ -34,6 +34,38 @@ body {
   gap: 0;
 }
 
+/* Author layout simulation: force a phone aspect so the FIT-scaled battlefield
+   demonstrates the Compact portrait (or Preferred landscape) presentation on a
+   desktop without resizing the window. */
+body.force-portrait .app-root,
+body.force-landscape .app-root {
+  margin: 0 auto;
+}
+body.force-portrait .app-root {
+  max-width: min(100vw, 520px);
+  box-shadow: 0 0 0 1px #1d5a4055;
+}
+body.force-landscape .app-root {
+  max-width: min(100vw, 1280px);
+}
+
+/* --- Stage + preview legend --- */
+.stage-wrap {
+  position: relative;
+  display: flex;
+  min-height: 0;
+}
+
+.stage {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(120% 120% at 70% 10%, #1d5a40 0%, #10302400 60%), var(--grove);
+}
+
 /* --- HUD --- */
 .hud {
   display: flex;
@@ -92,14 +124,6 @@ body {
 }
 
 /* --- Stage (Phaser mount) --- */
-.stage {
-  position: relative;
-  min-height: 0;
-  display: grid;
-  place-items: center;
-  background: radial-gradient(120% 120% at 70% 10%, #1d5a40 0%, #10302400 60%), var(--grove);
-}
-
 .stage canvas {
   max-width: 100%;
   max-height: 100%;
@@ -201,6 +225,76 @@ body {
 .overlay__panel h2 {
   margin: 0 0 8px;
   font-size: 30px;
+}
+
+/* --- Author preview legend + level picker --- */
+.hud__picker {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.hud__picker select {
+  background: #122d22;
+  color: var(--ink);
+  border: 1px solid #6fd49a55;
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-weight: 700;
+  max-width: 150px;
+}
+
+.preview {
+  flex: 0 0 300px;
+  overflow: auto;
+  padding: 14px 16px;
+  background: #082017;
+  border-left: 1px solid #1d5a4055;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.preview[hidden] {
+  display: none;
+}
+
+.preview h3 {
+  margin: 0 0 6px;
+  font-size: 15px;
+}
+
+.preview__meta,
+.preview__metrics,
+.preview__hazards {
+  margin: 0 0 6px;
+  color: #aedbbd;
+}
+
+.preview__waves,
+.preview__sims {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+
+.preview__sims {
+  list-style: none;
+  padding-left: 0;
+}
+
+.preview__band {
+  color: var(--mana);
+}
+
+/* Portrait collapses the side legend so the FIT-scaled battlefield fills the
+   phone; the on-canvas route/hazard overlays still render. */
+@media (orientation: portrait), (max-width: 640px) {
+  .preview {
+    display: none;
+  }
+}
+
+body.force-portrait .preview {
+  display: none;
 }
 
 /* Portrait reflow: the FIT-scaled battlefield shrinks uniformly; HUD reflows. */

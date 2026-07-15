@@ -1,0 +1,57 @@
+{
+  "levelId": "06-ashfall-scar",
+  "results": {
+    "cheapest-dps": {
+      "bot": "cheapest-dps",
+      "won": false,
+      "hearts": 0,
+      "mana": 518,
+      "ticks": 8586,
+      "defendersPlaced": 6,
+      "band": "any",
+      "bandEvaluation": {
+        "ok": true,
+        "expected": "any outcome",
+        "actual": "loss/timed out with 0 hearts left"
+      }
+    },
+    "best-coverage": {
+      "bot": "best-coverage",
+      "won": false,
+      "hearts": 0,
+      "mana": 999,
+      "ticks": 13829,
+      "defendersPlaced": 7
+    },
+    "upgrade-first": {
+      "bot": "upgrade-first",
+      "won": false,
+      "hearts": 0,
+      "mana": 435,
+      "ticks": 13450,
+      "defendersPlaced": 8,
+      "band": "any",
+      "bandEvaluation": {
+        "ok": true,
+        "expected": "any outcome",
+        "actual": "loss/timed out with 0 hearts left"
+      }
+    },
+    "defensive-gate": {
+      "bot": "defensive-gate",
+      "won": false,
+      "hearts": 0,
+      "mana": 508,
+      "ticks": 6964,
+      "defendersPlaced": 6
+    },
+    "anti-air-priority": {
+      "bot": "anti-air-priority",
+      "won": false,
+      "hearts": 1,
+      "mana": 999,
+      "ticks": 28799,
+      "defendersPlaced": 6
+    }
+  }
+}

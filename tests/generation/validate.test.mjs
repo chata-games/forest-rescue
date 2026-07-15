@@ -11,8 +11,12 @@ import {
   validateManifest,
   validateStableIds,
   validateConvergence,
+  validateReplay,
+  validateOutcomeBands,
   findForbiddenGeometry,
 } from "../../tools/levelgen/rules.mjs";
+import { NAMED_SIMULATIONS } from "../../tools/simulation/scenarios.mjs";
+import { safeParseJson } from "../../tools/levelgen/shared.mjs";
 
 function loadCorpus() {
   const catalogs = loadCatalogs();
@@ -186,4 +190,43 @@ test("compiler convergence: a non-converging intent is reported", () => {
   ];
   const errors = validateConvergence(intents);
   assert.ok(errors.some((e) => e.code === "compiler/no-convergence"));
+});
+
+test("deterministic replay: compiled output that no longer reproduces is flagged", () => {
+  const intent = readJson(join(ROOT, "levels/intents/01-meadows-edge.json"));
+  const compiled = readJson(join(ROOT, "levels/compiled/01-meadows-edge.json"));
+  // Tamper with the shipped output so the deterministic replay no longer matches.
+  const tampered = { ...compiled, startingMana: compiled.startingMana + 1 };
+  const errors = validateReplay({
+    intents: [{ id: intent.id, intent, source: `replay:${intent.id}` }],
+    compiled: [{ id: intent.id, level: tampered }],
+  });
+  assert.ok(errors.some((e) => e.code === "compiler/output-drift" && e.message.includes(intent.id)));
+});
+
+test("outcome band: a missing level for a named scenario is reported", () => {
+  // An empty level map means every named scenario misses its level.
+  const errors = validateOutcomeBands(new Map());
+  assert.equal(errors.length, NAMED_SIMULATIONS.length);
+  assert.ok(errors.every((e) => e.code === "metric-band/missing-level"));
+  assert.ok(errors.every((e) => e.message.includes("references unknown level")));
+});
+
+test("outcome band: the shipped campaign lands every scenario in its band", () => {
+  const { compiled } = loadCorpus();
+  const levelsById = new Map(compiled.map((c) => [c.id, c.level]));
+  const errors = validateOutcomeBands(levelsById);
+  assert.deepEqual(errors, [], errors.map((e) => `${e.code}: ${e.message}`).join("\n"));
+});
+
+test("parse: malformed JSON is reported with an actionable message", () => {
+  const good = safeParseJson('{"id": "ok"}', "levels/intents/ok.json");
+  assert.equal(good.ok, true);
+  assert.equal(good.data.id, "ok");
+
+  const bad = safeParseJson('{ "id": "broken" ', "levels/intents/broken.json");
+  assert.equal(bad.ok, false);
+  assert.equal(bad.error.code, "parse/malformed-json");
+  assert.ok(bad.error.message.includes("levels/intents/broken.json"));
+  assert.ok(bad.error.message.includes("malformed JSON"));
 });

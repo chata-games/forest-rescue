@@ -16,7 +16,7 @@
     "typecheck": "tsc -p app/tsconfig.json --noEmit",
     "dev:app": "vite --config app/vite.config.ts",
     "build:app": "vite build --config app/vite.config.ts",
-    "simulate": "node tools/simulation/run.mjs",
+    "simulate": "node tools/simulation/run.mjs --all",
     "restore-sources": "node tools/assets/restore-sources.mjs",
     "process": "node tools/assets/process.mjs",
     "process:force": "node tools/assets/process.mjs --force",

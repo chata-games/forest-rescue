@@ -16,6 +16,13 @@
     <header class="hud" role="banner" aria-label="Battle heads-up display">
       <div class="hud__title" id="levelName">Meadow's Edge</div>
 
+      <!-- Author preview controls: level picker + phone-layout toggle. -->
+      <label class="hud__picker">
+        <span class="hud__label" aria-hidden="true">Level</span>
+        <select id="levelSelect" aria-label="Preview level"></select>
+      </label>
+      <button id="layoutBtn" class="hud__btn" type="button" aria-label="Toggle phone layout">Layout: auto</button>
+
       <div class="hud__stat" aria-label="Mana available">
         <span class="hud__label" aria-hidden="true">Mana</span>
         <span class="hud__value" id="manaValue" aria-live="polite">150</span>
@@ -34,8 +41,14 @@
       <button id="pauseBtn" class="hud__btn" type="button" aria-pressed="false" aria-label="Pause battle">Pause</button>
     </header>
 
-    <!-- The production Phaser battlefield mounts here. -->
-    <main class="stage" id="game-root" role="img" aria-label="Forest Rescue battlefield"></main>
+    <div class="stage-wrap">
+      <!-- The production Phaser battlefield mounts here. -->
+      <main class="stage" id="game-root" role="img" aria-label="Forest Rescue battlefield"></main>
+
+      <!-- Author preview legend: routes, hazards, waves, metrics, simulation
+           summaries. Hidden unless ?preview=1. -->
+      <aside id="previewPanel" class="preview" aria-label="Level preview summary" hidden></aside>
+    </div>
 
     <nav class="toolbar" aria-label="Defender selection">
       <button class="tool" data-defender="sprig-sentinel" type="button" aria-pressed="true">
