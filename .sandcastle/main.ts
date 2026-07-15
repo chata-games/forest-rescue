@@ -124,7 +124,7 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
     issues.map(async (issue) => {
       const sandbox = await sandcastle.createSandbox({
         branch: issue.branch,
-        sandbox: podman(),
+        sandbox: agentSandbox,
         hooks,
         copyToWorktree,
       });
@@ -216,7 +216,7 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
   // -------------------------------------------------------------------------
   await sandcastle.run({
     hooks,
-    sandbox: podman(),
+    sandbox: agentSandbox,
     name: "merger",
     maxIterations: 1,
     agent: sandcastle.claudeCode("glm-5.2[1m]"),
