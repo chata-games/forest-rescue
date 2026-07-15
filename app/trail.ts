@@ -13,7 +13,8 @@ import type { TrailNode } from './domain/campaign';
 export interface NodeElement {
   textContent: string | null;
   ariaLabel: string | null;
-  dataset: Record<string, string>;
+  /** Mirrors DOMStringMap: present properties are strings, absent ones undefined. */
+  dataset: Record<string, string | undefined>;
   style: { left: string; top: string };
 }
 
@@ -55,7 +56,7 @@ export function routePoints(nodes: TrailNode[]): string {
 export function rewardName(id: string): string {
   return id
     .split('-')
-    .map((word) => (word ? word[0]!.toUpperCase() + word.slice(1) : word))
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
 }
 

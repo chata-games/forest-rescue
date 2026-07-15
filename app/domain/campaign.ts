@@ -132,15 +132,9 @@ export function resolveTrail(
   const levels = manifest.levels;
   const actTitles = actTitleMap(manifest);
 
-  // Index of the current destination: the first level not yet cleared. -1 when
-  // the whole campaign is complete.
-  let currentIndex = -1;
-  for (let i = 0; i < levels.length; i++) {
-    if (!isCleared(progress, levels[i].id)) {
-      currentIndex = i;
-      break;
-    }
-  }
+  // Index of the current destination: the first level not yet cleared, or -1
+  // when the whole campaign is complete.
+  const currentIndex = levels.findIndex((level) => !isCleared(progress, level.id));
 
   return levels.map((level, i) => {
     const m = meta[level.id];

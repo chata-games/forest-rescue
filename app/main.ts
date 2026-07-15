@@ -12,7 +12,7 @@ import { BattleState } from './domain/battle';
 import { getDefender } from './domain/content';
 import { BattleScene } from './phaser/battle-scene';
 import { humanReason, renderHud, type HudElements } from './hud';
-import { renderTrail, renderDetail, type TrailElements, type DetailElements, type NodeElement } from './trail';
+import { renderTrail, renderDetail, type TrailElements, type DetailElements } from './trail';
 import {
   resolveTrail,
   emptyProgress,
@@ -141,6 +141,19 @@ const hudElements: HudElements = {
   overlay,
 };
 
+// Detail-surface elements, hoisted once like hudElements so selectNode reuses
+// them instead of re-querying the DOM on every node click.
+const detailBackBtn = $<HTMLButtonElement>('detailBack');
+const detailEnterBtn = $<HTMLButtonElement>('detailEnter');
+const detailElements: DetailElements = {
+  title: $<HTMLHeadingElement>('detailTitle'),
+  blurb: $<HTMLParagraphElement>('detailBlurb'),
+  meta: $<HTMLParagraphElement>('detailMeta'),
+  rewards: $<HTMLParagraphElement>('detailRewards'),
+  unlock: $<HTMLParagraphElement>('detailUnlock'),
+  enterBtn: detailEnterBtn,
+};
+
 // --- Trail construction ---------------------------------------------------
 let trailNodes: TrailNode[] = resolveTrail(manifest, META, progress);
 let selectedId: string | null = null;
@@ -149,30 +162,6 @@ let routeLine: SVGPolylineElement | null = null;
 let lastFocusedNode: HTMLButtonElement | null = null;
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
-
-/**
- * A projector-facing view of a node button. Real HTMLElements satisfy every
- * field except `dataset` (DOMStringMap is string|undefined), so this delegates
- * writes to the button while exposing the plain shape renderTrail expects.
- */
-function nodeView(btn: HTMLButtonElement): NodeElement {
-  return {
-    style: btn.style,
-    get textContent() {
-      return btn.textContent;
-    },
-    set textContent(v: string | null) {
-      btn.textContent = v;
-    },
-    get ariaLabel() {
-      return btn.ariaLabel;
-    },
-    set ariaLabel(v: string | null) {
-      btn.ariaLabel = v;
-    },
-    dataset: btn.dataset as unknown as Record<string, string>,
-  };
-}
 
 function buildTrailDom(): void {
   trailMap.innerHTML = '';
@@ -204,7 +193,7 @@ function buildTrailDom(): void {
 
 function renderTrailView(): void {
   const routeMirror = { points: '' as string | null };
-  const els: TrailElements = { nodes: nodeButtons.map(nodeView), route: routeMirror };
+  const els: TrailElements = { nodes: nodeButtons, route: routeMirror };
   renderTrail(trailNodes, els);
   routeLine?.setAttribute('points', routeMirror.points ?? '');
 }
@@ -223,25 +212,14 @@ function selectNode(levelId: string, origin: HTMLButtonElement): void {
   const node = trailNodes.find((n) => n.id === levelId);
   if (!node) return;
 
-  const enterBtnEl = $<HTMLButtonElement>('detailEnter');
-  const backBtnEl = $<HTMLButtonElement>('detailBack');
-  const els: DetailElements = {
-    title: $<HTMLHeadingElement>('detailTitle'),
-    blurb: $<HTMLParagraphElement>('detailBlurb'),
-    meta: $<HTMLParagraphElement>('detailMeta'),
-    rewards: $<HTMLParagraphElement>('detailRewards'),
-    unlock: $<HTMLParagraphElement>('detailUnlock'),
-    enterBtn: enterBtnEl,
-  };
-  renderDetail(node, els);
+  renderDetail(node, detailElements);
 
-  if (typeof detail.showModal === 'function') {
-    if (!detail.open) detail.showModal();
-  } else if (!detail.open) {
-    detail.setAttribute('open', '');
+  if (!detail.open) {
+    if (typeof detail.showModal === 'function') detail.showModal();
+    else detail.setAttribute('open', '');
   }
   // Focus the primary action for available levels, the dismiss action for locked.
-  (node.enterable ? enterBtnEl : backBtnEl).focus();
+  (node.enterable ? detailEnterBtn : detailBackBtn).focus();
 }
 
 function closeDetail(): void {
@@ -250,19 +228,19 @@ function closeDetail(): void {
 
 function trailKeydown(event: KeyboardEvent): void {
   // Spatial keyboard navigation between nodes, complementing Tab order.
-  const horizontal = event.key === 'ArrowRight' || event.key === 'ArrowLeft';
-  const vertical = event.key === 'ArrowDown' || event.key === 'ArrowUp';
-  if (!horizontal && !vertical) return;
+  const forward = event.key === 'ArrowRight' || event.key === 'ArrowDown';
+  const backward = event.key === 'ArrowLeft' || event.key === 'ArrowUp';
+  if (!forward && !backward) return;
   const current = nodeButtons.indexOf(document.activeElement as HTMLButtonElement);
   if (current === -1) return;
   event.preventDefault();
-  const delta = event.key === 'ArrowRight' || event.key === 'ArrowDown' ? 1 : -1;
+  const delta = forward ? 1 : -1;
   const next = (current + delta + nodeButtons.length) % nodeButtons.length;
   nodeButtons[next]!.focus();
 }
 
-$<HTMLButtonElement>('detailBack').addEventListener('click', closeDetail);
-$<HTMLButtonElement>('detailEnter').addEventListener('click', () => {
+detailBackBtn.addEventListener('click', closeDetail);
+detailEnterBtn.addEventListener('click', () => {
   if (!selectedId) return;
   const node = trailNodes.find((n) => n.id === selectedId);
   if (!node || !node.enterable) return;
