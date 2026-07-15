@@ -1829,6 +1829,14 @@ loadoutBackBtn.addEventListener('click', () => {
   if (current) nodeButtons.find((b) => b.dataset.level === current.id)?.focus();
 });
 
+/** Tear down the Phaser game and clear its reference so the next battle boots fresh. */
+function destroyGame(): void {
+  if (game) {
+    game.destroy(true);
+    game = null;
+  }
+}
+
 /**
  * Mount the battlefield for a level with a chosen Loadout (issue #21). The
  * Loadout's Defenders become the placement toolbar and its spells the armable
@@ -1842,10 +1850,7 @@ function enterLevel(levelId: string, loadout: Loadout): void {
 
   // Fresh battle for this level. Destroy any prior Phaser game so the scene
   // recompiles terrain for the new trail/rings.
-  if (game) {
-    game.destroy(true);
-    game = null;
-  }
+  destroyGame();
   const defenders = loadout.filter(
     (slot): slot is AvailableItem => slot !== null && slot.kind === 'defender',
   );
@@ -1889,10 +1894,7 @@ function enterLevel(levelId: string, loadout: Loadout): void {
 }
 
 function returnToTrail(): void {
-  if (game) {
-    game.destroy(true);
-    game = null;
-  }
+  destroyGame();
   battle = null;
   currentLevelId = null;
   currentLoadoutCtx = null;
@@ -1923,10 +1925,7 @@ function returnToTrail(): void {
 replayBtn.addEventListener('click', () => {
   if (!currentLevelId) return;
   if (battle?.phase === 'lost') {
-    if (game) {
-      game.destroy(true);
-      game = null;
-    }
+    destroyGame();
     battle = null;
     openLoadout(currentLevelId);
     return;

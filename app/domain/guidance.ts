@@ -84,7 +84,7 @@ export function guidanceForClearedCount(clearedCount: number): GuidanceState {
  */
 export function sanitizeGuidance(raw: unknown): GuidanceState {
   const obj = isObject(raw) ? raw : {};
-  const enabled = obj.enabled === false ? false : true;
+  const enabled = obj.enabled !== false;
   const level =
     typeof obj.level === 'number' && Number.isFinite(obj.level)
       ? clampLevel(Math.round(obj.level))
@@ -119,9 +119,6 @@ export interface CoachingInput {
   hadRanged: boolean;
 }
 
-/** Advice is a list of non-blocking, plain-language tips (AC5). */
-export type CoachingTip = string;
-
 /**
  * Opt-in, non-blocking advice derived purely from a battle's observable results
  * (AC5). The shell calls this only when the Guardian asks "How could I improve?";
@@ -129,8 +126,8 @@ export type CoachingTip = string;
  * Loadout gaps first, then defense, then economy/efficiency. A flawless 3-star
  * victory yields a single congratulatory note instead of nitpicks.
  */
-export function coachingAdvice(input: CoachingInput): CoachingTip[] {
-  const tips: CoachingTip[] = [];
+export function coachingAdvice(input: CoachingInput): string[] {
+  const tips: string[] = [];
 
   const lostHearts = Math.max(0, input.maxHearts - input.hearts);
   const budget = input.startingMana + input.totalBounty;
