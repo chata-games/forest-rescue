@@ -135,7 +135,7 @@ interface QueryOptions {
   god: boolean;
   timeScale: number;
   levelId: string;
-  layout: 'auto' | 'portrait' | 'landscape';
+  layout: LayoutOverride;
   preview: boolean;
 }
 
@@ -326,9 +326,10 @@ function refreshLayout(): void {
   }
 }
 
-/** Cycle the forced override between portrait and landscape (the Layout button). */
-function cycleOverride(): LayoutOverride {
-  return layoutOverride === 'portrait' ? 'landscape' : 'portrait';
+/** The Layout button: flip the forced override between portrait and landscape, then reflow. */
+function toggleLayout(): void {
+  layoutOverride = layoutOverride === 'portrait' ? 'landscape' : 'portrait';
+  refreshLayout();
 }
 
 function navigate(next: Partial<QueryOptions>): void {
@@ -352,10 +353,7 @@ if (levelSelect) {
 }
 
 if (layoutBtn) {
-  layoutBtn.addEventListener('click', () => {
-    layoutOverride = cycleOverride();
-    refreshLayout();
-  });
+  layoutBtn.addEventListener('click', toggleLayout);
 }
 
 refreshLayout();
@@ -798,10 +796,7 @@ settingsBtn.addEventListener('click', () => {
 
 // The pause Settings surface mirrors the HUD layout toggle (the app's one real
 // setting) so the Guardian can reflow while planning.
-pauseLayoutBtn.addEventListener('click', () => {
-  layoutOverride = cycleOverride();
-  refreshLayout();
-});
+pauseLayoutBtn.addEventListener('click', toggleLayout);
 
 restartBtn.addEventListener('click', () =>
   armPauseConfirm('restart', 'Restart this level? Your current run will be lost.'),
