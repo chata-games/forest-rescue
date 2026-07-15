@@ -73,6 +73,12 @@ export const FORBIDDEN_GEOMETRY_KEYS = new Set([
  */
 export const TEACHING_RULES = [
   {
+    code: "teaching/split-pressure-requires-two-path-merge",
+    applies: (i) => i.learningGoal === "split-pressure",
+    violated: (i) => i.topology?.archetype !== "two-path-merge",
+    message: "learningGoal 'split-pressure' requires topology archetype 'two-path-merge'",
+  },
+  {
     code: "teaching/fire-management-requires-fire-spread",
     applies: (i) => i.learningGoal === "fire-management",
     violated: (i) => !(i.levelModifiers || []).includes("fire-spread"),
@@ -226,6 +232,24 @@ export function validateCompiledRules(compiled, catalogs, source) {
     }
     if (pathSelfIntersects(path)) {
       at("geometry/path-self-intersects", `path '${pathJson.id || "main"}' self-intersects`);
+    }
+  }
+
+  // Two-path-merge topology (issue #34 AC1): only this archetype compiles a
+  // second path, so a >=2-path level is a merge level. Its roads must co-terminate
+  // at the Heartwood gate and crews must enter from both gates.
+  const mergePaths = (compiled.paths || []).filter((p) => Array.isArray(p.controlPoints) && p.controlPoints.length);
+  if (mergePaths.length >= 2) {
+    const ends = mergePaths.map((p) => p.controlPoints[p.controlPoints.length - 1]);
+    const gate = ends[0];
+    const allMerge = gate && ends.every((e) => Math.abs(e.x - gate.x) < 4 && Math.abs(e.y - gate.y) < 4);
+    if (!allMerge) {
+      at("geometry/paths-do-not-merge-at-heartwood", `a merge level's paths must co-terminate at the Heartwood gate`);
+    }
+    const usesSecondary = (compiled.waves || []).some((w) =>
+      (w.enemies || []).some((e) => e.pathId === "secondary"));
+    if (!usesSecondary) {
+      at("waves/no-secondary-path-spawn", `a merge level must spawn enemies on the secondary path so crews enter from both gates`);
     }
   }
 

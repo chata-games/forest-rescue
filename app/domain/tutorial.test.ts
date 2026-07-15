@@ -70,6 +70,18 @@ describe('tutorial concepts per level (issue #33 AC2)', () => {
     // Dedup: 'air' and 'coverage' both map to the one air-coverage concept.
     expect(concepts.filter((c) => c === 'air-coverage')).toHaveLength(1);
   });
+
+  it('resolves the split-pressure concept for Old Stump Crossroads (issue #34 AC4)', () => {
+    // Level 02 (two-path-merge) teaches divided attention. Story alone does not
+    // satisfy "teach split pressure", so the learning goal must resolve to a tip.
+    const concepts = tutorialConceptsFor({ learningGoal: 'split-pressure', levelModifiers: [] });
+    expect(concepts).toContain('split-pressure');
+    const step = TUTORIAL_CONCEPTS['split-pressure'];
+    expect(step).toBeDefined();
+    expect(step.concept).toBe('split-pressure');
+    expect(step.title.length).toBeGreaterThan(0);
+    expect(step.body.length).toBeGreaterThan(0);
+  });
 });
 
 describe('tutorial one-concept-at-a-time sequencing (issue #33 AC2)', () => {

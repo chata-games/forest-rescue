@@ -51,6 +51,11 @@ export const TUTORIAL_CONCEPTS: Record<string, TutorialStep> = {
     title: 'Cover the Sky Lane',
     body: 'Buzzsaw Drones fly a straight air lane that cuts across the winding trail, ignoring the ground path. Place Defenders whose range can reach the sky lane, or they will fly straight to the Heartwood.',
   },
+  'split-pressure': {
+    concept: 'split-pressure',
+    title: 'Mind Both Roads',
+    body: 'Two paths meet at the Heartwood here, so crews can come from either gate. Spread your Defenders so each road is covered before the streams merge.',
+  },
 };
 
 /**
@@ -73,6 +78,8 @@ const KEYWORD_TO_CONCEPT: Record<string, string> = {
   pause: 'planning',
   air: 'air-coverage',
   coverage: 'air-coverage',
+  split: 'split-pressure',
+  pressure: 'split-pressure',
 };
 
 /** What a level carries that the tutorial resolves against. */

@@ -197,6 +197,37 @@ test("teaching rule: air-coverage requires the river-crossings modifier + a flyi
   );
 });
 
+test("teaching rule: split-pressure requires the two-path-merge topology", () => {
+  const catalogs = loadCatalogs();
+  const intent = readJson(join(ROOT, "levels/intents/02-old-stump-crossroads.json"));
+  // Point the split-pressure goal at a single-path topology.
+  intent.topology.archetype = "single-s-curve";
+  const errors = validateIntentRules(intent, catalogs);
+  assert.ok(errors.some((e) => e.code === "teaching/split-pressure-requires-two-path-merge"));
+});
+
+test("two-path-merge geometry: paths that do not merge at the Heartwood are flagged", () => {
+  const catalogs = loadCatalogs();
+  const level = readJson(join(ROOT, "levels/compiled/02-old-stump-crossroads.json"));
+  // Send the secondary path to a different terminus so the two roads no longer
+  // meet at the Heartwood gate.
+  const secondary = level.paths.find((p) => p.id === "secondary");
+  secondary.controlPoints[secondary.controlPoints.length - 1] = { x: 45, y: 720 };
+  const errors = validateCompiledRules(level, catalogs);
+  assert.ok(errors.some((e) => e.code === "geometry/paths-do-not-merge-at-heartwood"));
+});
+
+test("two-path-merge geometry: a merge level with no secondary-path spawn is flagged", () => {
+  const catalogs = loadCatalogs();
+  const level = readJson(join(ROOT, "levels/compiled/02-old-stump-crossroads.json"));
+  // Strip every secondary-path routing so crews only ever enter from one gate.
+  for (const wave of level.waves) {
+    for (const entry of wave.enemies) delete entry.pathId;
+  }
+  const errors = validateCompiledRules(level, catalogs);
+  assert.ok(errors.some((e) => e.code === "waves/no-secondary-path-spawn"));
+});
+
 test("stable IDs: duplicate intent and compiled IDs are flagged", () => {
   const intents = [
     { id: "01-meadows-edge", intent: {}, source: "a" },

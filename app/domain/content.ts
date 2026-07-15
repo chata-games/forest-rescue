@@ -118,6 +118,16 @@ export const ENEMIES: Record<string, EnemyStats> = {
     manaBounty: 8,
     tags: ['crew', 'ground', 'choppable'],
   },
+  surveyor: {
+    id: 'surveyor',
+    name: 'Surveyor',
+    hp: 95,
+    speed: 48,
+    damage: 18,
+    attackInterval: 1.1,
+    manaBounty: 10,
+    tags: ['crew', 'ground', 'marks-targets'],
+  },
   'chainsaw-brute': {
     id: 'chainsaw-brute',
     name: 'Chainsaw Brute',

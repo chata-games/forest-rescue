@@ -685,7 +685,7 @@ function previewLevel(): CompiledLevel {
     waves: [
       { enemies: [{ type: 'logger', count: 3 }], delayBefore: 2, delayAfter: 4, spawnInterval: 1 },
       { enemies: [{ type: 'logger', count: 4 }], delayBefore: 1, delayAfter: 4, spawnInterval: 1 },
-      { enemies: [{ type: 'logger', count: 1 }, { type: 'surveyor', count: 2 }], delayBefore: 1, delayAfter: 0, spawnInterval: 1 },
+      { enemies: [{ type: 'logger', count: 1 }, { type: 'marker-drone', count: 2 }], delayBefore: 1, delayAfter: 0, spawnInterval: 1 },
       { enemies: [{ type: 'the-grinder', count: 1 }], delayBefore: 3, delayAfter: 0, spawnInterval: 1, scripted: true, bossId: 'the-grinder' },
     ],
   };
@@ -717,7 +717,7 @@ describe('wave preview (issue #32 AC1)', () => {
     expect(g.traits).toEqual(['crew', 'ground', 'choppable']);
     // A multi-group wave lists each group; uncatalogued types fall back to the id.
     const w3 = buildWavePreview({ waves: level.waves, paths: level.paths, currentWave: 3, clock: 0 });
-    expect(w3.current!.groups.map((grp) => `${grp.count}× ${grp.name}`)).toEqual(['1× Logger', '2× surveyor']);
+    expect(w3.current!.groups.map((grp) => `${grp.count}× ${grp.name}`)).toEqual(['1× Logger', '2× marker-drone']);
   });
 
   it('flags a boss wave and falls back to the type id when the boss is uncatalogued', () => {
