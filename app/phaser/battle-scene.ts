@@ -8,7 +8,7 @@
 // lives in BattleState.
 
 import Phaser from 'phaser';
-import { STEP, MANA_FLOWER_HIT, FIELD_WIDTH } from '../domain/battle';
+import { STEP, MANA_FLOWER_HIT, FIELD_WIDTH, FIELD_HEIGHT } from '../domain/battle';
 import type { BattleState } from '../domain/battle';
 import { getDefender, getEnemy, getSpell } from '../domain/content';
 import { inGlow, type GlowSource } from '../domain/light';
@@ -322,7 +322,7 @@ export class BattleScene extends Phaser.Scene {
 
     // Ground.
     g.fillStyle(COLOR.ground, 1);
-    g.fillRect(0, 0, 1536, 1024);
+    g.fillRect(0, 0, FIELD_WIDTH, FIELD_HEIGHT);
 
     // Trail band: two passes for an edge + fill, drawn through compiled samples.
     const samples = path.samples;
@@ -442,11 +442,11 @@ export class BattleScene extends Phaser.Scene {
     // Enemies (and their hit points) advancing along the trail.
     for (const enemy of this.battle.enemies) {
       if (enemy.dead) continue;
+      const stats = getEnemy(enemy.typeId);
       // A cloaked Poacher in the dark is invisible outside the light.
-      if (glow && getEnemy(enemy.typeId)?.cloaked && !inGlow(enemy.x, enemy.y, glow)) continue;
-      const cloaked = !!getEnemy(enemy.typeId)?.cloaked;
+      if (glow && stats?.cloaked && !inGlow(enemy.x, enemy.y, glow)) continue;
       const r = 16;
-      g.fillStyle(cloaked ? COLOR.poacher : COLOR.enemy, 1);
+      g.fillStyle(stats?.cloaked ? COLOR.poacher : COLOR.enemy, 1);
       g.fillCircle(enemy.x, enemy.y, r);
       g.lineStyle(2, COLOR.enemyEdge, 1);
       g.strokeCircle(enemy.x, enemy.y, r);
@@ -567,7 +567,7 @@ export class BattleScene extends Phaser.Scene {
    */
   private drawDarkness(g: Phaser.GameObjects.Graphics, glow: GlowSource[]): void {
     g.fillStyle(COLOR.night, 0.62);
-    g.fillRect(0, 0, 1536, 1024);
+    g.fillRect(0, 0, FIELD_WIDTH, FIELD_HEIGHT);
     for (const s of glow) {
       g.fillStyle(COLOR.glow, 0.10);
       g.fillCircle(s.x, s.y, s.r);

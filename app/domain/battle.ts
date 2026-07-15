@@ -1013,18 +1013,18 @@ export class BattleState {
   }
 
   private resolveCombat(dt: number): void {
-    // Glow is computed once per combat step: in the dark a Defender can only
-    // strike an enemy that stands in light (issue #36 AC1/AC2).
-    const glow = this.darkness ? this.currentGlow() : null;
+    // Glow + Firefly Beacon embolden are computed once per combat step: in the
+    // dark a Defender can only strike an enemy that stands in light, and a nearby
+    // Beacon grants extra reach and punch (issue #36 AC1/AC2).
+    const beacons = this.livingBeacons();
+    const glow = this.darkness ? buildGlowSources(this.level, beacons) : null;
     for (const defender of this.defenders) {
       if (defender.dead) continue;
       if (defender.blocksPath || defender.range <= 0) continue;
       defender.cooldown -= dt;
       if (defender.cooldown > 0) continue;
 
-      // A Firefly Beacon emboldens nearby Defenders with extra reach and punch;
-      // computed once and shared between target acquisition and the hit.
-      const buff = fireflyBuff(defender, this.beaconPositions());
+      const buff = fireflyBuff(defender, beacons);
       const target = this.acquireTarget(defender, glow, defender.range * buff.rangeMul);
       if (!target) continue;
 
@@ -1074,14 +1074,16 @@ export class BattleState {
     return best;
   }
 
-  /** Live Firefly Beacons as positions (for the embolden buff). */
-  private beaconPositions(): { x: number; y: number }[] {
-    const out: { x: number; y: number }[] = [];
+  /** Living Firefly Beacons (position + glow), shared by the glow mask the
+   * renderer draws and the embolden buff combat applies. */
+  private livingBeacons(): BeaconGlow[] {
+    const beacons: BeaconGlow[] = [];
     for (const d of this.defenders) {
       if (d.dead) continue;
-      if (getDefender(d.typeId)?.glowRadius) out.push({ x: d.x, y: d.y });
+      const r = getDefender(d.typeId)?.glowRadius;
+      if (r) beacons.push({ x: d.x, y: d.y, glowRadius: r });
     }
-    return out;
+    return beacons;
   }
 
   /**
@@ -1090,13 +1092,7 @@ export class BattleState {
    * dark mask at exactly these points (issue #36 AC1).
    */
   currentGlow(): GlowSource[] {
-    const beacons: BeaconGlow[] = [];
-    for (const d of this.defenders) {
-      if (d.dead) continue;
-      const r = getDefender(d.typeId)?.glowRadius;
-      if (r) beacons.push({ x: d.x, y: d.y, glowRadius: r });
-    }
-    return buildGlowSources(this.level, beacons);
+    return buildGlowSources(this.level, this.livingBeacons());
   }
 
   private findBlocker(enemy: ActiveEnemy): PlacedDefender | null {
