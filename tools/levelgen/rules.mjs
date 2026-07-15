@@ -18,7 +18,6 @@
 import { ENEMIES } from "../../src/content/enemies.js";
 import { DEFENDERS } from "../../src/content/defenders.js";
 import { SPELLS } from "../../src/content/spells.js";
-import { PathCurve } from "../../src/level/path.js";
 import {
   TOPOLOGY_TEMPLATES,
   BUDGET_CURVES,
@@ -371,6 +370,3 @@ export function validateAll({ intents, compiled, manifest, catalogs }) {
   errors.push(...validateConvergence(intents.map(({ id, intent }) => ({ id, intent }))));
   return errors;
 }
-
-// Re-exported so callers can rebuild a path curve from compiled data if needed.
-export { PathCurve };

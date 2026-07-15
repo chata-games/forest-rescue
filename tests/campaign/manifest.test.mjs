@@ -5,7 +5,6 @@ import { join } from "node:path";
 import { ROOT } from "../../tools/levelgen/shared.mjs";
 import {
   campaignLevels,
-  levelEntry,
   cumulativeUnlocks,
   cumulativeSpellUnlock,
   actOf,

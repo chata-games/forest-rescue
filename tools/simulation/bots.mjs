@@ -28,7 +28,7 @@ const STEP = 1 / 60;
 // cumulative defenders available at each level from it rather than duplicating
 // the list. A missing manifest falls back to a starter defender so headless
 // simulations of hand-test fixtures still run.
-let CAMPAIGN_MANIFEST = null;
+let CAMPAIGN_MANIFEST;
 try {
   CAMPAIGN_MANIFEST = readJson(new URL("../../levels/campaign.json", import.meta.url));
 } catch {

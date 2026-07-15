@@ -63,11 +63,26 @@ if (!args.length) {
   const compiledDir = join(ROOT, "levels/compiled");
   const manifestPath = join(ROOT, "levels/campaign.json");
 
-  const intentFiles = readdirSync(intentDir).filter((f) => f.endsWith(".json")).map((f) => join(intentDir, f));
-  const compiledFiles = readdirSync(compiledDir).filter((f) => f.endsWith(".json") && !f.includes(".simulation")).map((f) => join(compiledDir, f));
+  // Load each file once; the same parsed documents feed both the schema and
+  // semantic checks below.
+  const intents = readdirSync(intentDir)
+    .filter((f) => f.endsWith(".json"))
+    .map((f) => {
+      const intent = readJson(join(intentDir, f));
+      return { id: intent.id, intent, source: join(intentDir, f) };
+    });
+  const compiled = readdirSync(compiledDir)
+    .filter((f) => f.endsWith(".json") && !f.includes(".simulation"))
+    .map((f) => {
+      const level = readJson(join(compiledDir, f));
+      return { id: level.id, level, source: join(compiledDir, f) };
+    });
 
-  for (const p of [...intentFiles, ...compiledFiles]) {
-    if (!schemaCheck(p, readJson(p)).ok) failed = true;
+  for (const { source, intent } of intents) {
+    if (!schemaCheck(source, intent).ok) failed = true;
+  }
+  for (const { source, level } of compiled) {
+    if (!schemaCheck(source, level).ok) failed = true;
   }
 
   const manifest = readJson(manifestPath);
@@ -80,15 +95,6 @@ if (!args.length) {
   }
 
   const catalogs = loadCatalogs();
-  const intents = intentFiles.map((p) => {
-    const intent = readJson(p);
-    return { id: intent.id, intent, source: p };
-  });
-  const compiled = compiledFiles.map((p) => {
-    const level = readJson(p);
-    return { id: level.id, level, source: p };
-  });
-
   const semanticErrors = validateAll({ intents, compiled, manifest, catalogs });
   if (semanticErrors.length) {
     failed = true;
