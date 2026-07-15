@@ -1074,13 +1074,12 @@ function totalBounty(level: CompiledLevel): number {
 function waveStartTimes(waves: ReadonlyArray<Wave>): number[] {
   const times: number[] = [];
   let cursor = 0;
-  waves.forEach((wave, idx) => {
+  for (const wave of waves) {
     cursor += wave.delayBefore;
-    times[idx] = cursor;
+    times.push(cursor);
     const count = wave.enemies.reduce((sum, group) => sum + group.count, 0);
-    const lastSpawnAt = cursor + Math.max(0, count - 1) * wave.spawnInterval;
-    cursor = lastSpawnAt + wave.delayAfter;
-  });
+    cursor += Math.max(0, count - 1) * wave.spawnInterval + wave.delayAfter;
+  }
   return times;
 }
 

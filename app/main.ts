@@ -37,7 +37,7 @@ import {
   renderHud,
   spellStateText,
   type HudElements,
-  type WavePreviewView,
+  type WavePreviewWaveView,
 } from './hud';
 import { renderTrail, renderDetail, type TrailElements, type DetailElements } from './trail';
 import {
@@ -721,7 +721,7 @@ function handleCollectFlower(flowerId: string): void {
 // --- Wave preview + Planning Pause (issue #32) ----------------------------
 
 /** One wave's view rendered to HTML lines (counts, traits, routes, boss, countdown). */
-function wavePreviewHTML(w: WavePreviewView['current'], upcoming: boolean): string {
+function wavePreviewHTML(w: WavePreviewWaveView | null, upcoming: boolean): string {
   if (!w) return '';
   const cls = upcoming ? 'wave-preview__wave wave-preview__wave--upcoming' : 'wave-preview__wave';
   const lines: string[] = [
@@ -758,19 +758,13 @@ pauseLayoutBtn.addEventListener('click', () => {
   applyLayout(currentLayout() === 'portrait' ? 'landscape' : 'portrait');
 });
 
-restartBtn.addEventListener('click', () => {
-  pendingPauseAction = 'restart';
-  pauseConfirmText.textContent = 'Restart this level? Your current run will be lost.';
-  pauseConfirm.hidden = false;
-  pauseConfirmYes.focus();
-});
+restartBtn.addEventListener('click', () =>
+  armPauseConfirm('restart', 'Restart this level? Your current run will be lost.'),
+);
 
-exitBtn.addEventListener('click', () => {
-  pendingPauseAction = 'exit';
-  pauseConfirmText.textContent = 'Leave the battle and return to the campaign trail?';
-  pauseConfirm.hidden = false;
-  pauseConfirmYes.focus();
-});
+exitBtn.addEventListener('click', () =>
+  armPauseConfirm('exit', 'Leave the battle and return to the campaign trail?'),
+);
 
 pauseConfirmYes.addEventListener('click', () => {
   const action = pendingPauseAction;
@@ -814,6 +808,14 @@ function buildSpellToolbar(spells: string[]): void {
     return btn;
   });
   spellbar.hidden = spells.length === 0;
+}
+
+/** Arm the Planning Pause overlay's confirmation for a destructive action (Restart/Exit). */
+function armPauseConfirm(action: 'restart' | 'exit', message: string): void {
+  pendingPauseAction = action;
+  pauseConfirmText.textContent = message;
+  pauseConfirm.hidden = false;
+  pauseConfirmYes.focus();
 }
 
 /** Reset the confirm/settings state of the Planning Pause overlay. */
@@ -926,7 +928,8 @@ function syncHud(snap: BattleSnapshot): void {
   }
   // Wave preview: a corner panel while planning (pre-Start); the pause overlay
   // carries its own copy for mid-battle planning (AC1).
-  wavePreviewPanel.hidden = !(snap.phase === 'planning' && !snap.paused);
+  const showWavePreview = snap.phase === 'planning' && !snap.paused;
+  wavePreviewPanel.hidden = !showWavePreview;
   renderWavePreview(snap);
 }
 
