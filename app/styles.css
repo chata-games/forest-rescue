@@ -172,6 +172,55 @@ body.force-landscape .app-root {
   color: var(--mana);
 }
 
+.spellbar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+  padding: 6px clamp(12px, 2vw, 24px);
+  background: #082017;
+  border-top: 1px solid #1d5a4055;
+  z-index: 4;
+}
+
+.spell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 132px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid #8ea0ff55;
+  background: #142435;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.spell[aria-pressed="true"] {
+  border-color: #8ea0ff;
+  box-shadow: 0 0 14px #8ea0ff66;
+}
+
+.spell:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.spell__name {
+  font-weight: 700;
+}
+
+.spell__cost {
+  font-size: 11px;
+  color: #8ea0ff;
+}
+
+.spell__state {
+  font-size: 11px;
+  color: #aedbbd;
+}
+
 .start-row {
   display: grid;
   place-items: center;

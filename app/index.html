@@ -126,6 +126,11 @@
       </button>
     </nav>
 
+    <!-- Guardian spells (issue #31): armed with select-then-target casting.
+         Built per level from the unlocked spells; buttons are disabled and
+         explain themselves while on cooldown or unaffordable. -->
+    <nav id="spellbar" class="spellbar" aria-label="Guardian spells" hidden></nav>
+
     <div class="start-row">
       <button id="startBtn" class="primary-btn" type="button">Start Wave</button>
       <button id="undoBtn" class="hud__btn" type="button" disabled aria-label="Undo last placement (Z)">Undo</button>

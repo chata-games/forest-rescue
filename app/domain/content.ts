@@ -1,6 +1,7 @@
-// Engine-independent content catalogue: the stats behind defenders and enemies.
-// Ported from src/content/{defenders,enemies}.js and typed for the domain layer.
-// The domain depends only on this file plus geometry/path/types — never on Phaser.
+// Engine-independent content catalogue: the stats behind defenders, enemies,
+// and Guardian spells. Ported from src/content/{defenders,enemies,spells}.js and
+// typed for the domain layer. The domain depends only on this file plus
+// geometry/path/types — never on Phaser.
 
 import type { DefenderStats, EnemyStats, UpgradeTier } from './types';
 
@@ -13,6 +14,29 @@ export interface EffectiveStats {
   poisonDps: number;
   poisonDuration: number;
   armorPierce: number;
+}
+
+/**
+ * What a spell does where it lands. The combat depth of each effect (e.g. fire
+ * dousing for Cleansing Rain) is layered in elsewhere; this enum only names the
+ * self-contained, observable effect the engine-independent battle applies so the
+ * cast-commit path is testable without a full hazard model.
+ */
+export type SpellEffect = 'root' | 'heal';
+
+export interface SpellStats {
+  id: string;
+  name: string;
+  cost: number;
+  /** Seconds of battle time the Guardian must wait between casts. */
+  cooldown: number;
+  /** World-unit radius of the area the spell affects (preview + effect). */
+  radius: number;
+  effect: SpellEffect;
+  /** For 'root': how long grounded enemies in the radius are frozen. */
+  rootDuration?: number;
+  /** For 'heal': HP restored to defenders in the radius. */
+  heal?: number;
 }
 
 export const DEFENDERS: Record<string, DefenderStats> = {
@@ -70,6 +94,31 @@ export const ENEMIES: Record<string, EnemyStats> = {
   },
 };
 
+// Guardian spells: targeted abilities the Guardian arms, aims at the battlefield
+// with an area preview, and commits on a clean pointer-up. Costs and cooldowns
+// mirror the authored catalogue; a spell is only selectable when it is unlocked
+// for the current level, off cooldown, and affordable (issue #31).
+export const SPELLS: Record<string, SpellStats> = {
+  'root-snare': {
+    id: 'root-snare',
+    name: 'Root Snare',
+    cost: 45,
+    cooldown: 25,
+    radius: 140,
+    effect: 'root',
+    rootDuration: 3.5,
+  },
+  'cleansing-rain': {
+    id: 'cleansing-rain',
+    name: 'Cleansing Rain',
+    cost: 50,
+    cooldown: 22,
+    radius: 160,
+    effect: 'heal',
+    heal: 60,
+  },
+};
+
 export function getDefender(id: string): DefenderStats | null {
   return DEFENDERS[id] ?? null;
 }
@@ -122,4 +171,8 @@ export function upgradeCost(base: DefenderStats, tier: number): number | null {
   const tiers = base.upgrades ?? [];
   if (tier < 0 || tier >= tiers.length) return null;
   return tiers[tier].cost;
+}
+
+export function getSpell(id: string): SpellStats | null {
+  return SPELLS[id] ?? null;
 }

@@ -13,9 +13,18 @@
 import { PathCurve } from './path';
 import { effectiveStats, getDefender, getEnemy, maxTier, upgradeCost, type EffectiveStats } from './content';
 import { scoreStars as scoreStarsRule, type BattleScoreInput } from './scoring';
+import { getSpell, type SpellStats } from './content';
 import type { CompiledLevel, DefenderStats, Ring } from './types';
 
 export const STEP = 1 / 60;
+
+/** Minimum world-unit spacing a Mana flower keeps from rings and other flowers,
+ * so each renders as a >=48 CSS-pixel hit region under FIT scaling and never
+ * steals a tap from an actionable target (issue #31 AC5). */
+export const MANA_FLOWER_HIT = 48;
+const FLOWER_MANA = 15;
+const FIELD_WIDTH = 1536;
+const FIELD_HEIGHT = 1024;
 
 export type Phase = 'planning' | 'running' | 'won' | 'lost';
 export type Outcome = 'victory' | 'defeat' | null;
@@ -26,6 +35,39 @@ export interface BattleConfig {
   startingMana?: number;
   /** Passive Mana regeneration per simulated second. Defaults to 0. */
   manaRegenPerSec?: number;
+  /** Spell ids the Guardian has unlocked for this battle (cumulative campaign
+   * unlocks). Defaults to the level's own spellUnlock. Only these are armable. */
+  availableSpells?: string[];
+  /** When > 0, a Mana flower spawns at a safe spot every N seconds of battle
+   * time. 0 (default) disables spawning. Measured on the battle clock, so
+   * Pause/planning freeze it — mirroring the undo window. */
+  manaFlowerIntervalSec?: number;
+}
+
+/** A collectible Mana flower on the battlefield. Tap to harvest its Mana. */
+export interface ManaFlower {
+  id: string;
+  x: number;
+  y: number;
+  mana: number;
+}
+
+/** Per-spell availability the HUD projects so the Guardian can see, in text, why
+ * a spell cannot be selected (cooldown / affordability) — issue #31 AC4. */
+export interface SpellAvailability {
+  id: string;
+  name: string;
+  cost: number;
+  /** Seconds of cooldown remaining on the battle clock. */
+  cooldownRemaining: number;
+  cooldownMax: number;
+  affordable: boolean;
+  /** True when the cooldown has fully elapsed. */
+  ready: boolean;
+  /** True when ready AND affordable (the spell is selectable). */
+  available: boolean;
+  /** Guardian-facing reason the spell is unavailable, or null when available. */
+  reason: string | null;
 }
 
 export interface PlacedDefender {
@@ -67,6 +109,8 @@ export interface ActiveEnemy {
   poisonDps: number;
   dead: boolean;
   reached: boolean;
+  /** Seconds of root remaining (Root Snare): a rooted enemy cannot advance. */
+  rootTime: number;
   /** Ring id of a blocking bramble this enemy is currently chewing through. */
   blockedBy: string | null;
 }
@@ -101,6 +145,10 @@ export interface BattleSnapshot {
   canUndo: boolean;
   /** Combined 1–3 star result (0 until a victory is recorded). */
   stars: number;
+  /** Spell currently armed for select-then-target casting, or null. */
+  armedSpell: string | null;
+  /** Availability of every unlocked spell, for the spell toolbar. */
+  spells: SpellAvailability[];
 }
 
 /** A before→after delta for one decisive stat, for the upgrade preview (issue #30 AC3). */
@@ -202,6 +250,12 @@ export class BattleState {
   defenders: PlacedDefender[] = [];
   enemies: ActiveEnemy[] = [];
   projectiles: ProjectileView[] = [];
+  /** Live Mana flowers the Guardian can tap to collect. */
+  manaFlowers: ManaFlower[] = [];
+
+  /** Spell armed for select-then-target casting, or null. While set, battlefield
+   * taps cast the spell instead of placing a Defender (issue #31 AC6). */
+  armedSpell: string | null = null;
 
   // Economy totals that feed the combined star result (issue #29 AC2). manaSpent
   // is NET: a full undo reverses it, while a 70% uproot keeps the 30% loss.
@@ -217,6 +271,15 @@ export class BattleState {
   // The most recent reversible action (placement, upgrade, or removal), tracked
   // so it can be undone within the UNDO_WINDOW. A later action replaces it.
   private lastAction: UndoableAction | null = null;
+  private flowerSeq = 0;
+  // The Defender tool active before a spell was armed, restored on cast/cancel so
+  // targeting a spell can never lose the Guardian's selection (issue #31 AC3).
+  private previousDefenderType: string | null = null;
+  // Per-spell cooldowns remaining, in seconds of battle time.
+  private spellCooldowns: Record<string, number> = {};
+  private readonly availableSpells: string[];
+  private readonly manaFlowerInterval: number;
+  private nextFlowerAt: number;
 
   constructor(config: BattleConfig) {
     this.level = config.level;
@@ -228,6 +291,10 @@ export class BattleState {
     this.hearts = this.maxHearts;
     this.mana = config.startingMana ?? config.level.startingMana ?? 150;
     this.manaRegenPerSec = config.manaRegenPerSec ?? 0;
+    this.availableSpells =
+      config.availableSpells ?? (config.level.spellUnlock ? [config.level.spellUnlock] : []);
+    this.manaFlowerInterval = config.manaFlowerIntervalSec ?? 0;
+    this.nextFlowerAt = this.manaFlowerInterval;
     this.schedule = buildSchedule(config.level);
   }
 
@@ -243,7 +310,14 @@ export class BattleState {
   }
 
   selectDefender(typeId: string): void {
-    if (getDefender(typeId)) this.selectedDefenderType = typeId;
+    if (!getDefender(typeId)) return;
+    // Picking a Defender tool explicitly leaves spell targeting, so arming a
+    // spell can never strand the Guardian without a placement tool.
+    if (this.armedSpell !== null) {
+      this.armedSpell = null;
+      this.previousDefenderType = null;
+    }
+    this.selectedDefenderType = typeId;
   }
 
   /**
@@ -437,6 +511,112 @@ export class BattleState {
     };
   }
 
+  // --- Spells (issue #31) ----------------------------------------------
+
+  /**
+   * Arm a spell for select-then-target casting. Only an available spell (unlocked,
+   * off cooldown, affordable) can be armed; the prior Defender selection is
+   * stashed so cast/cancel can restore it. Arming the already-armed spell toggles
+   * it off (AC3/AC4).
+   */
+  armSpell(typeId: string): { ok: true } | { ok: false; reason: string } {
+    if (this.armedSpell === typeId) {
+      this.cancelSpell();
+      return { ok: true };
+    }
+    const status = this.spellStatus(typeId);
+    if (!status.ok) return { ok: false, reason: status.reason };
+    // Stash the current Defender tool only on the unarmed -> armed transition, so
+    // switching between spells keeps the original pre-targeting selection.
+    if (this.armedSpell === null) this.previousDefenderType = this.selectedDefenderType;
+    this.armedSpell = typeId;
+    return { ok: true };
+  }
+
+  /** Explicitly leave spell targeting and restore the previously Selected Defender. */
+  cancelSpell(): void {
+    if (this.armedSpell === null) return;
+    this.armedSpell = null;
+    if (this.previousDefenderType) {
+      this.selectedDefenderType = this.previousDefenderType;
+      this.previousDefenderType = null;
+    }
+  }
+
+  /**
+   * Commit a spell at a battlefield point. Validates the same way as the preview;
+   * a failed cast spends no Mana and starts no cooldown (AC2). A successful cast
+   * spends the cost, starts the cooldown, applies the effect, then restores the
+   * previously Selected Defender (AC3).
+   */
+  castSpell(
+    x: number,
+    y: number,
+    typeId: string | null = this.armedSpell,
+  ): { ok: true } | { ok: false; reason: string } {
+    const status = this.spellStatus(typeId, x, y);
+    if (!status.ok) return { ok: false, reason: status.reason };
+    const spell = status.stats;
+
+    this.mana -= spell.cost;
+    this.spellCooldowns[spell.id] = spell.cooldown;
+    this.applySpellEffect(spell, x, y);
+    // Restore the Defender selection and leave targeting mode.
+    this.armedSpell = null;
+    if (this.previousDefenderType) {
+      this.selectedDefenderType = this.previousDefenderType;
+      this.previousDefenderType = null;
+    }
+    return { ok: true };
+  }
+
+  /**
+   * Preview whether castSpell would succeed at a point, without spending or
+   * starting a cooldown. Drives the targeting reticle colour and lets the UI
+   * explain a problem without an unintended cast.
+   */
+  canCastSpell(
+    x: number,
+    y: number,
+    typeId: string | null = this.armedSpell,
+  ): { ok: true } | { ok: false; reason: string } {
+    const status = this.spellStatus(typeId, x, y);
+    return status.ok ? { ok: true } : { ok: false, reason: status.reason };
+  }
+
+  // --- Mana flowers (issue #31) ----------------------------------------
+
+  /**
+   * Place a Mana flower at a point, but only where it clears every ring's build
+   * area and any existing flower by the hit-region spacing. Refuses overlaps so a
+   * flower can never steal a tap from an actionable target (AC5).
+   */
+  spawnManaFlower(
+    x: number,
+    y: number,
+    mana: number = FLOWER_MANA,
+  ): { ok: true; flower: ManaFlower } | { ok: false; reason: string } {
+    if (!inField(x, y)) return { ok: false, reason: 'out-of-bounds' };
+    if (this.rings.some((r) => Math.hypot(x - r.x, y - r.y) < r.buildRadius + MANA_FLOWER_HIT / 2)) {
+      return { ok: false, reason: 'overlaps-ring' };
+    }
+    if (this.manaFlowers.some((f) => Math.hypot(x - f.x, y - f.y) < MANA_FLOWER_HIT)) {
+      return { ok: false, reason: 'overlaps-flower' };
+    }
+    const flower: ManaFlower = { id: `flower-${this.flowerSeq++}`, x, y, mana };
+    this.manaFlowers.push(flower);
+    return { ok: true, flower };
+  }
+
+  /** Harvest a Mana flower: grants its Mana and removes it. Idempotent failure. */
+  collectManaFlower(flowerId: string): { ok: true; mana: number } | { ok: false; reason: string } {
+    const idx = this.manaFlowers.findIndex((f) => f.id === flowerId);
+    if (idx === -1) return { ok: false, reason: 'already-collected' };
+    const [flower] = this.manaFlowers.splice(idx, 1);
+    this.mana += flower.mana;
+      return { ok: true, mana: flower.mana };
+  }
+
   // --- Simulation -------------------------------------------------------
 
   /** Elapsed simulated battle time in seconds (frozen while not running/paused). */
@@ -450,6 +630,8 @@ export class BattleState {
 
     this.battleClock += dt;
     if (this.manaRegenPerSec > 0) this.mana += this.manaRegenPerSec * dt;
+    this.tickSpellCooldowns(dt);
+    this.maybeSpawnFlower();
 
     this.spawnDue();
     this.moveEnemies(dt);
@@ -487,6 +669,8 @@ export class BattleState {
       leaked: this.leaked,
       canUndo: this.isUndoable(),
       stars: this.scoreStars(),
+      armedSpell: this.armedSpell,
+      spells: this.spellAvailability(),
     };
   }
 
@@ -547,6 +731,104 @@ export class BattleState {
     return this.phase === 'won' || this.phase === 'lost';
   }
 
+  /**
+   * Validate a spell arm/cast attempt without committing. A target point (when
+   * given) must land inside the battlefield; arming omits it. affordability and
+   * cooldown are checked so an unavailable spell can be neither armed nor cast.
+   */
+  private spellStatus(
+    typeId: string | null,
+    x?: number,
+    y?: number,
+  ): { ok: true; stats: SpellStats } | { ok: false; reason: string; stats?: SpellStats } {
+    if (this.phase !== 'planning' && this.phase !== 'running') {
+      return { ok: false, reason: 'battle-over' };
+    }
+    if (!typeId) return { ok: false, reason: 'no-spell-armed' };
+    if (!this.availableSpells.includes(typeId)) return { ok: false, reason: 'spell-locked' };
+    const stats = getSpell(typeId);
+    if (!stats) return { ok: false, reason: 'unknown-spell' };
+    if (this.mana < stats.cost) return { ok: false, reason: 'insufficient-mana', stats };
+    if ((this.spellCooldowns[typeId] ?? 0) > 0) return { ok: false, reason: 'spell-cooldown', stats };
+    if (x !== undefined && y !== undefined && !inField(x, y)) {
+      return { ok: false, reason: 'invalid-target', stats };
+    }
+    return { ok: true, stats };
+  }
+
+  /** Apply a committed spell's effect within its radius at the landing point. */
+  private applySpellEffect(spell: SpellStats, x: number, y: number): void {
+    if (spell.effect === 'root' && spell.rootDuration) {
+      for (const enemy of this.enemies) {
+        if (enemy.dead || enemy.reached) continue;
+        if (Math.hypot(enemy.x - x, enemy.y - y) <= spell.radius) {
+          enemy.rootTime = Math.max(enemy.rootTime, spell.rootDuration);
+        }
+      }
+    } else if (spell.effect === 'heal' && spell.heal) {
+      for (const defender of this.defenders) {
+        if (defender.dead) continue;
+        if (Math.hypot(defender.x - x, defender.y - y) <= spell.radius) {
+          defender.hp = Math.min(defender.maxHp, defender.hp + spell.heal);
+        }
+      }
+    }
+  }
+
+  /** Availability of every unlocked spell, for the snapshot / spell toolbar. */
+  private spellAvailability(): SpellAvailability[] {
+    return this.availableSpells
+      .map((id): SpellAvailability | null => {
+        const stats = getSpell(id);
+        if (!stats) return null; // unknown id in the unlock list is skipped
+        const cooldownRemaining = Math.max(0, this.spellCooldowns[id] ?? 0);
+        const affordable = this.mana >= stats.cost;
+        const ready = cooldownRemaining === 0;
+        const reason = !ready ? 'spell-cooldown' : !affordable ? 'insufficient-mana' : null;
+        return {
+          id: stats.id,
+          name: stats.name,
+          cost: stats.cost,
+          cooldownRemaining,
+          cooldownMax: stats.cooldown,
+          affordable,
+          ready,
+          available: ready && affordable,
+          reason,
+        };
+      })
+      .filter((s): s is SpellAvailability => s !== null);
+  }
+
+  private tickSpellCooldowns(dt: number): void {
+    for (const id of Object.keys(this.spellCooldowns)) {
+      const next = (this.spellCooldowns[id] ?? 0) - dt;
+      this.spellCooldowns[id] = next <= 0 ? 0 : next;
+    }
+  }
+
+  /** Spawn one Mana flower per elapsed interval at a safe lattice point. */
+  private maybeSpawnFlower(): void {
+    if (this.manaFlowerInterval <= 0) return;
+    while (this.battleClock >= this.nextFlowerAt) {
+      this.spawnScheduledFlower();
+      this.nextFlowerAt += this.manaFlowerInterval;
+    }
+  }
+
+  /** Place a flower on the first lattice candidate that clears rings and flowers. */
+  private spawnScheduledFlower(): void {
+    const safe = planManaFlowers({
+      rings: this.rings,
+      existing: this.manaFlowers,
+      candidates: FLOWER_LATTICE,
+    });
+    if (safe.length > 0) {
+      const spot = safe[0]!;
+      this.spawnManaFlower(spot.x, spot.y);
+    }
+  }
+
   private spawnDue(): void {
     while (this.nextSpawn < this.schedule.length && this.schedule[this.nextSpawn].at <= this.battleClock) {
       const spawn = this.schedule[this.nextSpawn];
@@ -568,6 +850,12 @@ export class BattleState {
           this.collectBounty(enemy);
           continue;
         }
+      }
+
+      // Rooted enemies still suffer damage but cannot advance or chew brambles.
+      if (enemy.rootTime > 0) {
+        enemy.rootTime -= dt;
+        continue;
       }
 
       const blocker = this.findBlocker(enemy);
@@ -745,6 +1033,7 @@ function spawnEnemy(typeId: string, path: PathCurve): ActiveEnemy {
     poisonDps: 0,
     dead: false,
     reached: false,
+    rootTime: 0,
     blockedBy: null,
   };
 }
@@ -785,3 +1074,56 @@ function diffStats(now: EffectiveStats, next: EffectiveStats): StatChanges {
 function applyArmor(base: number, armor: number, pierce: number): number {
   return Math.max(1, base - Math.max(0, armor - pierce));
 }
+
+function inField(x: number, y: number): boolean {
+  return x >= 0 && y >= 0 && x <= FIELD_WIDTH && y <= FIELD_HEIGHT;
+}
+
+/**
+ * Choose candidate Mana-flower positions that never overlap an actionable
+ * target. A candidate is dropped when it falls outside the battlefield (with a
+ * half-hit margin), overlaps a fairy ring's build area (plus half a hit region),
+ * or sits within one hit region of an existing or already-chosen flower. The
+ * kept candidates are returned in input order — deterministic given the inputs
+ * (issue #31 AC5).
+ */
+export function planManaFlowers(input: {
+  rings: ReadonlyArray<{ x: number; y: number; buildRadius: number }>;
+  existing: ReadonlyArray<{ x: number; y: number }>;
+  candidates: ReadonlyArray<{ x: number; y: number }>;
+  hit?: number;
+  width?: number;
+  height?: number;
+}): { x: number; y: number }[] {
+  const hit = input.hit ?? MANA_FLOWER_HIT;
+  const width = input.width ?? FIELD_WIDTH;
+  const height = input.height ?? FIELD_HEIGHT;
+  const margin = hit / 2;
+  const kept: { x: number; y: number }[] = [];
+  for (const c of input.candidates) {
+    if (c.x < margin || c.y < margin || c.x > width - margin || c.y > height - margin) continue;
+    if (input.rings.some((r) => Math.hypot(c.x - r.x, c.y - r.y) < r.buildRadius + margin)) continue;
+    const occupied = [...input.existing, ...kept];
+    if (occupied.some((f) => Math.hypot(c.x - f.x, c.y - f.y) < hit)) continue;
+    kept.push({ x: c.x, y: c.y });
+  }
+  return kept;
+}
+
+// Deterministic candidate lattice the flower scheduler draws from (no RNG, so
+// spawns are reproducible for the same level/field). Stays inside the field with
+// a half-hit margin on every edge.
+const FLOWER_LATTICE: ReadonlyArray<{ x: number; y: number }> = (() => {
+  const out: { x: number; y: number }[] = [];
+  const cols = 8;
+  const rows = 4;
+  for (let iy = 0; iy < rows; iy++) {
+    for (let ix = 0; ix < cols; ix++) {
+      out.push({
+        x: Math.round(MANA_FLOWER_HIT + ix * ((FIELD_WIDTH - MANA_FLOWER_HIT * 2) / (cols - 1))),
+        y: Math.round(MANA_FLOWER_HIT + iy * ((FIELD_HEIGHT - MANA_FLOWER_HIT * 2) / (rows - 1))),
+      });
+    }
+  }
+  return out;
+})();

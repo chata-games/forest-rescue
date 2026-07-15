@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { BattleState } from './battle';
+import { BattleState, planManaFlowers, MANA_FLOWER_HIT } from './battle';
 import meadowsRaw from '../../levels/compiled/01-meadows-edge.json';
 import type { CompiledLevel } from './types';
 
@@ -434,5 +434,227 @@ describe('inspect / upgrade / remove modelessly (issue #30)', () => {
     expect(undo.ok).toBe(false);
     if (!undo.ok) expect(undo.reason).toBe('undo-expired');
     expect(battle.defenders[0]!.tier).toBe(1); // not rolled back
+  });
+});
+
+// A level whose single enemy takes ~28s to cross, so the battle stays running
+// long enough to observe a full spell cooldown elapse on the battle clock.
+function slowLevel(): CompiledLevel {
+  const samples = Array.from({ length: 121 }, (_, i) => ({ x: 1200 - i * 10, y: 256 }));
+  return {
+    id: 'slow',
+    name: 'Slow',
+    compilerVersion: '1.0.0',
+    intentHash: 'x',
+    seed: 's',
+    biome: 'meadow-edge',
+    unlocks: [],
+    spellUnlock: null,
+    bossId: null,
+    startingMana: 200,
+    maxHearts: 5,
+    levelModifiers: [],
+    paths: [
+      {
+        id: 'main',
+        width: 92,
+        length: 1200,
+        controlPoints: [{ x: 1200, y: 256 }, { x: 0, y: 256 }],
+        arcLengths: Array.from({ length: 121 }, (_, i) => i * 10),
+        samples,
+      },
+    ],
+    rings: [
+      { id: 'r1', x: 600, y: 256, role: 'frontline', placement: 'beside-path', radius: 48, buildRadius: 42 },
+    ],
+    waves: [{ enemies: [{ type: 'logger', count: 1 }], delayBefore: 0.5, delayAfter: 0, spawnInterval: 1 }],
+  };
+}
+
+// Guardian spell casting: select-then-target with a safe commit. Invalid aims,
+// cancellation, and unaffordable/on-cooldown states spend no Mana and start no
+// cooldown, and the previously Selected Defender is always restored (issue #31).
+describe('Guardian spell casting (issue #31)', () => {
+  it('arms a spell; a cast spends Mana, starts a cooldown, and roots enemies in radius', () => {
+    const battle = new BattleState({ level: tinyLevel(), startingMana: 200, availableSpells: ['root-snare'] });
+    expect(battle.armedSpell).toBeNull();
+    expect(battle.armSpell('root-snare')).toEqual({ ok: true });
+    expect(battle.armedSpell).toBe('root-snare');
+
+    battle.start();
+    for (let i = 0; i < 60; i++) battle.tick(); // ~1s in
+    const enemy = battle.enemies[0]!;
+    const cast = battle.castSpell(enemy.x, enemy.y);
+    expect(cast.ok).toBe(true);
+    expect(battle.mana).toBe(200 - 45);
+    expect(battle.snapshot().spells[0]!.cooldownRemaining).toBe(25);
+    // The enemy was within the spell radius of the cast point, so it is rooted.
+    expect(enemy.rootTime).toBeGreaterThan(0);
+  });
+
+  it('an unaffordable cast spends no Mana and starts no cooldown (AC2)', () => {
+    const battle = new BattleState({ level: tinyLevel(), startingMana: 10, availableSpells: ['root-snare'] });
+    expect(battle.castSpell(300, 256, 'root-snare')).toEqual({ ok: false, reason: 'insufficient-mana' });
+    expect(battle.mana).toBe(10);
+    expect(battle.snapshot().spells[0]!.cooldownRemaining).toBe(0);
+  });
+
+  it('cannot arm an unavailable spell; canCastSpell previews why (AC4)', () => {
+    const battle = new BattleState({ level: tinyLevel(), startingMana: 10, availableSpells: ['root-snare'] });
+    expect(battle.armSpell('root-snare')).toEqual({ ok: false, reason: 'insufficient-mana' });
+    expect(battle.armedSpell).toBeNull();
+    expect(battle.canCastSpell(300, 256, 'root-snare')).toEqual({ ok: false, reason: 'insufficient-mana' });
+  });
+
+  it('restores the previously Selected Defender after a successful cast (AC3)', () => {
+    const battle = new BattleState({ level: tinyLevel(), startingMana: 200, availableSpells: ['root-snare'] });
+    battle.selectDefender('thornvine-bramble');
+    battle.armSpell('root-snare');
+    expect(battle.castSpell(300, 256).ok).toBe(true);
+    expect(battle.armedSpell).toBeNull();
+    expect(battle.selectedDefenderType).toBe('thornvine-bramble');
+  });
+
+  it('restores the previously Selected Defender after an explicit cancel (AC3)', () => {
+    const battle = new BattleState({ level: tinyLevel(), startingMana: 200, availableSpells: ['root-snare'] });
+    battle.selectDefender('thornvine-bramble');
+    battle.armSpell('root-snare');
+    battle.cancelSpell();
+    expect(battle.armedSpell).toBeNull();
+    expect(battle.selectedDefenderType).toBe('thornvine-bramble');
+  });
+
+  it('arming the already-armed spell toggles it off and restores the prior Defender', () => {
+    const battle = new BattleState({ level: tinyLevel(), startingMana: 200, availableSpells: ['root-snare'] });
+    battle.selectDefender('thornvine-bramble');
+    battle.armSpell('root-snare');
+    expect(battle.armSpell('root-snare')).toEqual({ ok: true });
+    expect(battle.armedSpell).toBeNull();
+    expect(battle.selectedDefenderType).toBe('thornvine-bramble');
+  });
+
+  it('selecting a Defender exits spell targeting without losing selection', () => {
+    const battle = new BattleState({ level: tinyLevel(), startingMana: 200, availableSpells: ['root-snare'] });
+    battle.selectDefender('thornvine-bramble');
+    battle.armSpell('root-snare');
+    battle.selectDefender('sprig-sentinel');
+    expect(battle.armedSpell).toBeNull();
+    expect(battle.selectedDefenderType).toBe('sprig-sentinel');
+  });
+
+  it('a second cast before the cooldown elapses is refused and spends nothing (AC2)', () => {
+    const battle = new BattleState({ level: tinyLevel(), startingMana: 9999, availableSpells: ['root-snare'] });
+    expect(battle.castSpell(300, 256, 'root-snare').ok).toBe(true);
+    const second = battle.castSpell(300, 256, 'root-snare');
+    expect(second.ok).toBe(false);
+    if (!second.ok) expect(second.reason).toBe('spell-cooldown');
+    expect(battle.mana).toBe(9999 - 45); // only the first cast was paid for
+  });
+
+  it('starts the cooldown, and it ticks down on the battle clock', () => {
+    const battle = new BattleState({ level: tinyLevel(), startingMana: 9999, availableSpells: ['root-snare'] });
+    battle.castSpell(300, 256, 'root-snare');
+    expect(battle.snapshot().spells[0]).toMatchObject({ ready: false });
+    expect(battle.snapshot().spells[0]!.cooldownRemaining).toBeCloseTo(25, 5);
+    battle.start();
+    for (let i = 0; i < 5 * 60; i++) battle.tick(); // 5s later (battle still running)
+    expect(battle.snapshot().spells[0]!.ready).toBe(false);
+    expect(battle.snapshot().spells[0]!.cooldownRemaining).toBeCloseTo(20, 5);
+  });
+
+  it('the cooldown fully elapses so the spell becomes ready again', () => {
+    const battle = new BattleState({ level: slowLevel(), startingMana: 9999, availableSpells: ['root-snare'] });
+    battle.castSpell(300, 256, 'root-snare');
+    battle.start();
+    // 26s: the 25s cooldown has elapsed (and clamped to 0); the lone enemy is
+    // still mid-trail (it needs ~28s to cross), so the battle is still running.
+    for (let i = 0; i < 26 * 60; i++) battle.tick();
+    expect(battle.snapshot().spells[0]).toMatchObject({ ready: true, cooldownRemaining: 0 });
+  });
+
+  it('a rooted enemy stops advancing until the root expires', () => {
+    const battle = new BattleState({ level: tinyLevel(), startingMana: 9999, availableSpells: ['root-snare'] });
+    battle.start();
+    for (let i = 0; i < 60; i++) battle.tick();
+    const enemy = battle.enemies[0]!;
+    const sBefore = enemy.s;
+    battle.castSpell(enemy.x, enemy.y, 'root-snare');
+    const rootTime = enemy.rootTime;
+    for (let i = 0; i < 30; i++) battle.tick(); // 0.5s while rooted
+    expect(battle.enemies[0]!.s).toBe(sBefore); // frozen in place
+    expect(battle.enemies[0]!.rootTime).toBeCloseTo(rootTime - 0.5, 5);
+  });
+
+  it('cleansing-rain heals defenders within its radius (capped at maxHp)', () => {
+    const battle = new BattleState({ level: tinyLevel(), startingMana: 9999, availableSpells: ['cleansing-rain'] });
+    expect(battle.placeDefender('r1', 'sprig-sentinel').ok).toBe(true); // r1 at (300,256)
+    const defender = battle.defenders[0]!;
+    defender.hp = 10; // wound it
+    battle.castSpell(300, 256, 'cleansing-rain');
+    expect(battle.defenders[0]!.hp).toBe(70); // +60 heal
+  });
+
+  it('only unlocked spells appear in the snapshot availability list', () => {
+    const battle = new BattleState({ level: tinyLevel(), availableSpells: ['root-snare'] });
+    const ids = battle.snapshot().spells.map((s) => s.id);
+    expect(ids).toEqual(['root-snare']);
+    expect(battle.snapshot().spells[0]).toMatchObject({ affordable: true, ready: true, available: true, reason: null });
+  });
+});
+
+// Mana flowers: collectible pickups with safe, non-overlapping placement and a
+// generous hit region. The Guardian taps to collect without stealing a Defender
+// tap (issue #31).
+describe('Mana flowers (issue #31)', () => {
+  it('planManaFlowers drops candidates overlapping a ring or another flower', () => {
+    const rings = [{ x: 300, y: 256, buildRadius: 42 }];
+    const tooCloseToRing = { x: 320, y: 256 }; // within buildRadius + hit/2
+    const existing = [{ x: 600, y: 256 }];
+    const tooCloseToFlower = { x: 610, y: 256 }; // within hit of the existing flower
+    const clean = { x: 900, y: 256 };
+    const result = planManaFlowers({
+      rings,
+      existing,
+      candidates: [tooCloseToRing, tooCloseToFlower, clean],
+    });
+    expect(result).toEqual([clean]);
+  });
+
+  it('collectManaFlower grants Mana and removes the flower', () => {
+    const battle = new BattleState({ level: tinyLevel(), startingMana: 0 });
+    expect(battle.spawnManaFlower(900, 256, 25).ok).toBe(true);
+    expect(battle.manaFlowers).toHaveLength(1);
+    const r = battle.collectManaFlower(battle.manaFlowers[0]!.id);
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.mana).toBe(25);
+    expect(battle.mana).toBe(25);
+    expect(battle.manaFlowers).toHaveLength(0);
+  });
+
+  it('collecting an already-collected flower reports already-collected', () => {
+    const battle = new BattleState({ level: tinyLevel() });
+    battle.spawnManaFlower(900, 256, 25);
+    const id = battle.manaFlowers[0]!.id;
+    battle.collectManaFlower(id);
+    const second = battle.collectManaFlower(id);
+    expect(second.ok).toBe(false);
+    if (!second.ok) expect(second.reason).toBe('already-collected');
+  });
+
+  it('spawnManaFlower refuses to place a flower overlapping a ring', () => {
+    const battle = new BattleState({ level: tinyLevel() }); // r1 at (300,256), buildRadius 42
+    const r = battle.spawnManaFlower(310, 256, 20);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.reason).toBe('overlaps-ring');
+  });
+
+  it('spawns a Mana flower at a safe spot on each interval of battle time', () => {
+    const battle = new BattleState({ level: tinyLevel(), startingMana: 0, manaFlowerIntervalSec: 5 });
+    battle.start();
+    for (let i = 0; i < 6 * 60; i++) battle.tick(); // past the 5s interval mark
+    expect(battle.manaFlowers.length).toBeGreaterThanOrEqual(1);
+    // The spawned flower must clear the only ring's build area + half a hit region.
+    const f = battle.manaFlowers[0]!;
+    expect(Math.hypot(f.x - 300, f.y - 256)).toBeGreaterThan(42 + MANA_FLOWER_HIT / 2);
   });
 });

@@ -6,9 +6,10 @@ import {
   starsGlyph,
   waveText,
   buildContextPanel,
+  spellStateText,
   type HudElements,
 } from './hud';
-import type { BattleSnapshot, DefenderInspection } from './domain/battle';
+import type { BattleSnapshot, DefenderInspection, SpellAvailability } from './domain/battle';
 
 function stubs(): HudElements {
   return {
@@ -40,6 +41,23 @@ function snap(partial: Partial<BattleSnapshot>): BattleSnapshot {
     leaked: 0,
     canUndo: false,
     stars: 0,
+    armedSpell: null,
+    spells: [],
+    ...partial,
+  };
+}
+
+function spell(partial: Partial<SpellAvailability>): SpellAvailability {
+  return {
+    id: 'root-snare',
+    name: 'Root Snare',
+    cost: 45,
+    cooldownRemaining: 0,
+    cooldownMax: 25,
+    affordable: true,
+    ready: true,
+    available: true,
+    reason: null,
     ...partial,
   };
 }
@@ -204,5 +222,30 @@ describe('context panel projection (issue #30)', () => {
     expect(labels).toEqual(['Health', 'Role']);
     expect(view.stats.at(-1)!.value).toBe('Blocks the path');
     expect(view.upgrade.detail).toBe('Health 180 → 300');
+  });
+});
+
+describe('spell rejection messages (issue #31)', () => {
+  it('translates spell-cast and flower rejections into Guardian-facing hints', () => {
+    expect(humanReason('spell-cooldown')).toBe('Spell on cooldown');
+    expect(humanReason('spell-locked')).toBe('Spell not unlocked');
+    expect(humanReason('no-spell-armed')).toBe('No spell selected');
+    expect(humanReason('invalid-target')).toBe('Cannot cast there');
+    expect(humanReason('already-collected')).toBe('Already collected');
+    expect(humanReason('overlaps-ring')).toBe('Too close to a fairy ring');
+  });
+});
+
+describe('spell availability text (issue #31 AC4)', () => {
+  it('says Ready for a selectable spell', () => {
+    expect(spellStateText(spell({ ready: true, affordable: true }))).toBe('Ready');
+  });
+
+  it('names the cooldown (rounded up) while a spell is cooling down', () => {
+    expect(spellStateText(spell({ ready: false, cooldownRemaining: 18.2 }))).toBe('Cooldown 19s');
+  });
+
+  it('explains unaffordability when the Guardian lacks the Mana', () => {
+    expect(spellStateText(spell({ ready: true, affordable: false, cost: 50 }))).toBe('Needs 50 mana');
   });
 });

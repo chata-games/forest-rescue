@@ -13,9 +13,10 @@
 
 import Phaser from 'phaser';
 import { BattleState } from './domain/battle';
-import { getDefender } from './domain/content';
+import type { BattleSnapshot } from './domain/battle';
+import { getDefender, getSpell } from './domain/content';
 import { BattleScene } from './phaser/battle-scene';
-import { buildContextPanel, humanReason, renderHud, type HudElements } from './hud';
+import { buildContextPanel, humanReason, renderHud, spellStateText, type HudElements } from './hud';
 import { renderTrail, renderDetail, type TrailElements, type DetailElements } from './trail';
 import {
   resolveTrail,
@@ -27,7 +28,6 @@ import {
 } from './domain/campaign';
 import { recordResult } from './domain/scoring';
 import { buildPreviewSummary, type PreviewSummary, type SimulationFile } from './domain/preview';
-import type { BattleSnapshot } from './domain/battle';
 import type { CompiledLevel } from './domain/types';
 import manifestRaw from '../levels/campaign.json';
 import lvl01 from '../levels/compiled/01-meadows-edge.json';
@@ -77,6 +77,25 @@ function buildMeta(level: CompiledLevel): LevelMeta {
 
 const META: Record<string, LevelMeta> = {};
 for (const id of Object.keys(COMPILED)) META[id] = buildMeta(COMPILED[id]);
+
+/**
+ * Spells the Guardian may cast in a level: every spell unlocked by this level
+ * or an earlier one in campaign order (cumulative, so unlocked spells stay
+ * usable). Drives both the spell toolbar and the BattleState's availableSpells.
+ */
+function cumulativeSpells(levelId: string): string[] {
+  const idx = LEVEL_ORDER.indexOf(levelId);
+  const spells: string[] = [];
+  for (let i = 0; i <= idx; i++) {
+    const unlock = META[LEVEL_ORDER[i] ?? '']?.spellUnlock ?? null;
+    if (unlock && !spells.includes(unlock)) spells.push(unlock);
+  }
+  return spells;
+}
+
+// Mana flowers spawn on a steady cadence so collection is a live part of play.
+// Measured on the battle clock, so Pause/planning freeze the spawns too.
+const MANA_FLOWER_INTERVAL_SEC = 12;
 
 // --- Options + progress ---------------------------------------------------
 interface QueryOptions {
@@ -156,6 +175,8 @@ const replayBtn = $<HTMLButtonElement>('replayBtn');
 const returnToTrailBtn = $<HTMLButtonElement>('returnToTrailBtn');
 const undoBtn = $<HTMLButtonElement>('undoBtn');
 const toolButtons = Array.from(document.querySelectorAll<HTMLButtonElement>('.tool'));
+const spellbar = $<HTMLElement>('spellbar');
+let spellButtons: HTMLButtonElement[] = [];
 const overlay = $<HTMLElement>('outcomeOverlay');
 const outcomeTitle = $<HTMLHeadingElement>('outcomeTitle');
 const outcomeStars = $<HTMLParagraphElement>('outcomeStars');
@@ -407,19 +428,24 @@ function undoLastAction(): void {
 
 undoBtn.addEventListener('click', undoLastAction);
 
-// Keyboard parity: the same Undo works with touch, mouse, pen, and keyboard;
-// Escape cancels an armed removal or closes the modeless panel (issue #30 AC5).
+// Keyboard parity: the same Undo, spell-arm, and spell-cancel work with touch,
+// mouse, pen, and keyboard (issue #22 AC6, #31 AC6).
 window.addEventListener('keydown', (e) => {
   if (e.defaultPrevented) return;
   const typing = e.target instanceof HTMLElement && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
   if (typing) return;
-  if (e.key === 'Escape' && inspectedRingId) {
-    e.preventDefault();
-    if (removeConfirming) {
-      removeConfirming = false;
-      syncContextPanel();
-    } else {
-      closeInspect();
+  if (e.key === 'Escape') {
+    if (battle?.armedSpell) {
+      e.preventDefault();
+      cancelArmedSpell();
+    } else if (inspectedRingId) {
+      e.preventDefault();
+      if (removeConfirming) {
+        removeConfirming = false;
+        syncContextPanel();
+      } else {
+        closeInspect();
+      }
     }
     return;
   }
@@ -427,6 +453,15 @@ window.addEventListener('keydown', (e) => {
     if (!undoBtn.disabled) {
       e.preventDefault();
       undoLastAction();
+    }
+    return;
+  }
+  // Digit keys arm the Nth unlocked spell (1..9).
+  if (/^[1-9]$/.test(e.key)) {
+    const btn = spellButtons[Number(e.key) - 1];
+    if (btn && !btn.disabled) {
+      e.preventDefault();
+      selectSpell(btn.dataset.spell!);
     }
   }
 });
@@ -548,6 +583,68 @@ cpCancelBtn.addEventListener('click', () => {
   cpRemoveBtn.focus();
 });
 
+// --- Guardian spells + Mana flowers (issue #31) -------------------------
+
+/** Arm a spell for select-then-target casting (touch, mouse, pen, or keyboard). */
+function selectSpell(typeId: string): void {
+  if (!battle) return;
+  const result = battle.armSpell(typeId);
+  if (result.ok) {
+    const name = getSpell(typeId)?.name ?? 'Spell';
+    showHint(`Tap the battlefield to cast ${name}. Press Esc to cancel.`);
+  } else {
+    showHint(humanReason(result.reason));
+  }
+}
+
+/** Explicitly leave spell targeting and restore the previously Selected Defender. */
+function cancelArmedSpell(): void {
+  if (!battle || battle.armedSpell === null) return;
+  battle.cancelSpell();
+  showHint('Spell canceled');
+}
+
+function handleSpellCast(x: number, y: number, typeId?: string): void {
+  if (!battle) return;
+  // The domain re-validates and spends nothing on a miss; a success restores the
+  // prior Defender selection, so casting never loses the placement tool (AC2/AC3).
+  const result = battle.castSpell(x, y, typeId ?? battle.armedSpell);
+  if (result.ok) {
+    const name = getSpell(typeId ?? '')?.name ?? 'Spell';
+    showHint(`Cast ${name}`);
+  } else {
+    showHint(humanReason(result.reason));
+  }
+}
+
+function handleCollectFlower(flowerId: string): void {
+  if (!battle) return;
+  const result = battle.collectManaFlower(flowerId);
+  if (result.ok) showHint(`Collected +${result.mana} mana`);
+}
+
+/** Build the spell toolbar for a level's unlocked spells (aria-pressed/state sync
+ * in syncHud). Each button is a real, focusable control reachable from keyboard. */
+function buildSpellToolbar(spells: string[]): void {
+  if (!spellbar) return;
+  spellbar.innerHTML = '';
+  spellButtons = spells.map((id) => {
+    const stats = getSpell(id);
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'spell';
+    btn.dataset.spell = id;
+    btn.disabled = true;
+    btn.innerHTML = `<span class="spell__name">${stats?.name ?? id}</span>` +
+      `<span class="spell__cost">${stats?.cost ?? 0} mana</span>` +
+      `<span class="spell__state"></span>`;
+    btn.addEventListener('click', () => selectSpell(id));
+    spellbar.append(btn);
+    return btn;
+  });
+  spellbar.hidden = spells.length === 0;
+}
+
 function resetBattleHud(): void {
   lastSync = '';
   outcomeRecorded = false;
@@ -608,6 +705,9 @@ function syncHud(snap: BattleSnapshot): void {
   // The Undo button reflects the undo window every frame, independent of the
   // coarser HUD sync key, so it lights up the instant a placement is refundable.
   undoBtn.disabled = !snap.canUndo;
+  // Spell cooldown/affordability and the armed-spell highlight update every frame
+  // too, so a spell lights up the instant it becomes selectable (issue #31 AC4).
+  reconcileSpellToolbar(snap);
 
   // The modeless panel follows its inspected Defender live, and dismisses once
   // the battle resolves (issue #30 AC2).
@@ -625,6 +725,31 @@ function syncHud(snap: BattleSnapshot): void {
   renderHud(snap, hudElements);
 }
 
+/** Project spell availability + armed state onto the toolbar each frame, and keep
+ * the Defender tools' pressed state consistent while a spell is armed. */
+function reconcileSpellToolbar(snap: BattleSnapshot): void {
+  for (const btn of spellButtons) {
+    const id = btn.dataset.spell;
+    if (!id) continue;
+    const s = snap.spells.find((sp) => sp.id === id);
+    if (!s) {
+      btn.disabled = true;
+      continue;
+    }
+    btn.disabled = !s.available;
+    btn.setAttribute('aria-pressed', String(snap.armedSpell === id));
+    const state = btn.querySelector('.spell__state');
+    if (state) state.textContent = spellStateText(s);
+    btn.setAttribute('aria-label', `${s.name}, ${s.cost} mana, ${spellStateText(s)}`);
+  }
+  // While a spell is armed, no Defender tool reads as pressed (targeting owns the
+  // battlefield); otherwise the active Defender selection is pressed.
+  for (const btn of toolButtons) {
+    const pressed = snap.armedSpell === null && btn.dataset.defender === snap.selectedDefenderType;
+    btn.setAttribute('aria-pressed', String(pressed));
+  }
+}
+
 function bootBattleScene(): void {
   if (!battle) return;
   game = new Phaser.Game({
@@ -637,7 +762,12 @@ function bootBattleScene(): void {
     render: { antialias: true },
     scene: [BattleScene],
   });
-  game.registry.set('battleApi', { battle, onRingClick: handleRingTap });
+  game.registry.set('battleApi', {
+    battle,
+    onRingClick: handleRingTap,
+    onSpellCast: handleSpellCast,
+    onCollectFlower: handleCollectFlower,
+  });
   game.registry.set('timeScale', options.timeScale);
   game.registry.set('onFrame', syncHud);
   // Author overlays: the scene tints rings by role when preview is on, and the
@@ -657,12 +787,16 @@ function enterLevel(levelId: string): void {
     game.destroy(true);
     game = null;
   }
+  const spells = cumulativeSpells(levelId);
   battle = new BattleState({
     level,
     startingMana: options.god ? 9999 : level.startingMana,
+    availableSpells: spells,
+    manaFlowerIntervalSec: MANA_FLOWER_INTERVAL_SEC,
   });
 
   levelName.textContent = level.name;
+  buildSpellToolbar(spells);
   resetBattleHud();
 
   trailScreen.hidden = true;
@@ -707,8 +841,13 @@ function makeDebugApi() {
     upgradeRing: (ringId: string) => battle?.upgradeDefender(ringId) ?? null,
     removeRing: (ringId: string) => battle?.removeDefender(ringId) ?? null,
     selectDefender,
+    selectSpell,
+    castSpell: (x: number, y: number, typeId?: string) => handleSpellCast(x, y, typeId),
+    collectFlower: (id: string) => handleCollectFlower(id),
     start: () => battle?.start(),
     ringIds: () => (battle ? battle.rings.map((r) => r.id) : []),
+    spellIds: () => (battle ? battle.snapshot().spells.map((s) => s.id) : []),
+    flowerIds: () => (battle ? battle.manaFlowers.map((f) => f.id) : []),
   };
 }
 
@@ -718,8 +857,13 @@ export interface ForestRescueDebug {
   upgradeRing(ringId: string): { ok: true; cost: number; tier: number } | { ok: false; reason: string } | null;
   removeRing(ringId: string): { ok: true; refund: number } | { ok: false; reason: string } | null;
   selectDefender(typeId: string): void;
+  selectSpell(typeId: string): void;
+  castSpell(x: number, y: number, typeId?: string): void;
+  collectFlower(id: string): void;
   start(): void;
   ringIds(): string[];
+  spellIds(): string[];
+  flowerIds(): string[];
 }
 
 declare global {

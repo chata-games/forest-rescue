@@ -8,9 +8,9 @@
 // lives in BattleState.
 
 import Phaser from 'phaser';
-import { STEP } from '../domain/battle';
+import { STEP, MANA_FLOWER_HIT } from '../domain/battle';
 import type { BattleState } from '../domain/battle';
-import { getDefender } from '../domain/content';
+import { getDefender, getSpell } from '../domain/content';
 import type { Ring } from '../domain/types';
 import type { PreviewSummary } from '../domain/preview';
 
@@ -24,12 +24,20 @@ export interface BattleSceneApi {
    * places — so the scene reports every committed ring tap through this seam.
    */
   onRingClick: (ringId: string | null, typeId?: string) => void;
+  /** Called when a spell is committed at a battlefield point (issue #31). */
+  onSpellCast: (x: number, y: number, typeId?: string) => void;
+  /** Called when a tap collects a Mana flower (issue #31). */
+  onCollectFlower: (flowerId: string) => void;
 }
 
 const MAX_STEPS_PER_FRAME = 60;
 // A tap commits only if the pointer stays within this many CSS pixels of its
 // touch-down point — a drag or a sliding thumb cancels and spends nothing.
 const MOVE_THRESHOLD_PX = 12;
+// Logical battlefield width (the FIT-scaled game width) for CSS->world scaling.
+const FIELD_W = 1536;
+// Minimum Mana-flower radius in CSS pixels, so every flower is a >=48x48 target.
+const MIN_FLOWER_CSS_RADIUS = MANA_FLOWER_HIT / 2;
 
 // Painterly meadow-edge palette (vector composition; generated art is a future task).
 const COLOR = {
@@ -50,29 +58,49 @@ const COLOR = {
   invalid: 0xff6f5b,
   inspect: 0xf7d66f,
   selected: 0x8ef0b6,
+  flower: 0xf77fb0,
+  flowerCore: 0xffe08a,
+  spellReady: 0x8ea0ff,
 };
 
 /**
- * An in-flight tap. One entry per active pointer, so two thumbs can each carry
- * their own snapshotted tool and each release creates at most one defender.
+ * An in-flight pointer gesture. One entry per active pointer, so two thumbs can
+ * each carry their own snapshotted intent. While a spell is armed the battlefield
+ * is in targeting mode and every tap is a cast — it never places or collects
+ * (issue #31 AC6).
  */
-interface Gesture {
-  ringId: string;
-  /** Defender type captured at touch-down; the release commits this exact tool. */
-  typeId: string;
-  /** Whether placement would succeed at touch-down (drives ghost colour). */
-  valid: boolean;
-  /** CSS-pixel touch-down origin for the movement threshold. */
-  downX: number;
-  downY: number;
-  /** Set once the pointer exceeds the movement threshold — commit is forfeit. */
-  movedTooFar: boolean;
-  /**
-   * Captured at touch-down: an occupied ring inspects (issue #30), an empty ring
-   * places. Drives the in-flight visual — a selection ring vs a placement ghost.
-   */
-  mode: 'place' | 'inspect';
-}
+type PointerGesture =
+  | {
+      kind: 'place';
+      ringId: string;
+      /** Defender type captured at touch-down; the release commits this exact tool. */
+      typeId: string;
+      /** Whether placement would succeed at touch-down (drives ghost colour). */
+      valid: boolean;
+      downX: number;
+      downY: number;
+      /** Set once the pointer exceeds the movement threshold — commit is forfeit. */
+      movedTooFar: boolean;
+      /** Occupied rings show an inspect cue; empty rings show placement feedback. */
+      mode: 'place' | 'inspect';
+    }
+  | {
+      kind: 'collect';
+      flowerId: string;
+      downX: number;
+      downY: number;
+      movedTooFar: boolean;
+    }
+  | {
+      kind: 'cast';
+      /** Spell armed at touch-down; the release commits this exact spell. */
+      typeId: string;
+      /** World point the spell will land at (follows the pointer — this is aiming). */
+      x: number;
+      y: number;
+      /** Whether the cast would succeed at the current point (drives preview tint). */
+      valid: boolean;
+    };
 
 // Preview-overlay tints (author mode only): role-coded rings + hazard regions.
 const ROLE_COLOR: Record<string, number> = {
@@ -86,6 +114,8 @@ const ROLE_COLOR: Record<string, number> = {
 export class BattleScene extends Phaser.Scene {
   private battle!: BattleState;
   private onRingClick!: (ringId: string | null, typeId?: string) => void;
+  private onSpellCast!: (x: number, y: number, typeId?: string) => void;
+  private onCollectFlower!: (flowerId: string) => void;
 
   private terrain!: Phaser.GameObjects.Graphics;
   private dynamic!: Phaser.GameObjects.Graphics;
@@ -97,7 +127,7 @@ export class BattleScene extends Phaser.Scene {
   private summary: PreviewSummary | undefined;
 
   /** Active taps, keyed by pointer id (one gesture per thumb). */
-  private gestures = new Map<number, Gesture>();
+  private gestures = new Map<number, PointerGesture>();
   private wasPaused = false;
 
   constructor() {
@@ -109,6 +139,8 @@ export class BattleScene extends Phaser.Scene {
     if (!api) throw new Error('BattleScene requires a battleApi in the game registry');
     this.battle = api.battle;
     this.onRingClick = api.onRingClick;
+    this.onSpellCast = api.onSpellCast;
+    this.onCollectFlower = api.onCollectFlower;
     this.timeScale = (this.registry.get('timeScale') as number | undefined) ?? 1;
     this.preview = (this.registry.get('preview') as boolean | undefined) ?? false;
     this.summary = this.registry.get('summary') as PreviewSummary | undefined;
@@ -162,17 +194,40 @@ export class BattleScene extends Phaser.Scene {
     onFrame?.(this.battle.snapshot());
   }
 
-  // --- Tap-tap placement gesture ---------------------------------------
+  // --- Tap gestures: place, collect, or cast ---------------------------
 
   private onPointerDown(p: Phaser.Input.Pointer): void {
+    // While a spell is armed, targeting owns every battlefield tap — it never
+    // places a Defender or collects a flower (issue #31 AC6).
+    if (this.battle.armedSpell) {
+      const typeId = this.battle.armedSpell;
+      this.gestures.set(p.id, {
+        kind: 'cast',
+        typeId,
+        x: p.worldX,
+        y: p.worldY,
+        valid: this.battle.canCastSpell(p.worldX, p.worldY, typeId).ok,
+      });
+      return;
+    }
+
+    const { x, y } = this.clientPos(p);
+    // A tap on a Mana flower harvests it (only when no spell is armed).
+    const flowerId = this.flowerAt(p.worldX, p.worldY);
+    if (flowerId) {
+      this.gestures.set(p.id, { kind: 'collect', flowerId, downX: x, downY: y, movedTooFar: false });
+      return;
+    }
+
+    // Otherwise a tap on a fairy ring begins a placement gesture.
     const ringId = this.ringAt(p.worldX, p.worldY);
     if (!ringId) return; // empty ground: nothing to start
-    const { x, y } = this.clientPos(p);
     const typeId = this.battle.selectedDefenderType;
     // An occupied ring is an inspect target (issue #30), not a placement one —
     // the shell branches on occupancy at commit, and this drives the visual.
     const occupied = this.battle.defenders.some((d) => d.ringId === ringId && !d.dead);
     this.gestures.set(p.id, {
+      kind: 'place',
       ringId,
       typeId,
       valid: this.battle.canPlaceDefender(ringId, typeId).ok,
@@ -185,29 +240,73 @@ export class BattleScene extends Phaser.Scene {
 
   private onPointerMove(p: Phaser.Input.Pointer): void {
     const g = this.gestures.get(p.id);
-    if (!g || g.movedTooFar) return;
+    if (!g) return;
+    if (g.kind === 'cast') {
+      // Aiming: the reticle follows the pointer. Movement is the interaction, so
+      // it never cancels a cast — only leaving the battlefield does (AC2).
+      g.x = p.worldX;
+      g.y = p.worldY;
+      g.valid = this.battle.canCastSpell(g.x, g.y, g.typeId).ok;
+      return;
+    }
+    if (g.movedTooFar) return;
     const { x, y } = this.clientPos(p);
-    const moved = Math.hypot(x - g.downX, y - g.downY);
-    if (moved > MOVE_THRESHOLD_PX) g.movedTooFar = true;
+    if (Math.hypot(x - g.downX, y - g.downY) > MOVE_THRESHOLD_PX) g.movedTooFar = true;
   }
 
   private onPointerUp(p: Phaser.Input.Pointer, cancelled: boolean): void {
     const g = this.gestures.get(p.id);
     if (!g) return;
     this.gestures.delete(p.id);
-    // Cancellation, excessive movement, or a release on a different ring all
-    // return to the pre-gesture state and spend nothing (issue #22 AC2/AC4).
-    if (cancelled || g.movedTooFar) return;
-    if (this.ringAt(p.worldX, p.worldY) !== g.ringId) return;
-    // Commit with the touch-down tool snapshot; placeDefender re-validates and
-    // reports any problem, so an invalid/unaffordable attempt still spends nothing.
-    this.onRingClick(g.ringId, g.typeId);
+    // Cancellation / excessive movement / a release off-target all return to the
+    // pre-gesture state and spend nothing (issue #22 AC2/AC4, #31 AC2). A cancelled
+    // cast just drops the aim — the spell stays armed so the Guardian can re-aim.
+    if (cancelled) return;
+    if (g.kind === 'place') {
+      if (g.movedTooFar) return;
+      if (this.ringAt(p.worldX, p.worldY) !== g.ringId) return;
+      this.onRingClick(g.ringId, g.typeId);
+      return;
+    }
+    if (g.kind === 'collect') {
+      if (g.movedTooFar) return;
+      if (this.flowerAt(p.worldX, p.worldY) !== g.flowerId) return;
+      this.onCollectFlower(g.flowerId);
+      return;
+    }
+    // kind === 'cast': commit only if the spell is still armed (Esc may have
+    // disarmed mid-gesture). castSpell re-validates, so an invalid/unaffordable
+    // release still spends nothing.
+    if (this.battle.armedSpell === null) return;
+    this.onSpellCast(g.x, g.y, g.typeId);
   }
 
   /** CSS-pixel pointer position for the movement threshold (scale-independent). */
   private clientPos(p: Phaser.Input.Pointer): { x: number; y: number } {
     const e = p.event as unknown as { clientX?: number; clientY?: number } | undefined;
     return { x: e?.clientX ?? p.x, y: e?.clientY ?? p.y };
+  }
+
+  /** World-unit flower radius that renders (and hit-tests) as >=48 CSS pixels. */
+  private flowerHitRadius(): number {
+    const cssWidth = this.game.canvas.clientWidth;
+    const cssToWorld = cssWidth > 0 ? FIELD_W / cssWidth : 1;
+    return Math.max(MIN_FLOWER_CSS_RADIUS, MIN_FLOWER_CSS_RADIUS * cssToWorld);
+  }
+
+  /** Id of the Mana flower under a world point, or null. */
+  private flowerAt(wx: number, wy: number): string | null {
+    const r = this.flowerHitRadius();
+    let best: string | null = null;
+    let bestD = Infinity;
+    for (const f of this.battle.manaFlowers) {
+      const d = Math.hypot(wx - f.x, wy - f.y);
+      if (d <= r && d < bestD) {
+        bestD = d;
+        best = f.id;
+      }
+    }
+    return best;
   }
 
   // --- Rendering --------------------------------------------------------
@@ -372,27 +471,64 @@ export class BattleScene extends Phaser.Scene {
       g.lineBetween(p.fromX, p.fromY, p.toX, p.toY);
     }
 
-    // Defender ghost + range preview for each in-flight placement tap (issue
-    // #22 AC2); an inspect tap instead draws a selection cue on the occupied
-    // ring (issue #30) and never previews a purchase.
+    // Mana flowers: collectible pickups, each drawn at a >=48 CSS-pixel radius so
+    // the tap target matches the rendered glyph (issue #31 AC5).
+    const flowerR = this.flowerHitRadius();
+    for (const flower of this.battle.manaFlowers) {
+      g.fillStyle(0x0a2a1f, 0.35);
+      g.fillCircle(flower.x, flower.y, flowerR);
+      g.lineStyle(3, COLOR.flower, 0.9);
+      g.strokeCircle(flower.x, flower.y, flowerR);
+      g.fillStyle(COLOR.flower, 0.8);
+      for (let i = 0; i < 5; i++) {
+        const a = (i / 5) * Math.PI * 2 - Math.PI / 2;
+        g.fillCircle(flower.x + Math.cos(a) * flowerR * 0.5, flower.y + Math.sin(a) * flowerR * 0.5, flowerR * 0.4);
+      }
+      g.fillStyle(COLOR.flowerCore, 1);
+      g.fillCircle(flower.x, flower.y, flowerR * 0.32);
+    }
+
+    // In-flight taps: a placement ghost, a harvest highlight, or a spell aim.
     for (const gesture of this.gestures.values()) {
-      const ring = this.rings.find((r) => r.id === gesture.ringId);
-      if (!ring) continue;
-      if (gesture.mode === 'inspect') {
-        g.lineStyle(3, COLOR.inspect, 0.95);
-        g.strokeCircle(ring.x, ring.y, ring.radius + 8);
-        continue;
+      if (gesture.kind === 'place') {
+        const ring = this.rings.find((r) => r.id === gesture.ringId);
+        if (!ring) continue;
+        if (gesture.mode === 'inspect') {
+          g.lineStyle(3, COLOR.inspect, 0.95);
+          g.strokeCircle(ring.x, ring.y, ring.radius + 8);
+          continue;
+        }
+        const colour = gesture.valid ? COLOR.ring : COLOR.invalid;
+        const range = getDefender(gesture.typeId)?.range ?? 0;
+        if (range > 0) {
+          g.lineStyle(1, colour, 0.3);
+          g.strokeCircle(ring.x, ring.y, range);
+        }
+        g.lineStyle(2, colour, 0.85);
+        g.strokeCircle(ring.x, ring.y, ring.radius + 4);
+        g.fillStyle(colour, 0.4);
+        g.fillCircle(ring.x, ring.y, 18);
+      } else if (gesture.kind === 'collect') {
+        const flower = this.battle.manaFlowers.find((f) => f.id === gesture.flowerId);
+        if (!flower) continue;
+        g.lineStyle(3, COLOR.flowerCore, 1);
+        g.strokeCircle(flower.x, flower.y, flowerR + 6);
+      } else {
+        // kind === 'cast': area preview (the spell radius) + a reticle at the
+        // landing point, tinted by whether the cast would commit (issue #31 AC1).
+        const colour = gesture.valid ? COLOR.spellReady : COLOR.invalid;
+        const radius = getSpell(gesture.typeId)?.radius ?? 0;
+        if (radius > 0) {
+          g.lineStyle(2, colour, 0.5);
+          g.strokeCircle(gesture.x, gesture.y, radius);
+          g.fillStyle(colour, 0.12);
+          g.fillCircle(gesture.x, gesture.y, radius);
+        }
+        g.lineStyle(3, colour, 0.95);
+        g.strokeCircle(gesture.x, gesture.y, 16);
+        g.lineBetween(gesture.x - 24, gesture.y, gesture.x + 24, gesture.y);
+        g.lineBetween(gesture.x, gesture.y - 24, gesture.x, gesture.y + 24);
       }
-      const colour = gesture.valid ? COLOR.ring : COLOR.invalid;
-      const range = getDefender(gesture.typeId)?.range ?? 0;
-      if (range > 0) {
-        g.lineStyle(1, colour, 0.3);
-        g.strokeCircle(ring.x, ring.y, range);
-      }
-      g.lineStyle(2, colour, 0.85);
-      g.strokeCircle(ring.x, ring.y, ring.radius + 4);
-      g.fillStyle(colour, 0.4);
-      g.fillCircle(ring.x, ring.y, 18);
     }
   }
 

@@ -2,7 +2,7 @@
 // globals so it can be unit-tested with plain stub elements: it is the exact
 // transformation the browser applies to each BattleState snapshot.
 
-import type { BattleSnapshot, DefenderInspection, StatChanges } from './domain/battle';
+import type { BattleSnapshot, DefenderInspection, SpellAvailability, StatChanges } from './domain/battle';
 
 /** Minimal structural shape renderHud touches — real HTMLElements satisfy this. */
 export interface HudElements {
@@ -52,9 +52,38 @@ export function humanReason(reason: string): string {
       return 'Nothing to undo';
     case 'undo-expired':
       return 'Undo window expired';
+    case 'spell-cooldown':
+      return 'Spell on cooldown';
+    case 'spell-locked':
+      return 'Spell not unlocked';
+    case 'unknown-spell':
+      return 'Unknown spell';
+    case 'no-spell-armed':
+      return 'No spell selected';
+    case 'invalid-target':
+      return 'Cannot cast there';
+    case 'already-collected':
+      return 'Already collected';
+    case 'overlaps-ring':
+      return 'Too close to a fairy ring';
+    case 'overlaps-flower':
+      return 'Too close to another flower';
+    case 'out-of-bounds':
+      return 'Outside the battlefield';
     default:
       return 'Cannot place there';
   }
+}
+
+/**
+ * Visible, textual state for one spell so the toolbar can show — and a screen
+ * reader can hear — why an unavailable spell cannot be selected (issue #31 AC4).
+ * Cooldown is rounded up so the Guardian never sees "0s" on a still-locking spell.
+ */
+export function spellStateText(spell: SpellAvailability): string {
+  if (!spell.ready) return `Cooldown ${Math.ceil(spell.cooldownRemaining)}s`;
+  if (!spell.affordable) return `Needs ${spell.cost} mana`;
+  return 'Ready';
 }
 
 /**
