@@ -52,16 +52,25 @@ export async function fr(page: Page): Promise<void> {
  * wait for the battle to mount. The detail Enter action opens the Loadout
  * screen; Start Battle (with the pre-filled starter Loadout) mounts the
  * battlefield (issue #21 AC6).
+ *
+ * When the URL carries `?level=`, the app boots straight into that level's
+ * Loadout step (the Trail is hidden), so the map navigation is skipped and the
+ * journey starts from Start Battle — entering exactly the level the URL names.
  */
 export async function enterFromTrail(page: Page, search: string, levelId = '01-meadows-edge'): Promise<void> {
   await page.goto(`/${search}`);
-  // The Trail is the first-launch view; every level node is a semantic control.
-  await page.locator(`.trail-node[data-level="${levelId}"]`).click();
-  await expect(page.locator('#trailDetail')).toBeVisible();
-  await page.locator('#detailEnter').click();
-  // Enter leads into the Loadout step, then Start Battle mounts the battlefield.
-  await expect(page.locator('#loadoutScreen')).toBeVisible();
-  await page.locator('#loadoutStart').click();
+  if (await page.locator('#loadoutScreen').isVisible()) {
+    // Booted into the Loadout step via ?level=: Start straight from it.
+    await page.locator('#loadoutStart').click();
+  } else {
+    // The Trail is the first-launch view; every level node is a semantic control.
+    await page.locator(`.trail-node[data-level="${levelId}"]`).click();
+    await expect(page.locator('#trailDetail')).toBeVisible();
+    await page.locator('#detailEnter').click();
+    // Enter leads into the Loadout step, then Start Battle mounts the battlefield.
+    await expect(page.locator('#loadoutScreen')).toBeVisible();
+    await page.locator('#loadoutStart').click();
+  }
   await expect(page.locator('#battleRoot')).toBeVisible();
   await fr(page);
 }

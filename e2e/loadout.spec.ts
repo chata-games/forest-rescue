@@ -73,7 +73,13 @@ test.describe('Loadout assembly (issue #21)', () => {
     expect(ids).toContain('root-snare'); // a Guardian spell
     expect(pool.map((p) => p.kind)).toEqual(expect.arrayContaining(['defender', 'spell']));
 
-    // Loading the spell places it in a slot.
+    // Loading the spell places it in a slot. The L5 starter already slots
+    // root-snare, so clear it first — otherwise loadoutFill toggles it back out.
+    await page.evaluate(() => {
+      const api = (window as unknown as { fr: FrApi }).fr;
+      const idx = api.loadoutSlots().findIndex((s) => s?.id === 'root-snare');
+      if (idx >= 0) api.loadoutClear(idx);
+    });
     await page.evaluate(() => (window as unknown as { fr: FrApi }).fr.loadoutFill('root-snare'));
     const slots = await page.evaluate(() => (window as unknown as { fr: FrApi }).fr.loadoutSlots());
     expect(slots.some((s) => s?.id === 'root-snare' && s.kind === 'spell')).toBe(true);

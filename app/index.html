@@ -176,6 +176,20 @@
       </div>
     </section>
 
+    <!-- Portrait recommendation (issue #24 AC2): offered once per session when a
+         battle is entered in the Compact portrait layout. Landscape two-thumb play
+         is preferred; "Play in portrait" dismisses the advice and keeps the
+         battlefield fully operable at its scaled size. -->
+    <section id="portraitAdvice" class="overlay overlay--advice" role="dialog" aria-modal="true" aria-labelledby="portraitAdviceTitle" hidden>
+      <div class="overlay__panel">
+        <h2 id="portraitAdviceTitle">Best played sideways</h2>
+        <p id="portraitAdviceBody" class="overlay__note"></p>
+        <div class="overlay__actions">
+          <button id="portraitAdviceKeep" class="primary-btn" type="button">Play in portrait</button>
+        </div>
+      </div>
+    </section>
+
     <!-- Planning Pause (issue #32 AC5): a frozen mid-battle state. Cancels every
          battlefield gesture and offers Resume, Settings, confirmed Restart, and
          confirmed Exit. Spells and Mana flowers wait until Resume (AC4). -->

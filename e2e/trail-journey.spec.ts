@@ -111,9 +111,12 @@ test.describe('Trail campaign map', () => {
     await expect(page.locator('#detailEnter')).toBeEnabled();
     await expect(page.locator('#detailTitle')).toHaveText("Meadow's Edge");
 
-    // Enter leads into the pre-battle flow: the Phaser battlefield mounts.
+    // Enter leads into the pre-battle Loadout step, then Start mounts the
+    // Phaser battlefield (issue #21).
     await page.locator('#detailEnter').click();
     await expect(page.locator('#trailScreen')).toBeHidden();
+    await expect(page.locator('#loadoutScreen')).toBeVisible();
+    await page.locator('#loadoutStart').click();
     await expect(page.locator('#battleRoot')).toBeVisible();
     await expect(page.locator('#levelName')).toHaveText("Meadow's Edge");
     await expect(page.locator('#game-root canvas')).toBeVisible();

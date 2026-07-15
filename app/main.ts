@@ -39,6 +39,13 @@ import {
   type HudElements,
   type WavePreviewWaveView,
 } from './hud';
+import {
+  effectiveLayout,
+  portraitAdvice,
+  shouldShowPortraitAdvice,
+  type LayoutMode,
+  type LayoutOverride,
+} from './responsive';
 import { renderTrail, renderDetail, type TrailElements, type DetailElements } from './trail';
 import {
   resolveTrail,
@@ -248,6 +255,12 @@ const cpCloseBtn = $<HTMLButtonElement>('cpClose');
 // the pause overlay for mid-battle planning.
 const wavePreviewPanel = $<HTMLElement>('wavePreview');
 const wavePreviewBody = $<HTMLElement>('wavePreviewBody');
+// Portrait recommendation (issue #24 AC2): offered once per session when a battle
+// is entered in the Compact portrait layout.
+const portraitAdviceOverlay = $<HTMLElement>('portraitAdvice');
+const portraitAdviceTitle = $<HTMLHeadingElement>('portraitAdviceTitle');
+const portraitAdviceBody = $<HTMLParagraphElement>('portraitAdviceBody');
+const portraitAdviceKeepBtn = $<HTMLButtonElement>('portraitAdviceKeep');
 // Planning Pause overlay (issue #32 AC5): Resume / Settings / Restart / Exit.
 const pauseOverlay = $<HTMLElement>('pauseOverlay');
 const pauseWavePreview = $<HTMLElement>('pauseWavePreview');
@@ -287,18 +300,35 @@ const detailElements: DetailElements = {
 };
 
 // --- Layout + level selection (author preview) ---------------------------
-function currentLayout(): QueryOptions['layout'] {
-  if (document.body.classList.contains('force-portrait')) return 'portrait';
-  if (document.body.classList.contains('force-landscape')) return 'landscape';
-  return 'auto';
+// The effective battle layout (issue #24 AC1). A forced `?layout=` override (or a
+// press of the Layout button) wins; otherwise the viewport's aspect ratio decides
+// — square-or-wider is the Preferred landscape layout, a taller viewport is the
+// Compact portrait layout. Reflected on <body data-layout="..."> so CSS reflows
+// and the browser journeys can observe it.
+let layoutOverride: LayoutOverride = options.layout;
+
+function effectiveLayoutNow(): LayoutMode {
+  return effectiveLayout(layoutOverride, window.innerWidth, window.innerHeight);
 }
 
-function applyLayout(layout: QueryOptions['layout']): void {
-  document.body.classList.toggle('force-portrait', layout === 'portrait');
-  document.body.classList.toggle('force-landscape', layout === 'landscape');
+function refreshLayout(): void {
+  const effective = effectiveLayoutNow();
+  document.body.dataset.layout = effective;
+  // The force-classes drive the author preview's simulated phone/landscape frame.
+  document.body.classList.toggle('force-portrait', layoutOverride === 'portrait');
+  document.body.classList.toggle('force-landscape', layoutOverride === 'landscape');
   if (layoutBtn) {
-    layoutBtn.textContent = `Layout: ${currentLayout()}`;
+    layoutBtn.textContent = `Layout: ${effective}`;
+    layoutBtn.setAttribute(
+      'aria-label',
+      `Toggle battle layout. Landscape is preferred. Current: ${effective}.`,
+    );
   }
+}
+
+/** Cycle the forced override between portrait and landscape (the Layout button). */
+function cycleOverride(): LayoutOverride {
+  return layoutOverride === 'portrait' ? 'landscape' : 'portrait';
 }
 
 function navigate(next: Partial<QueryOptions>): void {
@@ -323,11 +353,16 @@ if (levelSelect) {
 
 if (layoutBtn) {
   layoutBtn.addEventListener('click', () => {
-    applyLayout(currentLayout() === 'portrait' ? 'landscape' : 'portrait');
+    layoutOverride = cycleOverride();
+    refreshLayout();
   });
 }
 
-applyLayout(options.layout);
+refreshLayout();
+// A viewport resize re-derives the effective layout so the shell stays responsive
+// in real time (window resize on desktop, rotation on a device — see the
+// orientationchange handler below for the rotation pause).
+window.addEventListener('resize', refreshLayout);
 
 // --- Trail construction ---------------------------------------------------
 let trailNodes: TrailNode[] = resolveTrail(manifest, META, progress);
@@ -551,6 +586,15 @@ window.addEventListener('keydown', (e) => {
     }
     return;
   }
+  // 'p' is keyboard parity for the Pause control (issue #24 AC5): it toggles the
+  // Planning Pause while a battle runs and no modal overlay owns the surface.
+  if (e.key === 'p' || e.key === 'P') {
+    if (portraitAdviceOverlay.hidden && battle && battle.phase === 'running') {
+      e.preventDefault();
+      togglePause();
+    }
+    return;
+  }
   // Digit keys arm the Nth unlocked spell (1..9).
   if (/^[1-9]$/.test(e.key)) {
     const btn = spellButtons[Number(e.key) - 1];
@@ -755,7 +799,8 @@ settingsBtn.addEventListener('click', () => {
 // The pause Settings surface mirrors the HUD layout toggle (the app's one real
 // setting) so the Guardian can reflow while planning.
 pauseLayoutBtn.addEventListener('click', () => {
-  applyLayout(currentLayout() === 'portrait' ? 'landscape' : 'portrait');
+  layoutOverride = cycleOverride();
+  refreshLayout();
 });
 
 restartBtn.addEventListener('click', () =>
@@ -787,6 +832,40 @@ document.addEventListener('visibilitychange', () => {
     battle.setPaused(true);
   }
 });
+
+// Rotation (issue #24 AC3): a device rotation freezes the simulation so the
+// battlefield never advances mid-turn, and the Phaser scene independently clears
+// every in-flight gesture on orientationchange (spending nothing). Combat resumes
+// only through explicit Resume — rotation, like backgrounding, never auto-resumes.
+window.addEventListener('orientationchange', () => {
+  if (battle && battle.phase === 'running' && !battle.paused) {
+    battle.setPaused(true);
+  }
+});
+
+// --- Portrait recommendation (issue #24 AC2) ----------------------------
+// Offered once per session when a battle is entered in the Compact portrait
+// layout. The visible view (title/body/action) comes from the responsive
+// projector so the wording stays in one testable place; the session-once gate is
+// shell state.
+let portraitAdviceShown = false;
+
+function showPortraitAdvice(): void {
+  const view = portraitAdvice();
+  portraitAdviceTitle.textContent = view.title;
+  portraitAdviceBody.textContent = view.body;
+  portraitAdviceKeepBtn.textContent = view.keepAction;
+  portraitAdviceOverlay.hidden = false;
+  portraitAdviceShown = true;
+  portraitAdviceKeepBtn.focus();
+}
+
+function dismissPortraitAdvice(): void {
+  portraitAdviceOverlay.hidden = true;
+  pauseBtn.focus();
+}
+
+portraitAdviceKeepBtn.addEventListener('click', dismissPortraitAdvice);
 
 /** Build the spell toolbar for a level's unlocked spells (aria-pressed/state sync
  * in syncHud). Each button is a real, focusable control reachable from keyboard. */
@@ -1141,6 +1220,11 @@ function enterLevel(levelId: string, loadout: Loadout): void {
   bootBattleScene();
   if (options.preview) renderPreviewLegend();
   window.fr = makeDebugApi();
+  // Offer the once-per-session portrait recommendation when entering in portrait
+  // (issue #24 AC2). After the first dismissal it never shows again this session.
+  if (shouldShowPortraitAdvice(effectiveLayoutNow(), portraitAdviceShown)) {
+    showPortraitAdvice();
+  }
 }
 
 function returnToTrail(): void {
