@@ -5,3 +5,7 @@ dist
 node_modules/
 assets/previews/
 levels/compiled/*-preview.png
+test-results/
+playwright-report/
+/playwright/.cache
+

@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#13391f" />
+  <title>Forest Rescue: Heartwood — Meadow's Edge</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+
+<body>
+  <div id="app-root" class="app-root">
+    <!-- Semantic DOM/CSS HUD: Mana, Hearts, wave state, pause, and outcome.
+         The Phaser battlefield renders into #game-root; this shell stays plain DOM. -->
+    <header class="hud" role="banner" aria-label="Battle heads-up display">
+      <div class="hud__title" id="levelName">Meadow's Edge</div>
+
+      <div class="hud__stat" aria-label="Mana available">
+        <span class="hud__label" aria-hidden="true">Mana</span>
+        <span class="hud__value" id="manaValue" aria-live="polite">150</span>
+      </div>
+
+      <div class="hud__stat" aria-label="Hearts remaining">
+        <span class="hud__label" aria-hidden="true">Hearts</span>
+        <span class="hud__value" id="heartsValue" aria-live="polite">♥♥♥♥♥</span>
+      </div>
+
+      <div class="hud__stat" aria-label="Wave progress">
+        <span class="hud__label" aria-hidden="true">Wave</span>
+        <span class="hud__value" id="waveValue" aria-live="polite">1 / 8</span>
+      </div>
+
+      <button id="pauseBtn" class="hud__btn" type="button" aria-pressed="false" aria-label="Pause battle">Pause</button>
+    </header>
+
+    <!-- The production Phaser battlefield mounts here. -->
+    <main class="stage" id="game-root" role="img" aria-label="Forest Rescue battlefield"></main>
+
+    <nav class="toolbar" aria-label="Defender selection">
+      <button class="tool" data-defender="sprig-sentinel" type="button" aria-pressed="true">
+        <span class="tool__name">Sprig Sentinel</span>
+        <span class="tool__cost">50 mana</span>
+      </button>
+      <button class="tool" data-defender="thornvine-bramble" type="button" aria-pressed="false">
+        <span class="tool__name">Thornvine Bramble</span>
+        <span class="tool__cost">35 mana</span>
+      </button>
+    </nav>
+
+    <div class="start-row">
+      <button id="startBtn" class="primary-btn" type="button">Start Wave</button>
+      <output id="hint" class="hint" role="status" aria-live="polite"></output>
+    </div>
+
+    <section id="outcomeOverlay" class="overlay" role="dialog" aria-modal="true" aria-live="assertive" hidden>
+      <div class="overlay__panel">
+        <h2 id="outcomeTitle">Victory</h2>
+        <p id="outcomeMessage"></p>
+        <button id="replayBtn" class="primary-btn" type="button">Play Again</button>
+      </div>
+    </section>
+  </div>
+
+  <script type="module" src="./main.ts"></script>
+</body>
+
+</html>

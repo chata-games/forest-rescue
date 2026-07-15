@@ -8,7 +8,14 @@
     "validate": "node tools/levelgen/validate.mjs",
     "preview": "node tools/levelgen/preview.mjs levels/compiled/01-meadows-edge.json",
     "author": "node tools/levelgen/validate.mjs levels/intents && node tools/levelgen/compile.mjs --all && node tools/levelgen/validate.mjs",
-    "test": "node --test tests/**/*.test.mjs",
+    "test": "vitest run",
+    "test:node": "node --test \"tests/*/*.test.mjs\"",
+    "test:domain": "vitest run",
+    "test:e2e": "playwright test",
+    "test:all": "npm run test:node && npm run test:domain && npm run test:e2e",
+    "typecheck": "tsc -p app/tsconfig.json --noEmit",
+    "dev:app": "vite --config app/vite.config.ts",
+    "build:app": "vite build --config app/vite.config.ts",
     "simulate": "node tools/simulation/run.mjs",
     "restore-sources": "node tools/assets/restore-sources.mjs",
     "process": "node tools/assets/process.mjs",
@@ -17,9 +24,15 @@
   },
   "devDependencies": {
     "@ai-hero/sandcastle": "^0.12.0",
+    "@playwright/test": "^1.61.1",
+    "@types/node": "^26.1.1",
     "ajv": "^8.17.1",
+    "phaser": "^4.1.0",
     "sharp": "^0.33.5",
     "tsx": "^4.23.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.1.4",
+    "vitest": "^4.1.10",
     "zod": "^4.4.3"
   }
 }

@@ -1,0 +1,216 @@
+:root {
+  --grove-deep: #0c2a1d;
+  --grove: #143d2c;
+  --grove-soft: #1d5a40;
+  --leaf: #6fd49a;
+  --leaf-bright: #8ef0b6;
+  --bark: #b9824e;
+  --mana: #f7d66f;
+  --heart: #ff6f5b;
+  --ink: #f3ffe9;
+  --ring: #77e0c1;
+  font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+  color: var(--ink);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--grove-deep);
+  overflow: hidden;
+}
+
+.app-root {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto 1fr auto auto;
+  height: 100vh;
+  height: 100dvh;
+  gap: 0;
+}
+
+/* --- HUD --- */
+.hud {
+  display: flex;
+  align-items: center;
+  gap: clamp(8px, 1.6vw, 20px);
+  padding: clamp(8px, 1.4vw, 16px) clamp(12px, 2vw, 24px);
+  background: linear-gradient(180deg, #082017 0%, #0e2c20 100%);
+  border-bottom: 1px solid #1d5a4055;
+  z-index: 4;
+}
+
+.hud__title {
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  font-size: clamp(14px, 1.4vw, 20px);
+  margin-right: auto;
+}
+
+.hud__stat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.05;
+  background: #0a2a1f88;
+  border: 1px solid #6fd49a33;
+  border-radius: 10px;
+  padding: 6px 10px;
+  min-width: 64px;
+}
+
+.hud__label {
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #aedbbd;
+}
+
+.hud__value {
+  font-size: clamp(14px, 1.4vw, 18px);
+  font-weight: 800;
+}
+
+.hud__btn {
+  border: 1px solid #6fd49a55;
+  background: #122d22;
+  color: var(--ink);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.hud__btn[aria-pressed="true"] {
+  background: var(--leaf);
+  color: #0c2a1d;
+}
+
+/* --- Stage (Phaser mount) --- */
+.stage {
+  position: relative;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(120% 120% at 70% 10%, #1d5a40 0%, #10302400 60%), var(--grove);
+}
+
+.stage canvas {
+  max-width: 100%;
+  max-height: 100%;
+  display: block;
+  box-shadow: 0 12px 40px #03110e88;
+  border-radius: 6px;
+}
+
+/* --- Toolbar --- */
+.toolbar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+  padding: 10px clamp(12px, 2vw, 24px);
+  background: linear-gradient(0deg, #082017 0%, #0e2c20 100%);
+  border-top: 1px solid #1d5a4055;
+  z-index: 4;
+}
+
+.tool {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 132px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid #6fd49a55;
+  background: #122d22;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.tool[aria-pressed="true"] {
+  border-color: var(--mana);
+  box-shadow: 0 0 14px #f7d66f55;
+}
+
+.tool__name {
+  font-weight: 700;
+}
+
+.tool__cost {
+  font-size: 11px;
+  color: var(--mana);
+}
+
+.start-row {
+  display: grid;
+  place-items: center;
+  gap: 6px;
+  padding: 8px 0 14px;
+  background: #082017;
+  z-index: 4;
+}
+
+.hint {
+  min-height: 1em;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  color: #aedbbd;
+}
+
+.primary-btn {
+  border: 0;
+  border-radius: 12px;
+  padding: 12px 26px;
+  background: var(--mana);
+  color: #18392c;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+}
+
+/* --- Outcome overlay --- */
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: #03110ebb;
+  z-index: 9;
+}
+
+.overlay[hidden] {
+  display: none;
+}
+
+.overlay__panel {
+  text-align: center;
+  background: var(--grove);
+  border: 1px solid var(--leaf);
+  border-radius: 18px;
+  padding: 28px 40px;
+  box-shadow: 0 18px 60px #03110eaa;
+}
+
+.overlay__panel h2 {
+  margin: 0 0 8px;
+  font-size: 30px;
+}
+
+/* Portrait reflow: the FIT-scaled battlefield shrinks uniformly; HUD reflows. */
+@media (orientation: portrait) {
+  .hud {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .hud__title {
+    width: 100%;
+    margin-right: 0;
+  }
+}
