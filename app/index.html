@@ -47,6 +47,32 @@
     </div>
   </dialog>
 
+  <!-- Loadout (issue #21): the pre-battle assembly step. The Guardian fills
+       capacity slots from immediately available Defenders and spells. Start is
+       disabled while every slot is empty; recommendations and warnings stay
+       advisory. Shown between the Trail detail and the battlefield. -->
+  <section id="loadoutScreen" class="loadout" aria-label="Loadout assembly" hidden>
+    <header class="loadout__header">
+      <h2 id="loadoutTitle" class="loadout__title">Loadout</h2>
+      <p class="loadout__subtitle">Choose Defenders and spells to bring into battle. Fill at least one slot to start.</p>
+    </header>
+    <div class="loadout__body">
+      <div class="loadout__col">
+        <h3 class="loadout__heading">Available</h3>
+        <div id="loadoutPool" class="loadout__pool" role="group" aria-label="Available Defenders and spells"></div>
+      </div>
+      <div class="loadout__col">
+        <h3 class="loadout__heading">Your Loadout</h3>
+        <div id="loadoutSlots" class="loadout__slots" role="group" aria-label="Loadout slots"></div>
+        <div id="loadoutAdvice" class="loadout__advice" role="note" hidden></div>
+      </div>
+    </div>
+    <div class="loadout__actions">
+      <button id="loadoutBack" class="hud__btn" type="button">Back</button>
+      <button id="loadoutStart" class="primary-btn" type="button" disabled>Start Battle</button>
+    </div>
+  </section>
+
   <!-- Battle view: the semantic DOM/CSS HUD + Phaser battlefield. Hidden until a
        level is entered from the Trail. -->
   <div id="battleRoot" class="app-root" hidden>
@@ -115,15 +141,8 @@
       </section>
     </div>
 
-    <nav class="toolbar" aria-label="Defender selection">
-      <button class="tool" data-defender="sprig-sentinel" type="button" aria-pressed="true">
-        <span class="tool__name">Sprig Sentinel</span>
-        <span class="tool__cost">50 mana</span>
-      </button>
-      <button class="tool" data-defender="thornvine-bramble" type="button" aria-pressed="false">
-        <span class="tool__name">Thornvine Bramble</span>
-        <span class="tool__cost">35 mana</span>
-      </button>
+    <nav id="toolbar" class="toolbar" aria-label="Defender selection" hidden>
+      <!-- Defender tools are built per battle from the chosen Loadout (issue #21). -->
     </nav>
 
     <!-- Guardian spells (issue #31): armed with select-then-target casting.

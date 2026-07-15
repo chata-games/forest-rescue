@@ -49,10 +49,13 @@ test.describe("Meadow's Edge completion, scoring, and unlock", () => {
       'current',
     );
 
-    // Re-enter the cleared level and Play Again rebuilds it in place.
+    // Re-enter the cleared level: the detail Enter opens the Loadout step, then
+    // Start Battle mounts it again (issue #21).
     await page.locator('.trail-node[data-level="01-meadows-edge"]').click();
     await expect(page.locator('#detailEnter')).toBeEnabled();
     await page.locator('#detailEnter').click();
+    await expect(page.locator('#loadoutScreen')).toBeVisible();
+    await page.locator('#loadoutStart').click();
     await expect(page.locator('#battleRoot')).toBeVisible();
   });
 });
