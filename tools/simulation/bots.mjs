@@ -19,8 +19,29 @@ import {
   tickFire,
   FIRE,
 } from "../../src/level/fire.js";
+import { cumulativeUnlocks } from "../../src/campaign-data.js";
+import { readJson } from "../levelgen/shared.mjs";
 
 const STEP = 1 / 60;
+
+// The campaign manifest owns the unlock ladder; the simulation derives the
+// cumulative defenders available at each level from it rather than duplicating
+// the list. A missing manifest falls back to a starter defender so headless
+// simulations of hand-test fixtures still run.
+let CAMPAIGN_MANIFEST = null;
+try {
+  CAMPAIGN_MANIFEST = readJson(new URL("../../levels/campaign.json", import.meta.url));
+} catch {
+  CAMPAIGN_MANIFEST = null;
+}
+
+export function campaignUnlocksFor(levelId) {
+  if (CAMPAIGN_MANIFEST) {
+    const unlocks = cumulativeUnlocks(CAMPAIGN_MANIFEST, levelId);
+    if (unlocks.length) return unlocks;
+  }
+  return ["sprig-sentinel"];
+}
 
 export const BOTS = {
   "cheapest-dps": { prefer: "sprig-sentinel", upgrade: false },
@@ -28,16 +49,6 @@ export const BOTS = {
   "upgrade-first": { prefer: "sprig-sentinel", upgrade: true, fireFirst: true },
   "defensive-gate": { prefer: "thornvine-bramble", gateFocus: true },
   "anti-air-priority": { prefer: "wisp-willow", antiAir: true },
-};
-
-const CAMPAIGN_UNLOCKS = {
-  "01-meadows-edge": ["sprig-sentinel", "thornvine-bramble"],
-  "02-old-stump-crossroads": ["sprig-sentinel", "thornvine-bramble", "wisp-willow"],
-  "03-whispering-river": ["sprig-sentinel", "thornvine-bramble", "wisp-willow", "dewdrop-nymph"],
-  "04-mushroom-hollow": ["sprig-sentinel", "thornvine-bramble", "wisp-willow", "dewdrop-nymph", "firefly-beacon", "mushroom-shaman"],
-  "05-sawmill-clearing": ["sprig-sentinel", "thornvine-bramble", "wisp-willow", "dewdrop-nymph", "firefly-beacon", "mushroom-shaman"],
-  "06-ashfall-scar": ["sprig-sentinel", "thornvine-bramble", "wisp-willow", "dewdrop-nymph", "firefly-beacon", "mushroom-shaman"],
-  "07-boulder-pass": ["sprig-sentinel", "thornvine-bramble", "wisp-willow", "dewdrop-nymph", "firefly-beacon", "mushroom-shaman", "mossback-golem"],
 };
 
 export function runSimulation(level, botName = "cheapest-dps", options = {}) {
@@ -68,7 +79,7 @@ export function runSimulation(level, botName = "cheapest-dps", options = {}) {
   };
 
   const unlocked = new Set([
-    ...(CAMPAIGN_UNLOCKS[level.id] || level.unlocks || ["sprig-sentinel"]),
+    ...campaignUnlocksFor(level.id),
     ...(options.unlocks || []),
   ]);
   if (botName === "cheapest-dps" && hasDarkness(level)) {

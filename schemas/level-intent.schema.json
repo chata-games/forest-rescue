@@ -2,6 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://chata-games.dev/forest-rescue/level-intent.schema.json",
   "title": "LevelIntent",
+  "$comment": "Coordinate-free authoring contract: a LevelIntent carries creative and teaching targets only. Authored gameplay geometry (exact paths, control points, fairy-ring positions, hit regions, decorations, or any x/y coordinates) is forbidden here and rejected by the validator; the compiler derives all geometry deterministically from the seed.",
   "type": "object",
   "required": ["schemaVersion", "id", "seed", "biome", "topology", "targets", "constraints", "waves"],
   "additionalProperties": false,

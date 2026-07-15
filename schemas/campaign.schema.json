@@ -1,0 +1,58 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://chata-games.dev/forest-rescue/campaign.schema.json",
+  "title": "CampaignManifest",
+  "$comment": "Single source of truth for the campaign: ordered stable level IDs, act membership, normalized map landmarks, and unlock requirements. Application code must not hardcode the level list.",
+  "type": "object",
+  "required": ["schemaVersion", "id", "acts", "levels"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": { "type": "integer", "const": 1 },
+    "id": { "type": "string", "minLength": 1 },
+    "title": { "type": "string" },
+    "description": { "type": "string" },
+    "acts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "levels"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "title": { "type": "string" },
+          "blurb": { "type": "string" },
+          "levels": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string", "pattern": "^[0-9]{2}-[a-z0-9-]+$" }
+          }
+        }
+      }
+    },
+    "levels": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "act", "mapPosition"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^[0-9]{2}-[a-z0-9-]+$" },
+          "act": { "type": "string", "minLength": 1 },
+          "mapPosition": {
+            "type": "object",
+            "required": ["x", "y"],
+            "additionalProperties": false,
+            "properties": {
+              "x": { "type": "number", "minimum": 0, "maximum": 1 },
+              "y": { "type": "number", "minimum": 0, "maximum": 1 }
+            }
+          },
+          "unlocks": { "type": "array", "items": { "type": "string" } },
+          "spellUnlock": { "type": ["string", "null"] }
+        }
+      }
+    }
+  }
+}
