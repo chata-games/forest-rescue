@@ -642,13 +642,22 @@ for (const channel of AUDIO_CHANNELS) {
 // replayable from the campaign detail surface. A small queue lets a replay walk
 // pre → post, and lets the auto post-victory beat defer the outcome overlay
 // until the Guardian has read (or skipped) it.
+/** One pending entry in the story playback queue. */
+type StoryQueueEntry = { levelId: string; kind: StoryKind };
+
 let storySeen: StorySeen = {};
-let storyQueue: { levelId: string; kind: StoryKind }[] = [];
+let storyQueue: StoryQueueEntry[] = [];
 /** While a post-victory beat is showing, the outcome overlay waits underneath. */
 let deferOutcome = false;
 let storyReturnFocus: HTMLElement | null = null;
 
-function renderStoryBeat(beat: { levelId: string; kind: StoryKind }): void {
+/** Begin showing a story queue: make it active and render its first beat. */
+function runStoryQueue(queue: StoryQueueEntry[]): void {
+  storyQueue = queue;
+  renderStoryBeat(queue[0]!);
+}
+
+function renderStoryBeat(beat: StoryQueueEntry): void {
   const story = storyForLevel(beat.levelId, beat.kind);
   if (!story) {
     advanceStory();
@@ -688,20 +697,18 @@ function advanceStory(): void {
 function openStoryAuto(levelId: string, kind: StoryKind, origin: HTMLElement | null = null): void {
   if (!shouldShowStory(storySeen, levelId, kind)) return;
   storyReturnFocus = origin;
-  storyQueue = [{ levelId, kind }];
-  renderStoryBeat({ levelId, kind });
+  runStoryQueue([{ levelId, kind }]);
 }
 
 /** Replay a level's story from the campaign surface (bypasses seen-state): pre,
  *  then post if the level has been cleared. */
 function openStoryReplay(levelId: string, origin: HTMLElement | null = null): void {
-  const queue: { levelId: string; kind: StoryKind }[] = [];
+  const queue: StoryQueueEntry[] = [];
   if (storyForLevel(levelId, 'pre')) queue.push({ levelId, kind: 'pre' });
   if (progress[levelId]?.cleared && storyForLevel(levelId, 'post')) queue.push({ levelId, kind: 'post' });
   if (queue.length === 0) return;
   storyReturnFocus = origin;
-  storyQueue = queue;
-  renderStoryBeat(queue[0]!);
+  runStoryQueue(queue);
 }
 
 storyPrimaryBtn.addEventListener('click', () => {
@@ -739,22 +746,22 @@ function refreshTutorial(): void {
   tutorialHint.hidden = false;
 }
 
-tutorialAdvanceBtn.addEventListener('click', () => {
+/** Dismiss the current concept and refresh — shared by the advance and close
+ *  buttons, which both move past the current tip. */
+function dismissCurrentTutorialStep(): void {
   const step = currentTutorialStep(currentSteps, tutorialDismissed);
   if (step) tutorialDismissed = dismissTutorial(tutorialDismissed, step.concept);
   refreshTutorial();
-});
+}
+
+tutorialAdvanceBtn.addEventListener('click', dismissCurrentTutorialStep);
 
 tutorialSkipBtn.addEventListener('click', () => {
   tutorialDismissed = dismissAllTutorials(currentSteps, tutorialDismissed);
   refreshTutorial();
 });
 
-tutorialCloseBtn.addEventListener('click', () => {
-  const step = currentTutorialStep(currentSteps, tutorialDismissed);
-  if (step) tutorialDismissed = dismissTutorial(tutorialDismissed, step.concept);
-  refreshTutorial();
-});
+tutorialCloseBtn.addEventListener('click', dismissCurrentTutorialStep);
 
 // Replay the tutorial tips (issue #33 AC2): a HUD control that re-enables every
 // dismissed concept so the prompts show again in the planning phase.
@@ -1457,8 +1464,7 @@ function recordOutcome(snap: BattleSnapshot): void {
   // narrative and the result panel never compete for focus at once.
   if (snap.phase === 'won' && shouldShowStory(storySeen, currentLevelId, 'post')) {
     deferOutcome = true;
-    storyQueue = [{ levelId: currentLevelId, kind: 'post' }];
-    renderStoryBeat({ levelId: currentLevelId, kind: 'post' });
+    runStoryQueue([{ levelId: currentLevelId, kind: 'post' }]);
   }
 }
 
