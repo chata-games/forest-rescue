@@ -20,6 +20,14 @@
       <p class="trail__subtitle">Follow the Trail to the Heartwood. Select a level to inspect it.</p>
     </header>
 
+    <!-- One-time save recovery notice (issue #27 AC3/AC4): shown only when a save
+         was archived (incompatible content epoch) or recovered (corruption). It is
+         non-modal and dismissible so recovery never traps the Guardian. -->
+    <div id="saveNotice" class="save-notice" role="status" aria-live="polite" hidden>
+      <p id="saveNoticeText" class="save-notice__text"></p>
+      <button id="saveNoticeClose" class="save-notice__close" type="button">Got it</button>
+    </div>
+
     <div id="trailMap" class="trail__map" role="group" aria-label="Trail levels">
       <!-- Route polyline and level node buttons are built from the manifest by main.ts. -->
     </div>

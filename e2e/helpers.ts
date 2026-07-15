@@ -17,6 +17,20 @@ export interface FrLoadoutSlot {
   id: string;
 }
 
+export interface FrSaveNotice {
+  kind: 'epoch' | 'corrupted';
+  message: string;
+}
+
+export interface FrSaveState {
+  schemaVersion: number;
+  contentEpoch: string;
+  campaignId: string;
+  progress: Record<string, { cleared: boolean; stars: number }>;
+  unlocks: string[];
+  loadouts: Record<string, (FrLoadoutSlot | null)[]>;
+}
+
 export interface FrApi {
   placeOnRing(ringId: string): void;
   inspectRing(ringId: string): void;
@@ -36,6 +50,14 @@ export interface FrApi {
   loadoutFill(id: string): void;
   loadoutClear(index: number): void;
   loadoutStart(): void;
+  // Save seam (issue #27 AC6): observable reload/migration/epoch/corruption journeys.
+  saveState(): FrSaveState;
+  saveRaw(): string | null;
+  saveArchiveRaw(): string | null;
+  contentEpoch(): string;
+  saveNotice(): FrSaveNotice | null;
+  injectSaveRaw(raw: string | null): void;
+  clearSave(): void;
 }
 
 /**

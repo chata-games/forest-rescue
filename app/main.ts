@@ -24,10 +24,14 @@ import {
   emptyLoadout,
   loadoutAdvice,
   loadoutCapacity,
+  restoreLoadout,
   starterLoadout,
+  toSavedLoadout,
+  validateLoadout,
   type AvailableItem,
   type Loadout,
   type LoadoutContext,
+  type SavedLoadout,
 } from './domain/loadout';
 import { BattleScene } from './phaser/battle-scene';
 import {
@@ -55,6 +59,17 @@ import {
   type CampaignProgress,
   type TrailNode,
 } from './domain/campaign';
+import {
+  CONTENT_ALIASES,
+  CONTENT_EPOCH,
+  SAVE_SCHEMA_VERSION,
+  buildSave,
+  loadSave,
+  serializeSave,
+  type SaveContext,
+  type SaveLoadOutcome,
+  type SaveNotice,
+} from './domain/save';
 import { recordResult } from './domain/scoring';
 import { buildPreviewSummary, type PreviewSummary, type SimulationFile } from './domain/preview';
 import type { CompiledLevel } from './domain/types';
@@ -126,6 +141,23 @@ function cumulativeUnlocks(levelId: string): string[] {
   return ids;
 }
 
+/**
+ * Stable reward ids earned so far (defenders + spells), from every cleared
+ * level's rewards. Self-describing snapshot persisted into the save (issue #27
+ * AC1); the live Loadout pool still derives from progress authoritatively.
+ */
+function earnedUnlocks(p: CampaignProgress): string[] {
+  const ids: string[] = [];
+  for (const id of LEVEL_ORDER) {
+    if (!p[id]?.cleared) continue;
+    const meta = META[id];
+    if (!meta) continue;
+    for (const unlock of meta.unlocks) if (!ids.includes(unlock)) ids.push(unlock);
+    if (meta.spellUnlock && !ids.includes(meta.spellUnlock)) ids.push(meta.spellUnlock);
+  }
+  return ids;
+}
+
 // Mana flowers spawn on a steady cadence so collection is a live part of play.
 // Measured on the battle clock, so Pause/planning freeze the spawns too.
 const MANA_FLOWER_INTERVAL_SEC = 12;
@@ -154,36 +186,106 @@ function readOptions(): QueryOptions {
 
 const options = readOptions();
 
+// --- Save (issue #27: persist, migrate, recover) --------------------------
+// localStorage is the browser IO; the engine-independent save module owns every
+// migration/recovery rule. The key stays the v1 name so existing browser saves
+// migrate in place; an archive key holds any raw value recovered from corruption
+// or an incompatible content epoch (kept for diagnostics, AC4).
 const SAVE_KEY = 'heartwood-trail-v1';
-const SAVE_VERSION = 1;
+const SAVE_ARCHIVE_KEY = 'heartwood-trail-archive';
 
-interface SaveData {
-  schemaVersion: number;
-  levels: CampaignProgress;
-}
+/** The live content identity the save resolves against (epoch + compatible renames). */
+const SAVE_CTX: SaveContext = {
+  contentEpoch: CONTENT_EPOCH,
+  campaignId: manifest.id,
+  aliases: CONTENT_ALIASES,
+};
 
-function loadProgress(): CampaignProgress {
+function readSaveRaw(): string | null {
   try {
-    const raw = localStorage.getItem(SAVE_KEY);
-    if (!raw) return emptyProgress();
-    const data = JSON.parse(raw) as Partial<SaveData>;
-    // Migration / corruption recovery: an unexpected schema resets cleanly.
-    if (data.schemaVersion !== SAVE_VERSION || !data.levels) return emptyProgress();
-    return data.levels;
+    return localStorage.getItem(SAVE_KEY);
   } catch {
-    return emptyProgress();
+    return null;
   }
 }
 
-function saveProgress(p: CampaignProgress): void {
+function writeSaveRaw(raw: string | null): void {
   try {
-    localStorage.setItem(SAVE_KEY, JSON.stringify({ schemaVersion: SAVE_VERSION, levels: p }));
+    if (raw === null) localStorage.removeItem(SAVE_KEY);
+    else localStorage.setItem(SAVE_KEY, raw);
   } catch {
-    /* localStorage may be unavailable (private mode / quota) — progress stays in-memory. */
+    /* localStorage may be unavailable (private mode / quota) — stays in-memory. */
   }
 }
 
-let progress = loadProgress();
+/**
+ * Load + migrate + recover the campaign save. On any recovery the unrecoverable
+ * raw is moved to the archive key (diagnostics, AC4) and — once the shell
+ * persists the fresh campaign — the notice is one-time (AC3/AC4).
+ */
+function loadCampaignSave(): SaveLoadOutcome {
+  const outcome = loadSave(readSaveRaw(), SAVE_CTX);
+  if (outcome.archivedRaw != null) {
+    try {
+      localStorage.setItem(SAVE_ARCHIVE_KEY, outcome.archivedRaw);
+    } catch {
+      /* archive is best-effort diagnostics */
+    }
+  }
+  return outcome;
+}
+
+/** Persist the current campaign (progress + earned unlocks + chosen Loadouts). */
+function persistSave(): void {
+  writeSaveRaw(
+    serializeSave(
+      buildSave({
+        ctx: SAVE_CTX,
+        progress,
+        unlocks: earnedUnlocks(progress),
+        loadouts: savedLoadouts,
+      }),
+    ),
+  );
+}
+
+/**
+ * Apply a freshly-loaded save to the in-memory state, persist a clean save when
+ * progress was recovered (so the notice is one-time), and refresh the Trail.
+ */
+function applyLoadedSave(outcome: SaveLoadOutcome): void {
+  progress = outcome.progress;
+  savedLoadouts = outcome.loadouts;
+  savedUnlocks = outcome.unlocks;
+  saveNotice = outcome.notice;
+  if (outcome.notice) {
+    // Replace the unrecoverable raw with a clean fresh save bound to this epoch.
+    persistSave();
+  }
+  refreshTrail();
+  showSaveNotice(saveNotice);
+}
+
+let progress: CampaignProgress = emptyProgress();
+/** Per-level chosen Loadout, keyed by stable level id (survives reload, #27). */
+let savedLoadouts: Record<string, SavedLoadout> = {};
+/** Earned reward ids from the loaded save (informational; pool derives live). */
+let savedUnlocks: string[] = [];
+/** Pending one-time recovery notice, or null when the save loaded cleanly. */
+let saveNotice: SaveNotice | null = null;
+
+// Load + migrate + recover before the Trail resolves so the first render
+// reflects saved progress (issue #27). On any recovery the unrecoverable raw is
+// archived (in loadCampaignSave) and replaced with a clean fresh save here, so
+// the notice is one-time on the next reload.
+{
+  const outcome = loadCampaignSave();
+  progress = outcome.progress;
+  savedLoadouts = outcome.loadouts;
+  savedUnlocks = outcome.unlocks;
+  saveNotice = outcome.notice;
+  if (outcome.notice) persistSave();
+}
 
 // Deterministic outcome-band summary for the author preview level (if any).
 const summary: PreviewSummary | undefined = options.preview
@@ -195,6 +297,11 @@ const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as 
 
 const trailScreen = $<HTMLElement>('trailScreen');
 const trailMap = $<HTMLElement>('trailMap');
+// One-time save recovery notice (issue #27 AC3/AC4): shown when a save was
+// archived (incompatible epoch) or recovered (corruption), then dismissible.
+const saveNoticeEl = $<HTMLElement>('saveNotice');
+const saveNoticeText = $<HTMLElement>('saveNoticeText');
+const saveNoticeClose = $<HTMLButtonElement>('saveNoticeClose');
 const detail = $<HTMLDialogElement>('trailDetail');
 const battleRoot = $<HTMLElement>('battleRoot');
 
@@ -361,6 +468,29 @@ refreshLayout();
 // in real time (window resize on desktop, rotation on a device — see the
 // orientationchange handler below for the rotation pause).
 window.addEventListener('resize', refreshLayout);
+
+// --- Save recovery notice (issue #27 AC3/AC4) -----------------------------
+/**
+ * Show (or hide) the one-time save recovery notice. It is non-modal — the
+ * Guardian can dismiss it or just ignore it and play — so recovery never traps
+ * the player. The banner only appears when a save was archived or recovered.
+ */
+function showSaveNotice(notice: SaveNotice | null): void {
+  if (!saveNoticeEl) return;
+  if (!notice) {
+    saveNoticeEl.hidden = true;
+    return;
+  }
+  saveNoticeText.textContent = notice.message;
+  saveNoticeEl.hidden = false;
+}
+
+if (saveNoticeClose) {
+  saveNoticeClose.addEventListener('click', () => {
+    saveNotice = null;
+    showSaveNotice(null);
+  });
+}
 
 // --- Trail construction ---------------------------------------------------
 let trailNodes: TrailNode[] = resolveTrail(manifest, META, progress);
@@ -928,7 +1058,7 @@ function recordOutcome(snap: BattleSnapshot): void {
   // loss advances nothing; a victory clears the level, preserving the best star
   // result across replays (issue #29 AC1/AC3).
   progress = recordResult(progress, currentLevelId, battle.resultInput());
-  saveProgress(progress);
+  persistSave();
 }
 
 // --- Preview legend (author overlays) ------------------------------------
@@ -1078,7 +1208,12 @@ function openLoadout(levelId: string): void {
   if (!level) return;
   currentLevelId = levelId;
   currentLoadoutCtx = buildLoadoutContext(levelId);
-  currentLoadout = starterLoadout(currentLoadoutCtx);
+  // Restore the Guardian's last chosen Loadout for this level when it is still
+  // valid and startable against the live pool; otherwise fall back to the valid
+  // starter (issue #27: Loadouts survive reload).
+  const restored = savedLoadouts[levelId] ? restoreLoadout(savedLoadouts[levelId]!, currentLoadoutCtx) : null;
+  const verdict = restored ? validateLoadout(restored, currentLoadoutCtx) : null;
+  currentLoadout = verdict?.valid && verdict.canStart ? restored! : starterLoadout(currentLoadoutCtx);
   loadoutTitle.textContent = `Loadout — ${level.name}`;
   closeDetail();
   trailScreen.hidden = true;
@@ -1160,6 +1295,9 @@ function clearLoadoutSlot(index: number): void {
 /** Commit the Loadout and mount the battlefield with it. */
 function startBattle(): void {
   if (!currentLevelId || !canStart(currentLoadout)) return;
+  // Persist the chosen Loadout for this level so it survives reload (issue #27).
+  savedLoadouts = { ...savedLoadouts, [currentLevelId]: toSavedLoadout(currentLoadout) };
+  persistSave();
   enterLevel(currentLevelId, currentLoadout);
 }
 
@@ -1292,6 +1430,45 @@ function makeDebugApi(): ForestRescueDebug {
     },
     loadoutClear: (index: number) => clearLoadoutSlot(index),
     loadoutStart: () => startBattle(),
+    // --- Save seam (issue #27 AC6) ---
+    saveState: () => ({
+      schemaVersion: SAVE_SCHEMA_VERSION,
+      contentEpoch: SAVE_CTX.contentEpoch,
+      campaignId: SAVE_CTX.campaignId,
+      progress,
+      unlocks: savedUnlocks,
+      loadouts: savedLoadouts,
+    }),
+    saveRaw: () => readSaveRaw(),
+    saveArchiveRaw: () => {
+      try {
+        return localStorage.getItem(SAVE_ARCHIVE_KEY);
+      } catch {
+        return null;
+      }
+    },
+    contentEpoch: () => SAVE_CTX.contentEpoch,
+    saveNotice: () => saveNotice,
+    injectSaveRaw: (raw: string | null) => {
+      // Deterministically drive the reload / migration / epoch / corruption
+      // journeys: write a raw value, re-load it, and re-render.
+      writeSaveRaw(raw);
+      applyLoadedSave(loadCampaignSave());
+    },
+    clearSave: () => {
+      try {
+        localStorage.removeItem(SAVE_KEY);
+        localStorage.removeItem(SAVE_ARCHIVE_KEY);
+      } catch {
+        /* ignore */
+      }
+      progress = emptyProgress();
+      savedLoadouts = {};
+      savedUnlocks = [];
+      saveNotice = null;
+      refreshTrail();
+      showSaveNotice(null);
+    },
   };
 }
 
@@ -1331,6 +1508,24 @@ export interface ForestRescueDebug {
   loadoutFill(id: string): void;
   loadoutClear(index: number): void;
   loadoutStart(): void;
+  // --- Save seam (issue #27 AC6) ---
+  saveState(): SaveDebugState;
+  saveRaw(): string | null;
+  saveArchiveRaw(): string | null;
+  contentEpoch(): string;
+  saveNotice(): SaveNotice | null;
+  injectSaveRaw(raw: string | null): void;
+  clearSave(): void;
+}
+
+/** Observable save snapshot exposed through the debug seam (issue #27 AC6). */
+export interface SaveDebugState {
+  schemaVersion: number;
+  contentEpoch: string;
+  campaignId: string;
+  progress: CampaignProgress;
+  unlocks: string[];
+  loadouts: Record<string, SavedLoadout>;
 }
 
 declare global {
@@ -1343,6 +1538,11 @@ declare global {
 buildTrailDom();
 renderTrailView();
 trailMap.addEventListener('keydown', trailKeydown);
+// Surface any one-time save recovery notice from the initial load (issue #27).
+showSaveNotice(saveNotice);
+// Wire the debug seam on the Trail too so the save journeys (reload / migration
+// / epoch / corruption) are observable before any level is opened (issue #27 AC6).
+window.fr = makeDebugApi();
 
 // Author preview: `?level=<id>` opens that level's Loadout step (with optional
 // phone layout + simulation overlay) instead of starting on the Trail. The

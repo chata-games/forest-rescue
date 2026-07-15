@@ -670,6 +670,39 @@ body[data-layout="portrait"] .stage canvas {
   font-size: clamp(12px, 1.4vw, 15px);
 }
 
+/* One-time save recovery notice (issue #27). Non-modal and dismissible. */
+.save-notice {
+  margin: 0 clamp(12px, 2vw, 32px) clamp(4px, 1vw, 12px);
+  padding: 10px 14px;
+  border: 1px solid #c9a24a66;
+  border-radius: 12px;
+  background: #2a2410cc;
+  color: #f3e3b8;
+  font-size: clamp(12px, 1.3vw, 14px);
+  line-height: 1.4;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.save-notice__text {
+  margin: 0;
+  flex: 1 1 240px;
+}
+
+.save-notice__close {
+  border: 0;
+  border-radius: 999px;
+  padding: 6px 14px;
+  background: #c9a24a;
+  color: #1a1404;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
 .trail__map {
   position: relative;
   margin: 0 clamp(12px, 2vw, 32px);

@@ -34,6 +34,19 @@ export type LoadoutSlot = AvailableItem | null;
 /** A fixed-length Loadout: one entry per capacity slot, in slot order. */
 export type Loadout = LoadoutSlot[];
 
+/**
+ * A Loadout slot in its persistable form (issue #27): kind + stable id only.
+ * Authored name/cost are content-derived, so they are never persisted (AC5:
+ * authored content snapshots are not copied into the save).
+ */
+export interface SavedLoadoutSlot {
+  kind: LoadoutKind;
+  id: string;
+}
+
+/** A persistable Loadout: one entry per slot, null where the slot is empty. */
+export type SavedLoadout = (SavedLoadoutSlot | null)[];
+
 /** The Defender and spell catalogues the pool resolves names/costs against. */
 export interface LoadoutCatalog {
   defenders: Record<string, DefenderStats>;
@@ -139,6 +152,37 @@ export function clearSlot(loadout: Loadout, index: number): Loadout {
 /** The non-empty slots of a Loadout, in slot order (drops the empty gaps). */
 export function filledSlots(loadout: Loadout): AvailableItem[] {
   return loadout.filter((slot): slot is AvailableItem => slot !== null);
+}
+
+/**
+ * Strip a Loadout to its stable IDs for persistence (issue #27 AC5): kind + id
+ * per filled slot, null per empty slot. Authored name/cost are dropped because
+ * they are re-derived from the catalogue on restore. Pure.
+ */
+export function toSavedLoadout(loadout: Loadout): SavedLoadout {
+  return loadout.map((slot) => (slot ? { kind: slot.kind, id: slot.id } : null));
+}
+
+/**
+ * Rehydrate a saved Loadout against a level's live pool (issue #27): each saved
+ * slot is mapped back to its catalogue item (recovering name/cost); a saved id
+ * that is no longer in the pool becomes an empty slot. The result is clamped to
+ * the level's capacity and padded with empty slots. Pure — the caller validates
+ * the result (a restored Loadout may be empty when content drifted).
+ */
+export function restoreLoadout(saved: SavedLoadout, ctx: LoadoutContext): Loadout {
+  const pool = new Map(buildPool(ctx).map((item) => [`${item.kind}:${item.id}`, item]));
+  const capacity = loadoutCapacity(ctx.levelOrder);
+  const loadout = emptyLoadout(capacity);
+  let i = 0;
+  for (const slot of saved) {
+    if (i >= capacity) break;
+    if (slot) {
+      loadout[i] = pool.get(`${slot.kind}:${slot.id}`) ?? null;
+    }
+    i++;
+  }
+  return loadout;
 }
 
 export type LoadoutProblem = 'unknown-item' | 'duplicate' | 'over-capacity';

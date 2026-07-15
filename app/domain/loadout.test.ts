@@ -12,6 +12,8 @@ import {
   validateLoadout,
   loadoutAdvice,
   buildLoadoutView,
+  toSavedLoadout,
+  restoreLoadout,
   type Loadout,
   type LoadoutContext,
   type LoadoutCatalog,
@@ -312,5 +314,60 @@ describe('buildLoadoutView', () => {
     const view = buildLoadoutView([sprig], ctx(['sprig-sentinel', 'thornvine-bramble'], 2));
     expect(view.pool.map((p) => p.id)).toContain('thornvine-bramble');
     expect(view.advice).toBeDefined();
+  });
+});
+
+// --- Persistence helpers (issue #27: Loadouts survive reload) --------------
+
+describe('toSavedLoadout', () => {
+  it('keeps only kind + id per filled slot and null per empty slot', () => {
+    expect(toSavedLoadout([sprig, null, snare])).toEqual([
+      { kind: 'defender', id: 'sprig-sentinel' },
+      null,
+      { kind: 'spell', id: 'root-snare' },
+    ]);
+  });
+
+  it('never copies authored name or cost into the saved form', () => {
+    const saved = toSavedLoadout([sprig]);
+    expect(saved[0]).toEqual({ kind: 'defender', id: 'sprig-sentinel' });
+    expect(saved[0]).not.toHaveProperty('name');
+    expect(saved[0]).not.toHaveProperty('cost');
+  });
+});
+
+describe('restoreLoadout', () => {
+  it('rehydrates saved slots from the catalogue, recovering name and cost', () => {
+    const restored = restoreLoadout(
+      [{ kind: 'defender', id: 'sprig-sentinel' }, null, { kind: 'spell', id: 'root-snare' }],
+      ctx(['sprig-sentinel', 'root-snare'], 4),
+    );
+    expect(restored).toEqual([sprig, null, snare, null]);
+    expect(restored[0]).toMatchObject({ name: 'Sprig Sentinel', cost: 50 });
+  });
+
+  it('drops a saved id that is no longer in the pool to an empty slot', () => {
+    // wisp-willow is in the saved Loadout but absent from the catalogue → empty.
+    const restored = restoreLoadout(
+      [{ kind: 'defender', id: 'wisp-willow' }, { kind: 'defender', id: 'sprig-sentinel' }],
+      ctx(['sprig-sentinel'], 2),
+    );
+    expect(restored).toEqual([null, sprig]);
+  });
+
+  it('clamps to the level capacity and pads the tail with empty slots', () => {
+    // Saved 4 slots, but level 1 has capacity 1.
+    const restored = restoreLoadout(
+      [{ kind: 'defender', id: 'sprig-sentinel' }, { kind: 'defender', id: 'thornvine-bramble' }],
+      ctx(['sprig-sentinel', 'thornvine-bramble'], 1),
+    );
+    expect(restored).toEqual([sprig]);
+  });
+
+  it('round-trips through toSavedLoadout for content that is still available', () => {
+    const context = ctx(['sprig-sentinel', 'root-snare'], 4);
+    const original = starterLoadout(context);
+    const restored = restoreLoadout(toSavedLoadout(original), context);
+    expect(restored).toEqual(original);
   });
 });
