@@ -59,6 +59,17 @@ describe('tutorial concepts per level (issue #33 AC2)', () => {
     const spells = tutorialConceptsFor({ learningGoal: 'spell-targeting', levelModifiers: ['tutorial-spells'] });
     expect(spells).toContain('spells');
   });
+
+  it('teaches air coverage for the Whispering River level (issue #35 AC4)', () => {
+    // Whispering River's authored learning goal; air-coverage must resolve to a
+    // tutorial concept so the level teaches air coverage (not just story).
+    const concepts = tutorialConceptsFor({ learningGoal: 'air-coverage', levelModifiers: ['river-crossings'] });
+    expect(concepts).toContain('air-coverage');
+    const steps = tutorialStepsFor({ learningGoal: 'air-coverage', levelModifiers: ['river-crossings'] });
+    expect(steps.map((s) => s.concept)).toContain('air-coverage');
+    // Dedup: 'air' and 'coverage' both map to the one air-coverage concept.
+    expect(concepts.filter((c) => c === 'air-coverage')).toHaveLength(1);
+  });
 });
 
 describe('tutorial one-concept-at-a-time sequencing (issue #33 AC2)', () => {

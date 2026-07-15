@@ -133,6 +133,70 @@ test("invalid compiled geometry: a self-intersecting path is flagged", () => {
   assert.ok(errors.some((e) => e.code === "geometry/path-self-intersects"));
 });
 
+test("air coverage: the shipped Whispering River air lane + water pass validation", () => {
+  const catalogs = loadCatalogs();
+  const level = readJson(join(ROOT, "levels/compiled/03-whispering-river.json"));
+  const errors = validateCompiledRules(level, catalogs);
+  // The river's air lane is in bounds, targets a flying foe, and cuts across the
+  // winding ground trail; its water masks are in bounds.
+  assert.ok(errors.every((e) => !e.code.startsWith("geometry/air-lane")), errors.map((e) => e.message).join("\n"));
+  assert.ok(errors.every((e) => e.code !== "geometry/water-mask-out-of-bounds"), errors.map((e) => e.message).join("\n"));
+});
+
+test("air coverage: an air lane must target a flying enemy", () => {
+  const catalogs = loadCatalogs();
+  const level = readJson(join(ROOT, "levels/compiled/03-whispering-river.json"));
+  level.airLanes[0].forEnemy = "logger"; // a ground foe cannot use the sky lane
+  const errors = validateCompiledRules(level, catalogs);
+  assert.ok(errors.some((e) => e.code === "geometry/air-lane-enemy"));
+});
+
+test("air coverage: an out-of-bounds air lane is flagged", () => {
+  const catalogs = loadCatalogs();
+  const level = readJson(join(ROOT, "levels/compiled/03-whispering-river.json"));
+  level.airLanes[0].from = { x: -500, y: 200 };
+  const errors = validateCompiledRules(level, catalogs);
+  assert.ok(errors.some((e) => e.code === "geometry/air-lane-out-of-bounds"));
+});
+
+test("air coverage: an air lane that does not shortcut the ground path is flagged", () => {
+  const catalogs = loadCatalogs();
+  const level = readJson(join(ROOT, "levels/compiled/03-whispering-river.json"));
+  // Two endpoints that both sit beside the same stretch of trail: the straight
+  // lane is longer than the ground arc between them, so it cuts nothing.
+  level.airLanes[0].from = { x: 749, y: 481 };
+  level.airLanes[0].to = { x: 749, y: 81 };
+  const errors = validateCompiledRules(level, catalogs);
+  assert.ok(errors.some((e) => e.code === "geometry/air-lane-not-shortcut"));
+});
+
+test("air coverage: an out-of-bounds water mask is flagged", () => {
+  const catalogs = loadCatalogs();
+  const level = readJson(join(ROOT, "levels/compiled/03-whispering-river.json"));
+  level.waterMasks[0] = { x: -200, y: 340, rx: 120, ry: 60 };
+  const errors = validateCompiledRules(level, catalogs);
+  assert.ok(errors.some((e) => e.code === "geometry/water-mask-out-of-bounds"));
+});
+
+test("teaching rule: air-coverage requires the river-crossings modifier + a flying enemy", () => {
+  const catalogs = loadCatalogs();
+  const intent = readJson(join(ROOT, "levels/intents/03-whispering-river.json"));
+  // The shipped intent satisfies the rule.
+  assert.ok(
+    !validateIntentRules(intent, catalogs).some((e) => e.code === "teaching/air-coverage-requires-river-crossings"),
+  );
+  // Stripping the modifier violates it.
+  const noMod = { ...intent, levelModifiers: [] };
+  assert.ok(
+    validateIntentRules(noMod, catalogs).some((e) => e.code === "teaching/air-coverage-requires-river-crossings"),
+  );
+  // Removing the only flying enemy violates it too.
+  const groundOnly = { ...intent, waves: { ...intent.waves, allowedEnemies: ["logger", "chainsaw-brute"] } };
+  assert.ok(
+    validateIntentRules(groundOnly, catalogs).some((e) => e.code === "teaching/air-coverage-requires-river-crossings"),
+  );
+});
+
 test("stable IDs: duplicate intent and compiled IDs are flagged", () => {
   const intents = [
     { id: "01-meadows-edge", intent: {}, source: "a" },

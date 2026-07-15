@@ -46,6 +46,11 @@ export const TUTORIAL_CONCEPTS: Record<string, TutorialStep> = {
     title: 'Pause to Plan',
     body: 'Press Pause to freeze the battle. You can still plant, inspect, upgrade, and remove Defenders while planning.',
   },
+  'air-coverage': {
+    concept: 'air-coverage',
+    title: 'Cover the Sky Lane',
+    body: 'Buzzsaw Drones fly a straight air lane that cuts across the winding trail, ignoring the ground path. Place Defenders whose range can reach the sky lane, or they will fly straight to the Heartwood.',
+  },
 };
 
 /**
@@ -66,6 +71,8 @@ const KEYWORD_TO_CONCEPT: Record<string, string> = {
   targeting: 'spells',
   planning: 'planning',
   pause: 'planning',
+  air: 'air-coverage',
+  coverage: 'air-coverage',
 };
 
 /** What a level carries that the tutorial resolves against. */

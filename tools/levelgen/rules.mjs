@@ -94,6 +94,19 @@ export const TEACHING_RULES = [
     },
     message: (i) => `bossId '${i.bossId}' must reference a boss or mini-boss enemy`,
   },
+  {
+    // Whispering River (issue #35): air coverage is taught by contrasting the
+    // winding ground trail with a direct flying route, so the river-crossings
+    // topology and at least one flying enemy must be present.
+    code: "teaching/air-coverage-requires-river-crossings",
+    applies: (i) => i.learningGoal === "air-coverage",
+    violated: (i, cats) => {
+      if (!(i.levelModifiers || []).includes("river-crossings")) return true;
+      const hasFlying = (i.waves?.allowedEnemies || []).some((e) => cats.enemies[e]?.flying);
+      return !hasFlying;
+    },
+    message: "learningGoal 'air-coverage' requires levelModifier 'river-crossings' and a flying enemy",
+  },
 ];
 
 export function loadCatalogs() {
@@ -228,6 +241,61 @@ export function validateCompiledRules(compiled, catalogs, source) {
     for (const entry of wave.enemies || []) {
       if (!ref(catalogs.enemies, entry.type)) {
         at("ref/enemy", `compiled wave references unknown enemy '${entry.type}'`);
+      }
+    }
+  }
+
+  // River-crossings hazard geometry (issue #35): the ground path the air lane
+  // cuts across, projected via its arc length.
+  const groundPath =
+    Array.isArray(compiled.paths) && compiled.paths[0]?.controlPoints?.length >= 2
+      ? buildPath(compiled.paths[0].controlPoints, compiled.paths[0].width || 92)
+      : null;
+
+  for (const mask of compiled.waterMasks || []) {
+    if (mask.x == null || mask.y == null || mask.rx == null || mask.ry == null) {
+      at("geometry/water-mask-shape", "a water mask is missing x/y/rx/ry");
+      continue;
+    }
+    if (
+      mask.x - mask.rx < 0 || mask.x + mask.rx > WORLD_W ||
+      mask.y - mask.ry < 0 || mask.y + mask.ry > WORLD_H
+    ) {
+      at("geometry/water-mask-out-of-bounds", "a water mask leaves the battlefield");
+    }
+  }
+
+  for (const lane of compiled.airLanes || []) {
+    const foe = catalogs.enemies[lane.forEnemy];
+    if (!foe) {
+      at("ref/enemy", `air lane references unknown enemy '${lane.forEnemy}'`);
+    } else if (!foe.flying) {
+      at("geometry/air-lane-enemy", `air lane forEnemy '${lane.forEnemy}' is not a flying enemy`);
+    }
+    const { from, to } = lane;
+    if (!from || !to || from.x == null || from.y == null || to.x == null || to.y == null) {
+      at("geometry/air-lane-shape", `air lane for '${lane.forEnemy}' is missing from/to endpoints`);
+      continue;
+    }
+    if (
+      from.x < 0 || from.x > WORLD_W || from.y < 0 || from.y > WORLD_H ||
+      to.x < 0 || to.x > WORLD_W || to.y < 0 || to.y > WORLD_H
+    ) {
+      at("geometry/air-lane-out-of-bounds", `air lane for '${lane.forEnemy}' leaves the battlefield`);
+    }
+    // The air lane must actually "cut across" the winding ground trail: its
+    // straight length is shorter than the ground arc between the two points the
+    // lane endpoints project onto (a real shortcut across the bends).
+    if (groundPath) {
+      const airDist = Math.hypot(to.x - from.x, to.y - from.y);
+      const sFrom = groundPath.distanceAlong(from.x, from.y).s;
+      const sTo = groundPath.distanceAlong(to.x, to.y).s;
+      const groundArc = Math.abs(sTo - sFrom);
+      if (!(airDist > 0) || airDist >= groundArc) {
+        at(
+          "geometry/air-lane-not-shortcut",
+          `air lane for '${lane.forEnemy}' does not cut across the ground trail (air ${airDist.toFixed(0)} >= ground ${groundArc.toFixed(0)})`,
+        );
       }
     }
   }

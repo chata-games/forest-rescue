@@ -79,6 +79,32 @@ export const DEFENDERS: Record<string, DefenderStats> = {
       { cost: 50, hp: 460, poisonDps: 6, poisonDuration: 2 },
     ],
   },
+  'wisp-willow': {
+    id: 'wisp-willow',
+    name: 'Wisp Willow',
+    cost: 90,
+    range: 180,
+    damage: 28,
+    cooldown: 0.85,
+    hp: 70,
+    tags: ['arcane', 'anti-air', 'chain'],
+    placement: 'beside-path',
+    sprite: 'wisp-willow-idle',
+    projectile: 'chain-lightning',
+  },
+  'dewdrop-nymph': {
+    id: 'dewdrop-nymph',
+    name: 'Dewdrop Nymph',
+    cost: 75,
+    range: 140,
+    damage: 18,
+    cooldown: 1.4,
+    hp: 80,
+    tags: ['control', 'slow', 'rust', 'douses-fire'],
+    placement: 'beside-path',
+    sprite: 'dewdrop-nymph-idle',
+    projectile: 'dew-splash',
+  },
 };
 
 export const ENEMIES: Record<string, EnemyStats> = {
@@ -91,6 +117,28 @@ export const ENEMIES: Record<string, EnemyStats> = {
     attackInterval: 0.95,
     manaBounty: 8,
     tags: ['crew', 'ground', 'choppable'],
+  },
+  'chainsaw-brute': {
+    id: 'chainsaw-brute',
+    name: 'Chainsaw Brute',
+    hp: 200,
+    speed: 30,
+    damage: 45,
+    attackInterval: 0.8,
+    manaBounty: 14,
+    tags: ['crew', 'ground', 'choppable', 'heavy-chop'],
+  },
+  'buzzsaw-drone': {
+    id: 'buzzsaw-drone',
+    name: 'Buzzsaw Drone',
+    hp: 85,
+    speed: 55,
+    damage: 22,
+    attackInterval: 1.0,
+    manaBounty: 12,
+    tags: ['machine', 'flying'],
+    // Flies the river's air lane, bypassing the winding ground trail (issue #35).
+    flying: true,
   },
 };
 
