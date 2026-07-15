@@ -255,3 +255,49 @@ describe('tap-tap placement safety (issue #22)', () => {
     if (!undo.ok) expect(undo.reason).toBe('nothing-to-undo');
   });
 });
+
+// Combined star result: the BattleState tracks Mana spent and resources collected
+// and exposes a 1–3 star result (0 on defeat) through the snapshot, so the
+// campaign/application seam can score, unlock, and replay Meadow's Edge.
+describe('combined star result (issue #29)', () => {
+  it('tracks net Mana spent across placement, full undo, and 70% uproot', () => {
+    const battle = new BattleState({ level: meadows }); // 150 mana
+    battle.placeDefender('ring-7', 'sprig-sentinel'); // +50
+    expect(battle.manaSpent).toBe(50);
+    battle.undoLastPlacement(); // full refund reverses the spend
+    expect(battle.manaSpent).toBe(0);
+
+    battle.placeDefender('ring-7', 'sprig-sentinel'); // +50
+    battle.removeDefender('ring-7'); // 70% uproot keeps the 30% loss as spent
+    expect(battle.manaSpent).toBe(15); // round(50 * 0.3)
+  });
+
+  it('tracks Mana bounty gathered as resources are collected', () => {
+    const battle = new BattleState({ level: tinyLevel() }); // 2 loggers worth 8 each
+    battle.placeDefender('r1', 'sprig-sentinel');
+    battle.start();
+    battle.runToCompletion();
+    expect(battle.phase).toBe('won');
+    expect(battle.resourcesCollected).toBe(16); // both loggers felled for bounty
+  });
+
+  it('exposes a 1–3 star result on the victory snapshot', () => {
+    const battle = new BattleState({ level: tinyLevel() });
+    battle.placeDefender('r1', 'sprig-sentinel');
+    battle.start();
+    battle.runToCompletion();
+    const stars = battle.snapshot().stars;
+    expect(stars).toBeGreaterThanOrEqual(1);
+    expect(stars).toBeLessThanOrEqual(3);
+  });
+
+  it('scores zero stars on a defeat and does not collect leaked bounty', () => {
+    const battle = new BattleState({ level: meadows });
+    battle.start();
+    battle.runToCompletion();
+    expect(battle.phase).toBe('lost');
+    expect(battle.snapshot().stars).toBe(0);
+    // Everything leaked past the Heartwood; no bounty was gathered.
+    expect(battle.resourcesCollected).toBe(0);
+  });
+});

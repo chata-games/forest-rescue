@@ -12,6 +12,7 @@
 
 import { PathCurve } from './path';
 import { getDefender, getEnemy } from './content';
+import { scoreStars as scoreStarsRule, type BattleScoreInput } from './scoring';
 import type { CompiledLevel, DefenderStats, Ring } from './types';
 
 export const STEP = 1 / 60;
@@ -94,6 +95,8 @@ export interface BattleSnapshot {
   leaked: number;
   /** Whether the most recent placement is still within its 4-second undo window. */
   canUndo: boolean;
+  /** Combined 1–3 star result (0 until a victory is recorded). */
+  stars: number;
 }
 
 interface ScheduledSpawn {
@@ -131,6 +134,11 @@ export class BattleState {
   defenders: PlacedDefender[] = [];
   enemies: ActiveEnemy[] = [];
   projectiles: ProjectileView[] = [];
+
+  // Economy totals that feed the combined star result (issue #29 AC2). manaSpent
+  // is NET: a full undo reverses it, while a 70% uproot keeps the 30% loss.
+  manaSpent = 0;
+  resourcesCollected = 0;
 
   private schedule: ScheduledSpawn[] = [];
   private nextSpawn = 0;
@@ -187,6 +195,7 @@ export class BattleState {
     const { ring, stats } = check;
 
     this.mana -= stats.cost;
+    this.manaSpent += stats.cost;
     const defender = makeDefender(ring, stats);
     this.defenders.push(defender);
     this.lastPlacement = { ringId, typeId: stats.id, cost: stats.cost, placedAt: this.battleClock };
@@ -224,6 +233,7 @@ export class BattleState {
     }
     this.defenders.splice(idx, 1);
     this.mana += last.cost; // full refund, not the 70% uproot rate
+    this.manaSpent = Math.max(0, this.manaSpent - last.cost); // a full undo reverses the spend
     this.lastPlacement = null;
     return { ok: true, refund: last.cost };
   }
@@ -236,6 +246,8 @@ export class BattleState {
     const refund = stats ? Math.round(stats.cost * REMOVE_REFUND) : 0;
     this.defenders.splice(idx, 1);
     this.mana += refund;
+    // The 70% refund is returned to the pool; the 30% loss stays as Mana spent.
+    this.manaSpent = Math.max(0, this.manaSpent - refund);
     if (this.lastPlacement?.ringId === ringId) this.lastPlacement = null;
     return { ok: true, refund };
   }
@@ -289,6 +301,28 @@ export class BattleState {
       enemyCount: this.enemies.filter((e) => !e.dead && !e.reached).length,
       leaked: this.leaked,
       canUndo: this.isUndoable(),
+      stars: this.scoreStars(),
+    };
+  }
+
+  /**
+   * The combined star result for this battle (0 on defeat or while unfinished).
+   * Composes the engine-independent scoring rule with the tracked economy totals.
+   */
+  scoreStars(): number {
+    return scoreStarsRule(this.resultInput());
+  }
+
+  /** Gather the inputs the engine-independent scoring rule needs. */
+  resultInput(): BattleScoreInput {
+    return {
+      outcome: this.outcome,
+      hearts: this.hearts,
+      maxHearts: this.maxHearts,
+      manaSpent: this.manaSpent,
+      resourcesCollected: this.resourcesCollected,
+      totalBounty: totalBounty(this.level),
+      startingMana: this.level.startingMana ?? 0,
     };
   }
 
@@ -338,6 +372,7 @@ export class BattleState {
         if (enemy.hp <= 0) {
           enemy.dead = true;
           this.mana += enemy.bounty;
+          this.resourcesCollected += enemy.bounty;
           continue;
         }
       }
@@ -405,6 +440,7 @@ export class BattleState {
       if (target.hp <= 0) {
         target.dead = true;
         this.mana += target.bounty;
+        this.resourcesCollected += target.bounty;
       }
     }
     this.enemies = this.enemies.filter((e) => !e.dead);
@@ -460,6 +496,18 @@ export class BattleState {
 }
 
 // --- Helpers --------------------------------------------------------------
+
+/** Total Mana bounty every spawned enemy in the level could yield. */
+function totalBounty(level: CompiledLevel): number {
+  let sum = 0;
+  for (const wave of level.waves ?? []) {
+    for (const group of wave.enemies) {
+      const bounty = getEnemy(group.type)?.manaBounty ?? 0;
+      sum += bounty * group.count;
+    }
+  }
+  return sum;
+}
 
 function buildSchedule(level: CompiledLevel): ScheduledSpawn[] {
   const schedule: ScheduledSpawn[] = [];

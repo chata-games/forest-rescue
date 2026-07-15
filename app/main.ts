@@ -20,12 +20,12 @@ import { renderTrail, renderDetail, type TrailElements, type DetailElements } fr
 import {
   resolveTrail,
   emptyProgress,
-  markCleared,
   type CampaignManifest,
   type LevelMeta,
   type CampaignProgress,
   type TrailNode,
 } from './domain/campaign';
+import { recordResult } from './domain/scoring';
 import { buildPreviewSummary, type PreviewSummary, type SimulationFile } from './domain/preview';
 import type { BattleSnapshot } from './domain/battle';
 import type { CompiledLevel } from './domain/types';
@@ -158,6 +158,7 @@ const undoBtn = $<HTMLButtonElement>('undoBtn');
 const toolButtons = Array.from(document.querySelectorAll<HTMLButtonElement>('.tool'));
 const overlay = $<HTMLElement>('outcomeOverlay');
 const outcomeTitle = $<HTMLHeadingElement>('outcomeTitle');
+const outcomeStars = $<HTMLParagraphElement>('outcomeStars');
 const outcomeMessage = $<HTMLParagraphElement>('outcomeMessage');
 const hint = $<HTMLOutputElement>('hint');
 // Author preview controls: level picker, phone-layout toggle, and the legend.
@@ -171,6 +172,7 @@ const hudElements: HudElements = {
   wave: waveValue,
   startBtn,
   outcomeTitle,
+  outcomeStars,
   outcomeMessage,
   overlay,
 };
@@ -367,8 +369,6 @@ pauseBtn.addEventListener('click', () => {
   pauseBtn.textContent = next ? 'Resume' : 'Pause';
 });
 
-replayBtn.addEventListener('click', () => location.reload());
-
 /** Fully refund the most recent placement within its 4-second window (issue #22 AC6). */
 function undoLastPlacement(): void {
   if (!battle) return;
@@ -418,16 +418,14 @@ function resetBattleHud(): void {
   selectDefender('sprig-sentinel');
 }
 
-function starsFor(hearts: number, max: number): number {
-  if (hearts >= max) return 3;
-  if (hearts >= max - 1) return 2;
-  return 1;
-}
-
 function recordOutcome(snap: BattleSnapshot): void {
-  if (!currentLevelId || snap.phase !== 'won' || outcomeRecorded) return;
+  if (!currentLevelId || !battle || outcomeRecorded) return;
+  if (snap.phase !== 'won' && snap.phase !== 'lost') return;
   outcomeRecorded = true;
-  progress = markCleared(progress, currentLevelId, starsFor(snap.hearts, snap.maxHearts));
+  // The engine-independent seam: score the battle and fold it into progress. A
+  // loss advances nothing; a victory clears the level, preserving the best star
+  // result across replays (issue #29 AC1/AC3).
+  progress = recordResult(progress, currentLevelId, battle.resultInput());
   saveProgress(progress);
 }
 
@@ -540,6 +538,9 @@ function returnToTrail(): void {
   if (current) nodeButtons.find((b) => b.dataset.level === current.id)?.focus();
 }
 
+// Play Again rebuilds the same level in place so the best star result is kept
+// (a worse replay can never lower it). Return to Trail returns to the campaign
+// map, where the freshly unlocked next level is now enterable (issue #29 AC4).
 replayBtn.addEventListener('click', () => {
   if (currentLevelId) enterLevel(currentLevelId);
 });

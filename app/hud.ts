@@ -11,12 +11,19 @@ export interface HudElements {
   wave: { textContent: string | null };
   startBtn: { textContent: string | null; disabled: boolean };
   outcomeTitle: { textContent: string | null };
+  outcomeStars: { textContent: string | null };
   outcomeMessage: { textContent: string | null };
   overlay: { hidden: boolean | string };
 }
 
 export function heartsGlyph(hearts: number, max: number): string {
   return '♥'.repeat(Math.max(0, hearts)) + '♡'.repeat(Math.max(0, max - hearts));
+}
+
+/** Filled + empty stars out of 3 for a victory result (empty string on defeat). */
+export function starsGlyph(stars: number): string {
+  if (stars <= 0) return '';
+  return '★'.repeat(stars) + '☆'.repeat(Math.max(0, 3 - stars));
 }
 
 export function waveText(snap: BattleSnapshot): string {
@@ -63,6 +70,8 @@ export function renderHud(snap: BattleSnapshot, els: HudElements): void {
   if (snap.phase === 'won' || snap.phase === 'lost') {
     const won = snap.phase === 'won';
     els.outcomeTitle.textContent = won ? 'Victory' : 'Defeat';
+    // The combined star result is shown only for a victory (issue #29 AC2/AC4).
+    els.outcomeStars.textContent = won ? starsGlyph(snap.stars) : '';
     els.outcomeMessage.textContent = won
       ? `The Heartwood endures — ${snap.hearts} heart${snap.hearts === 1 ? '' : 's'} remaining.`
       : 'ChopCo reached the Heartwood.';

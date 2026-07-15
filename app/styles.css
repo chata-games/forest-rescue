@@ -227,6 +227,18 @@ body.force-landscape .app-root {
   font-size: 30px;
 }
 
+.overlay__stars {
+  margin: 0 0 8px;
+  font-size: 34px;
+  letter-spacing: 6px;
+  color: var(--mana);
+  line-height: 1;
+}
+
+.overlay__stars:empty {
+  display: none;
+}
+
 /* --- Author preview legend + level picker --- */
 .hud__picker {
   display: flex;

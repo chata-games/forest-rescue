@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { heartsGlyph, humanReason, renderHud, waveText, type HudElements } from './hud';
+import { heartsGlyph, humanReason, renderHud, starsGlyph, waveText, type HudElements } from './hud';
 import type { BattleSnapshot } from './domain/battle';
 
 function stubs(): HudElements {
@@ -9,6 +9,7 @@ function stubs(): HudElements {
     wave: { textContent: '' },
     startBtn: { textContent: '', disabled: false },
     outcomeTitle: { textContent: '' },
+    outcomeStars: { textContent: '' },
     outcomeMessage: { textContent: '' },
     overlay: { hidden: true },
   };
@@ -30,6 +31,7 @@ function snap(partial: Partial<BattleSnapshot>): BattleSnapshot {
     enemyCount: 0,
     leaked: 0,
     canUndo: false,
+    stars: 0,
     ...partial,
   };
 }
@@ -55,19 +57,21 @@ describe('HUD rendering', () => {
     expect(els.startBtn.disabled).toBe(true);
   });
 
-  it('reveals a Victory overlay with the hearts that survived', () => {
+  it('reveals a Victory overlay with the combined star result and hearts that survived', () => {
     const els = stubs();
-    renderHud(snap({ phase: 'won', outcome: 'victory', hearts: 4 }), els);
+    renderHud(snap({ phase: 'won', outcome: 'victory', hearts: 4, stars: 3 }), els);
     expect(els.overlay.hidden).toBe(false);
     expect(els.outcomeTitle.textContent).toBe('Victory');
+    expect(els.outcomeStars.textContent).toBe('★★★');
     expect(els.outcomeMessage.textContent).toContain('4 heart');
   });
 
-  it('reveals a Defeat overlay when the Heartwood is overrun', () => {
+  it('reveals a Defeat overlay with no star result', () => {
     const els = stubs();
     renderHud(snap({ phase: 'lost', outcome: 'defeat', hearts: 0 }), els);
     expect(els.overlay.hidden).toBe(false);
     expect(els.outcomeTitle.textContent).toBe('Defeat');
+    expect(els.outcomeStars.textContent).toBe('');
     expect(els.outcomeMessage.textContent).toContain('ChopCo');
   });
 
@@ -83,5 +87,12 @@ describe('HUD rendering', () => {
   it('builds the hearts glyph for full and empty health', () => {
     expect(heartsGlyph(5, 5)).toBe('♥♥♥♥♥');
     expect(heartsGlyph(0, 5)).toBe('♡♡♡♡♡');
+  });
+
+  it('builds the star glyph for the combined result', () => {
+    expect(starsGlyph(3)).toBe('★★★');
+    expect(starsGlyph(2)).toBe('★★☆');
+    expect(starsGlyph(1)).toBe('★☆☆');
+    expect(starsGlyph(0)).toBe(''); // a defeat shows no stars
   });
 });
