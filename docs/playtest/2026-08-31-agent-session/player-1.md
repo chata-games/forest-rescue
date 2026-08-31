@@ -266,3 +266,114 @@ The group's four shared pillars (fix combat, gate wave 1, clamp layout, make the
 are the right spine and I'm fully on board — my open objections are to building optimizer
 furniture (stat panels, sell UI) and restructuring wave pacing before those pillars land.
 
+## Debate round 2
+
+### Critiques
+
+**Of Player 2 (Mushroom Hollow):**
+
+1. **#3 field-clear wave gating — still no, and it remains unanswered.** Two players objected in
+   round 1 (me on evidence, P3 on design) and P2's revised list keeps it anyway. My seven runs
+   never made overlap the felt problem: I died in wave 2 to silent rejections and an instant
+   wave 1. P2's own finding, the counter advancing 3s after the last spawn while wave 1 is still
+   walking, indicts the signal, not the pressure. From the onboarding seat, the between-wave gap
+   is the one quiet moment a new player gets to read what just killed them. A clock that stops
+   whenever the field is clear deletes that rhythm and turns the wave-10 excavator, the first
+   genuinely timed threat, into a rude surprise. Track the gate as the fix and field-clear as a
+   separate design proposal; one is a bug-sized change, the other reshapes the game.
+2. **#2 "same root overflow, one fix" — the causal arrow points the wrong way.** I checked the
+   code. `setupCanvas` sizes the canvas to its wrapper's rect (`src/engine/canvas.js`), so the
+   canvas mirrors whatever the wrap is. The only unshrinkable 2296px in the chain is the toolbar:
+   8 tool-buttons at `min-width: min(280px, 92vw)` in a non-wrapping flex row with 8px gaps is
+   8 × 280 + 7 × 8 = 2296px, exactly the scrollWidth P3 measured live. The card bar is the cause;
+   the canvas is a symptom. Keep one ticket, but the toolbar change (wrap the cards, or cap the
+   game-screen grid track with `minmax(0, 1fr)`) is what actually restores the rings, the map and
+   the pause button. Clamping the canvas alone leaves a 2296px wrap sitting behind it.
+3. **#1 per-level kill regression test on every level — scope shrinks.** The widened sweep was
+   justified by "P3 saw beams where I saw dead air". P3 has since conceded the beams were the
+   idle sprite streak, so the contradiction that motivated the sweep is resolved. The class-level
+   one-line fix plus one test asserting a defender kills a dummy is the ship-stopper ticket;
+   per-level fixtures for ten levels are good hygiene to add after the game is winnable. Flagging
+   as over-engineered for a browser game at this stage.
+4. **#3 flat early-call mana bonus (also P3's #3) — defer.** Downgrading the bonus to flat fixed
+   the mandatory-optimal warp, but the teaching cost stands: minute one should teach placement,
+   not a second economy knob. Ship the gate; layer the bonus in on later levels.
+
+**Of Player 3 (Boulder Pass):**
+
+5. **#5 "combat verifiability + tower info" — the right package with four rooms in it.** Enemy HP
+   bars, kill feedback, select-to-inspect with stats, and card tooltips are four features wearing
+   one bullet. From play: across seven defeats I never once wanted to inspect a placed tower or
+   compare HP bars; I wanted to see a shot fired and a logger die. Projectiles and a death poof
+   teach cause and effect to a newcomer; HP bars and stat panels serve players comparing outputs,
+   which is nobody's first hour. Split it: visible kill feedback joins the firing fix as a rider;
+   select-UI and HP bars defer. Two more cautions. "Hover or first-click tooltip" assumes a
+   mouse; this is a browser game, and P2 had to buy Thornvine off a 68px card sliver, where the
+   first tap on a card is how you buy, not how you read. An always-visible one-line role text
+   survives touch and costs no interaction. And #3's "≥15s grace countdown" fallback should be
+   dropped entirely once the Start-Wave button exists; the replay-tax argument both of them used
+   against my countdown applies to P3's fallback too.
+
+Credit where due: P2's spam-the-cheapest-unit and P3's 256 banked mana at Game Over are the same
+symptom seen twice, and they argue for talk-back as much as for stat tables. P3 promoting the
+build bar to #4 lands where my round-1 concession already put layout. And while weighing P2's #5
+I checked the flower code: taps are handled (`handlePointer`), but the hit radius is `f.r * 1.4`
+with `r = 22`, about a 36-pixel tap target on a laptop window, the flower despawns after 8.5
+seconds, and the meadow also carries baked decoration shapes that look just like it. P2's four
+dead taps now have a mechanism. That item is a broken advertised interaction, not a display
+preference, and it jumps into my list.
+
+### Defenses
+
+- **My prep countdown: conceded, fully.** Both P2 and P3 rejected the fixed timer with the same
+  evidence shape: P2's opener was under 5 seconds by run 4, my session ran 7 replays, P3's
+  tolerance lived on 1-2s restarts. A countdown taxes every retry to help only the first. My
+  round-1 wording had already merged P2's first-placement variant; the final shape is P3's
+  explicit Start-Wave button, no auto-countdown, plus the between-waves "next wave in Ns"
+  indicator P3 also endorsed. The diagnosis underneath, that the game acts before the player
+  commits, was never disputed and all three datasets still support it.
+- **My #4 slot (HUD scoping + campaign markers): conceded to the card bar.** P2 is right that a
+  fix that cost me one mis-click cannot outrank one that hid three of six cards all session. The
+  code backs the demotion: the stale "Wave 1 / 8" behind the title is hardcoded markup in
+  `index.html` (`<span id="waveText">Wave 1 / 8</span>`), a one-line fix that rides along with
+  hiding the HUD under menus, now folded into my #3. Campaign markers drop off my top 5
+  entirely; trust polish to batch later.
+- **My red/green ring tinting: red conceded.** P3's mid-wave readability objection is evidence I
+  did not have: I hunted rings while loggers crossed, and painting invalid rings red adds alert
+  noise at the worst possible moment. Green-only tint while a card is selected, shake plus a
+  floating reason on the failed tap. The failure-time feedback carries the teaching load; the
+  map stays quiet the rest of the time.
+- **One hold against P2's #4: role text still precedes stat lines.** P2 read my
+  spam-the-cheapest behavior as evidence for stat tables. I read the same event the other way: I
+  spammed because I had no idea what anything was for, a role failure, not a numbers failure.
+  Once a role sentence exists, damage/rate/range is one template string and cheap; I will take it
+  then. The order matters more than the inclusion.
+
+### Revised Top 5
+
+1. **Fix the defender firing bug, with a visible shot and one kill test.** Unchanged at #1.
+   Changed: trimmed P2's per-level test sweep to a single dummy test, and added a minimal
+   feedback rider (projectile or beam plus a death poof) so the fix is verifiable by eye, not
+   only by assertion.
+2. **Start-Wave gate plus a "next wave in Ns" timer between waves.** Changed: the countdown is
+   fully conceded away in favor of P3's button; field-clear gating rejected; early-call bonus
+   deferred.
+3. **Fit the game to the window: fix the toolbar first, clamp the canvas second, hide the HUD
+   under menus.** Changed: card bar merged in at P2's insistence and my concession, with the
+   8 × 280 + 56 = 2296 arithmetic naming the toolbar as root cause; HUD-on-menus folded in here
+   after verifying the stale wave text is hardcoded markup.
+4. **Make the game talk back: green-only valid-ring tint while a card is selected, shake and a
+   floating reason on every rejected plant, floating +8 on kills.** Changed: red tint conceded
+   away; the kill-income float is adopted from P2's #5 into the feedback package.
+5. **First-minute literacy: one-line role text per card, a range ghost at placement, a mana-rate
+   readout, and flower taps that work.** Changed: flower repair promoted in from P2's #5 with
+   code evidence (31-world-px hit radius, 8.5s life, lookalike scenery); stat lines and the
+   select-inspect UI explicitly deferred behind role text.
+
+### Stance
+
+The four pillars (firing fix, window fit, wave gate, talk-back) are settled for me and I have no
+strong objection left against the group's spine; what remains is package discipline, keeping
+tickets single-purpose and deferring the veteran furniture, plus one live fight: the wave clock
+must stay visible, never stoppable.
+

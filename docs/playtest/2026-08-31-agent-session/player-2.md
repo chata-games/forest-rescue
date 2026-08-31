@@ -87,3 +87,33 @@ Nothing has been aimed at me yet — these are first-pass reports — so I'll an
 ### Stance
 
 The group's blocker set is converging where my data says it should — combat resolution, viewport/layout, wave-start gate, unit information — I'm on board with one condition: every HP/DPS retune waits until defenders verifiably deal damage, because every balance number we collected this session was measured against zero DPS.
+
+## Debate round 2
+
+Both revised lists read. We are one contradiction away from a clean consensus, and this round I settle part of it by conceding one of my own items.
+
+### Critiques
+
+1. **P1's deferral of enemy HP bars ("HP bars and floating damage are optimizer polish that can wait").** Disagree on the HP half. The only way I detected zero DPS was comparing run 1 (no defenders, wave 1 ends 4-1) against run 4 (three paid sentinels, wave 1 ends 4-1). That is a controlled experiment, and it took me three runs to think of it. A first-hour player never runs controls; they watch one wave and decide the game is a slot machine, which is what I concluded in run 6 before I scripted the test. Post-fix, projectiles prove a defender fired, but not whether 50 mana of Sprig was decisive or wasted, so purchase evaluation falls back to vibes. That is my "costs without outputs" finding from the original report, one layer up. Where P1 is right: floating damage numbers are noise, and role text comes first. So I split their bundle: HP bars are decision infrastructure and belong in the first post-fix iteration; damage numbers can wait.
+2. **P1 #2, the merged gate wording ("first-placement as an acceptable gate").** Half disagree. On paper it is elegant; against my run 1 it fails. I lost that run entirely while reading six cards on a dark map, and three of those six cards were off-screen at 940px. A gate that starts the clock on the player's first blind click moves the loss from "reading under fire" to "starting before understanding." The explicit Start button is the primary mechanism; first-placement can accelerate replays, where the player already knows what to plant. P3's wording gets this right, P1's merged sentence blurs it.
+3. **P3 #5, combat verifiability plus tower info as one item.** Agree with every ingredient, disagree with the bundle. It is five features priced as one line: HP bars (S), kill feedback (S), placement range ghost (S), tap-to-inspect with stats (M), card tooltips (S), plus a Thornvine sprite swap. Bundled, the cheap wins get scheduled behind the panel UI. P3 flagged me last round for bundling a bug with a design decision, and this is the same shape with more parts. Sequencing evidence from my session: run 7 needed a rejection reason and placement-time range, not an inspection panel. Nothing I placed survived long enough to be worth inspecting.
+4. **The early-call mana bonus: kept by P3, deferred by P1, adopted by me last round.** Both are arguing mechanism; my data says the timing is wrong. I banked 443 to 593 mana while losing. Wave 1 paid out income faster than the level gave me anything to buy, so an early-call bonus pays a currency the player cannot convert yet. P1's instinct to defer is right but for the wrong reason: it is not a teaching-load problem, it is a missing-sink problem. The bonus belongs in the balance pass, after the economy has sinks. I withdraw it from my own pacing item.
+5. **The flower contradiction, which nobody else has addressed.** P3 collected both Boulder Pass flowers, +25 each, twice. I went 0 for 4 on Mushroom Hollow across two runs, no feedback of any kind. Same shared interaction code, opposite outcomes, exactly the shape of the beam contradiction we settled last round: something in per-level data or hitbox tolerance differs. Two consequences. Per-level regression tests should assert flower pickup, not just defender kills. And this lands on P1's economy item: their fix is a "≈5/s" readout, but a readout on top of an unspendable 593 pile informs no decision. The broken tap is a bug; the readout is a label on a bug.
+
+### Defenses
+
+- **Field-clear gating (attacked by both P1 and P3).** Conceded. P1's point that a visible timer fixes the readability problem without slowing veterans, and P3's point that field-clear deletes time pressure from the genre, both land. My evidence was real (the counter advanced 3s after last spawn while enemies still walked) but it indicted the signal, not the pressure. Withdrawn. My pacing item is now the wave-1 start gate plus a visible "next wave in Ns" timer. P3's scope flag is fair and moot: the card bar already moved to my #2 in round 1.
+- **Effort estimate on my #1 (flagged by both).** Already conceded in round 1, stays conceded. The logic fix is S. The M-sized feedback layer now lives in my #4 with an explicit ship order, so the pricing mismatch cannot recur.
+- **P1 on my stat lines ("the optimizer lens assumes a mental model").** Partial concede. Role text ships before numbers; my run 1 self needed "what is this" before "what are its numbers." But the stat line stays in scope. By run 4 my opener was under 5 seconds, so players graduate to numbers within one session, and carrying both costs one line of text per card.
+
+### Revised Top 5
+
+1. **Fix defender firing (`cooldown -= dt`) + per-level regression tests, now also asserting flower pickup.** Test scope widened again after the flower contradiction; the effort hedge stays dead.
+2. **Clamp canvas and card bar to the viewport on entry + resize.** Unchanged; P1's folded layout item and P3's #4 both land here. The same overflow ate rings, cards, pause/mute, and HUD clusters across all three levels.
+3. **Wave pacing: explicit Start-Wave gate + visible "next wave in Ns" timer.** Field-clear withdrawn (conceded above); early-call bonus demoted out to the balance pass.
+4. **Unit transparency in ship order: rejection reasons, range ghost at placement, role line on cards, enemy HP bars.** Role text ordered first (conceded to P1); HP bars promoted into the first iteration against P1's deferral; floating damage and tap-to-inspect deferred.
+5. **Economy: working flower taps with generous hitboxes + end-screen summary (wave reached, enemies leaked, mana wasted).** The broken interaction replaces the bonus at #5; the ≈5/s readout rides along once taps work. An end screen showing the optimizer's numbers is nearly free, and my Game Over modal currently displays an idle 593 behind nothing.
+
+### Stance
+
+The four pillars (firing fix, viewport clamp, wave-start gate, a game that talks back) are settled for me, no retuning until defenders verifiably deal damage, and my one live fight is that HP bars ship in iteration one, not the polish pile.

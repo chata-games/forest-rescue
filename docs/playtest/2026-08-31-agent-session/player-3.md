@@ -253,3 +253,96 @@ The group's real priorities are converging fast — make defenders fight, make t
 window, give players time to plan — and I back all three; my one live objection is to field-clear
 wave gating, which must stay a visible timer, not a stopped clock.
 
+## Debate round 2
+
+### Critiques
+
+**Of Player 2:**
+
+1. **#3, field-clear wave gating. Objection maintained.** P2 kept field-clear gating in their
+   revised #3 after both other players pushed back. My evidence: my entire session ran on the
+   clock. Wave 2 arriving while wave 1 still walked is what killed me five times, and the 1-2s
+   retry loop is the only reason five defeats in 12 minutes stayed tolerable. Remove the clock
+   and Boulder Pass's waves 2 through 9, identical borers where only the spawn interval shrinks,
+   become untimed placement puzzles with no decision left in them. P2's own data indicts the
+   missing signal, not the pressure: the counter advanced 3s after the last spawn with no timer
+   shown anywhere. That is a readability bug, fixed by a visible "next wave in Ns" countdown,
+   not by stopping time.
+2. **#1, per-level kill regression test. Right test, wrong justification.** P2 widened test scope
+   to every level "because P3's beams contradict my dead air". My beams were a misread of the
+   idle sprite, so that evidence is gone and I have retracted it. Keep the per-level tests anyway,
+   for a reason that survives: ring and trail range sanity. A level whose rings sit out of range
+   of its own trail would still produce zero kills after the cooldown fix, and only a per-level
+   scripted kill catches that. My ring-60 "long-range" Thornvine on Boulder Pass is exactly the
+   configuration such a test would check.
+3. **#5, "flowers that don't respond". Overgeneralized from one level.** P2's four failed taps
+   were all on Mushroom Hollow. On Boulder Pass I collected both flowers for +25 each in attempt
+   4 with plain taps, and again in attempt 5. So the interaction works somewhere, which makes
+   this a per-level config or hitbox bug, possibly entangled with P2's own shift-calibrated
+   tapping on a broken canvas. Fix the failing level's data, not the mechanic. The income readout
+   and floating +8 I support without reservation; my Game Over screens froze 250+ mana of
+   unconvertible income, and that is waste a player can feel.
+
+**Of Player 1:**
+
+4. **#2, "first placement is an acceptable gate". Prefer the explicit button.** P1 merged my
+   Start-button gate with P2's spawn-on-first-placement as equally acceptable. From my seat they
+   are not equal. My opener puts tower 1 down inside 5 seconds, so first-placement gating
+   launches wave 1 at tower 1 of 4 and hands the rest of my prep to the borer walk time, which I
+   know is not enough because a 4-tower opener still lost. A Start button costs a veteran about
+   1s per wave, gives a novice unlimited reading, and leaves no ambiguity about what counts as a
+   placement. P1's "next wave in Ns" indicator between waves is right, and I have folded it into
+   my list.
+5. **#4, red/green ring tinting. The concession proves the point; finish it.** P1 scoped the tint
+   to card-selected only, which concedes that a permanently painted map is noise. But mid-wave is
+   exactly when cards get selected, so the busiest moments still get a red and green battlefield.
+   On Meadow's Edge, Thornvine has exactly one legal ring: green on one ring pops, red on eight
+   rings floods. I spent attempts 3 through 5 hunting rings while borers crossed, and what I
+   needed was the valid target standing out, not the invalid ones shouting. Green-only highlight
+   on legal rings, plus shake and a floating reason on the failed tap. That teaches on the
+   mistake instead of painting every frame.
+
+### Defenses
+
+- **Opening-triangle retune (critiqued by P1 and P2 in round 1). Concession stands, now
+  hardened.** My "choke Sprig visibly firing" was the static idle streak. The honest reading of
+  my own screenshot is borers crossing my half untouched while decorative sprites glowed. The
+  retune claim is withdrawn until this protocol runs: fix the decrement, script a 6-second
+  role-correct opener on Boulder Pass, and retune borer HP or early tower DPS only if wave 1
+  still leaks 2+ hearts against that opener.
+- **Sell/refund (both P1 and P2 cut it). Full concession.** I dropped it in round 1 and I will
+  not bring it back. Repositioning only matters when builds can be wrong, and in five defeats I
+  never once wanted to move a tower. I wanted to know what I had bought. Refund is a real
+  question after combat works, not before.
+- **Early-call mana bonus (P1's caution). Conceded to the backlog.** My own runs are the
+  evidence: I died banking 256+ mana. Surplus mana was never my binding constraint, so the bonus
+  optimizes a resource my failures did not lack. Ship the gate first; add a flat, small bonus
+  once players know what mana buys.
+- **The firing-bug omission P1 flagged in round 1. Resolved.** It has been my #1 since round 1's
+  revision.
+
+### Revised Top 5
+
+1. **Fix the defender firing bug**, with an entity-level dummy-kill test plus per-level scripted
+   kills as ring/trail range sanity. Changed: test rationale rewritten. My beam misread is out;
+   range sanity is in.
+2. **Clamp canvas and build bar to the viewport** on level entry and window resize. Changed:
+   absorbed my old #4, build bar fit, here per P2's same-overflow-root argument, which frees a
+   slot.
+3. **Wave-start gate: explicit "Start Wave" button plus a visible "next wave in Ns" timer
+   between waves.** Changed: early-call bonus deferred to the backlog; P2's field-clear gating
+   rejected and replaced by the timer.
+4. **Placement legibility: green-only valid-ring highlight while a card is selected, shake plus
+   floating reason on rejected taps, distinct Thornvine silhouette.** Changed: new standalone
+   entry in the freed slot; the red tint is rejected on clarity grounds.
+5. **Combat verifiability and tower info: enemy HP bars, kill and damage feedback, select-tower
+   range ring with one-line stats, card tooltips.** Changed: sell/refund formally cut; content
+   otherwise stable.
+
+### Stance
+
+The group's four pillars are right: fix combat, fit the window, gate wave 1, make the game talk
+back. I'm on board, with three conditions: the wave clock stays visible and running, ring tints
+go green-only, and the post-fix re-measure must push past wave 2, because all three of us died
+before wave 3 and nobody has seen the back half of any of these levels.
+
