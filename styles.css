@@ -136,9 +136,20 @@ h2 {
   position: absolute;
   inset: 0;
   display: grid;
+  /* Cap the single track: the card bar's min-content width must never widen
+     the column past the viewport (8 cards x 280px used to force 2296px). */
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto 1fr auto;
   gap: 8px;
   padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+}
+
+/* .hidden above loses the source-order fight with .game-screen's display:
+   grid (equal specificity, later rule wins), so #gameScreen shipped visible
+   behind every menu and its stale HUD bled through. Restate the hidden state
+   at higher specificity. */
+.game-screen.hidden {
+  display: none;
 }
 
 .hud,
@@ -229,6 +240,7 @@ h2 {
 .toolbar {
   min-height: 76px;
   justify-content: center;
+  flex-wrap: wrap;
 }
 
 .tool-button {
@@ -291,7 +303,7 @@ h2 {
 
 @media (orientation: landscape) and (max-height: 620px) {
   .game-screen {
-    grid-template-columns: 1fr 132px;
+    grid-template-columns: minmax(0, 1fr) 132px;
     grid-template-rows: auto 1fr;
   }
 

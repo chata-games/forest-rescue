@@ -7,8 +7,10 @@ export function setupCanvas(canvas, wrap) {
   function resize() {
     const rect = wrap.getBoundingClientRect();
     dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
-    width = Math.max(320, Math.floor(rect.width));
-    height = Math.max(220, Math.floor(rect.height));
+    // Clamp to the viewport: an upstream layout bug must never push the
+    // playfield (spawn rings, pause, mute) off-screen.
+    width = Math.max(320, Math.min(Math.floor(rect.width), window.innerWidth));
+    height = Math.max(220, Math.min(Math.floor(rect.height), window.innerHeight));
     canvas.width = Math.floor(width * dpr);
     canvas.height = Math.floor(height * dpr);
     canvas.style.width = width + "px";
