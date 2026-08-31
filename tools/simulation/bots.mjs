@@ -170,7 +170,9 @@ export function runSimulation(level, botName = "cheapest-dps", options = {}) {
 
     if (level.spellUnlock === "cleansing-rain" && fireState) {
       const burning = rings.filter((r) => isRingBurning(r.id, fireState));
-      if (burning.length < 2) return;
+      // Cast on the first burning ring: every burning tick chips defenders and
+      // blocks replanting, so waiting for a bigger blaze only loses ground.
+      if (burning.length < 1) return;
       const center = burning[Math.floor(burning.length / 2)];
       state.mana -= spell.cost;
       state.spellCooldown = spell.cooldown;
