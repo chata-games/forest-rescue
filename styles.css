@@ -237,6 +237,42 @@ h2 {
   transform: translate(-50%, 0);
 }
 
+.wave-start {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  padding: 14px 34px;
+  font-size: 1.4rem;
+  font-weight: 1000;
+  border-radius: 999px;
+  background: var(--gold);
+  color: #17361f;
+  border: 3px solid rgba(255, 249, 215, 0.6);
+  cursor: pointer;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  white-space: nowrap;
+  z-index: 5;
+}
+
+.wave-start:hover {
+  filter: brightness(1.06);
+}
+
+.wave-timer {
+  position: absolute;
+  left: 50%;
+  top: 5%;
+  transform: translateX(-50%);
+  padding: 5px 14px;
+  border-radius: 999px;
+  background: rgba(10, 25, 14, 0.75);
+  color: #ffe9a8;
+  font-weight: 700;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
 .toolbar {
   min-height: 76px;
   justify-content: center;

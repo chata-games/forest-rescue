@@ -41,6 +41,8 @@ export function initHeartwoodGame(dom, level, options = {}) {
   const pauseOverlay = $("pauseOverlay");
   const endOverlay = $("endOverlay");
   const waveBanner = $("waveBanner");
+  const startWaveButton = $("startWaveButton");
+  const nextWaveTimer = $("nextWaveTimer");
   const manaText = $("manaText");
   const heartText = $("heartText");
   const waveText = $("waveText");
@@ -222,6 +224,7 @@ export function initHeartwoodGame(dom, level, options = {}) {
   }
 
   function announceWave() {
+    nextWaveTimer.classList.add("hidden");
     state.wave += 1;
     state.waveActive = true;
     state.bannerTimer = 2;
@@ -277,6 +280,9 @@ export function initHeartwoodGame(dom, level, options = {}) {
         state.waveActive = false;
         state.nextWaveTimer = waves[state.wave - 1]?.delayAfter ?? 3;
       }
+    } else if (state.wave === 0) {
+      // Wave 1 is gated behind the Start-Wave button: unlimited prep time.
+      // state.wave > 0 && !waveActive ticks the between-wave countdown below.
     } else if (state.wave < totalWaves) {
       state.nextWaveTimer -= dt;
       if (state.nextWaveTimer <= 0) announceWave();
@@ -307,7 +313,11 @@ export function initHeartwoodGame(dom, level, options = {}) {
     manaText.textContent = Math.floor(state.mana);
     heartText.textContent = "♥".repeat(Math.max(0, state.hearts))
       + "♡".repeat(Math.max(0, levelMaxHearts(level) - state.hearts));
-    waveText.textContent = `Wave ${Math.min(state.wave, totalWaves)} / ${totalWaves}`;
+    waveText.textContent = `Wave ${Math.max(1, Math.min(state.wave, totalWaves))} / ${totalWaves}`;
+
+    const betweenWaves = !state.waveActive && state.wave > 0 && state.wave < totalWaves;
+    nextWaveTimer.classList.toggle("hidden", !betweenWaves);
+    if (betweenWaves) nextWaveTimer.textContent = `Next wave in ${Math.ceil(state.nextWaveTimer)}s`;
   }
 
   function viewTransform() {
@@ -455,6 +465,11 @@ export function initHeartwoodGame(dom, level, options = {}) {
     if (won) onComplete(level, state.hearts);
   }
 
+  function showStartGate() {
+    startWaveButton.classList.remove("hidden");
+    nextWaveTimer.classList.add("hidden");
+  }
+
   function startLevel() {
     audio.ensure();
     fireClock = 0;
@@ -465,7 +480,7 @@ export function initHeartwoodGame(dom, level, options = {}) {
     endOverlay.classList.add("hidden");
     view.resize();
     buildToolbar();
-    announceWave();
+    showStartGate();
   }
 
   function bindEvents() {
@@ -483,6 +498,12 @@ export function initHeartwoodGame(dom, level, options = {}) {
       }
     });
     replayButton?.addEventListener("click", startLevel);
+    startWaveButton?.addEventListener("click", () => {
+      if (!state || state.wave !== 0 || state.waveActive) return;
+      audio.ensure();
+      startWaveButton.classList.add("hidden");
+      announceWave();
+    });
     muteButton?.addEventListener("click", () => {
       muted = !muted;
       muteButton.textContent = muted ? "🔇" : "🔊";
