@@ -1,9 +1,9 @@
 // Minimal static file server for local dev: node serve.js [port]
-const http = require('http');
-const fs = require('fs');
-const path = require('path');
+import http from 'node:http';
+import fs from 'node:fs';
+import path from 'node:path';
 
-const root = __dirname;
+const root = import.meta.dirname;
 const port = Number(process.argv[2] || process.env.PORT || 8341);
 const types = {
   '.html': 'text/html; charset=utf-8',
