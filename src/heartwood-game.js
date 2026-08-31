@@ -73,6 +73,9 @@ export function initHeartwoodGame(dom, level, options = {}) {
   let spellSelected = false;
   const fireEnabled = hasFireSpread(level);
   let fireState = fireEnabled ? createFireState(rings) : null;
+  // Battle state lives in this closure; it must be declared — ES module code is
+  // strict, so the bare assignment in startLevel() throws ReferenceError.
+  let state = null;
   let fireClock = 0;
   let pointerDown = false;
   let bobPhase = 0;

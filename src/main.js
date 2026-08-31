@@ -12,6 +12,12 @@ function hideAllScreens() {
 }
 
 async function main() {
+  // On a direct-level entry (?level=…) the auto-started battle mounts under the
+  // start screen, which index.html ships visible as a full-viewport overlay
+  // (z-index 20) — it would swallow every tap. Clear the screens for that path;
+  // initCampaign re-shows the start screen when there is no ?level param.
+  if (params.get("level")) hideAllScreens();
+
   if (mode === "legacy") {
     const legacy = initLegacyLane(document);
     legacy.start();
