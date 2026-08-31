@@ -21,6 +21,9 @@ export class DefenderEntity {
 
   update(dt, game) {
     this.flash = Math.max(0, this.flash - dt);
+    // Cooldown must tick down here; gating alone left defenders frozen at the
+    // initial 0.45 windup so they never fired (RP-h06svz).
+    this.cooldown = Math.max(0, this.cooldown - dt);
     if (this.stats.supportOnly || this.stats.blocksPath || this.cooldown > 0) return;
 
     const target = findTarget(this, game);
