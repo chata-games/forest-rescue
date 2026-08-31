@@ -161,3 +161,108 @@ which is exactly the wrong first impression. The underlying design — fairy-rin
 on-path blocker lane, mana flowers, charming sprites and a gorgeous campaign map — is genuinely
 promising; with the one-line firing fix, a prep phase and honest feedback on rejected actions, this
 could be a great first level.
+
+## Debate round 1
+
+### Critiques
+
+**Of Player 2 (Mushroom Hollow):**
+
+1. **#1 "Make defenders actually fight, or show that they do" — agree with the finding, disagree
+   with the effort estimate and the remedy bundle.** P2 prices the logic branch at "large effort";
+   it is one missing line. I re-verified today: `src/entities/defender.js` initializes
+   `cooldown = 0.45`, gates firing on `cooldown > 0`, sets it to max after firing, and never
+   decrements it — the decrement exists only in `legacy-lane.js:97`. Their proposed bundle
+   (projectiles + hit flashes + enemy HP bars + floating damage) also over-shoots the first-hour
+   need. From my play: I never needed damage numbers to know something was wrong — I needed
+   *anything to happen at all*. Projectiles plus a death poof make combat verifiable by eye; HP
+   bars and floating damage are optimizer polish that can wait.
+2. **#5 "Gate waves on field clear" — disagree with the structural half.** In 7 runs I never once
+   experienced wave overlap as my problem — I died to silent rejections and instant wave 1, and my
+   run ended at wave 2 before overlap could matter. Field-clear gating redesigns pacing for every
+   player to solve a readability problem that P2's own cheaper alternative ("Wave 2 incoming" +
+   timer) already fixes. As written it's a taste change dressed as a bug fix, and it makes the
+   game slower for veterans.
+3. **#4 "One line of stats per card (damage / rate / range)" — partial disagreement on emphasis.**
+   Numbers are the second coat of paint. In my runs 1–3 what would have saved me was not
+   "damage 12 / rate 0.8s" but knowing Thornvine is an on-path-only blocker and Sprig a
+   beside-path shooter — a role sentence plus visible ring compatibility. I had no mental model
+   for stats to attach to; P2's optimizer lens assumes one. Keep stats on the roadmap, rank role
+   text first.
+
+**Of Player 3 (Boulder Pass):**
+
+4. **#5 "Retune the wave-1 opening triangle" — disagree; this is my strongest objection in the
+   round.** The evidence chain ("3–4 towers in 6s on role-correct rings still leak 3 hearts",
+   "my choke Sprig visibly fired (green beam)") is confounded: defenders never fire on the
+   deployed build, and there is **no beam rendering anywhere in `src/`** — the only projectile
+   code sits behind the cooldown gate that never opens. What P3 saw as a beam is the static green
+   streak baked into the `sprig-sentinel-idle` sprite, which I documented sitting under Sprigs
+   with no enemy anywhere near. P2's controlled run 6 (poachers passing a sentinel untouched, no
+   projectile, no HP change) corroborates. Tuning borer HP vs tower DPS now is tuning in the
+   dark: with inert shooters, *every* opener leaks, so the data can't tell you what the correct
+   opener should achieve. Fix the firing bug, re-measure, retune only if wave 1 still leaks. P3's
+   top 5 also omits the never-fire bug entirely, which for their lens (difficulty honesty) is the
+   difference between "hard level" and "broken level".
+5. **#4 "Select → range ring + stats + sell/refund" — partially disagree on scope.** Sell/upgrade
+   is a tactician's feature. Across 7 defeats I never once wanted to sell a tower; I wanted to
+   know what I had bought. The first-hour critical 20% is a range ghost during placement and a
+   one-line role description — full selection UI is more interface a newcomer must learn in a
+   game whose current tutorial is one sentence on a start screen. Defer sell/stats to a later
+   level's unlock, not the first hour.
+6. **#1 early-call mana bonus — light caution only.** The Kingdom Rush pattern is proven and the
+   gate itself is exactly right (all three of us lost hearts to a level that starts acting before
+   we do). But the bonus is a second mechanic to teach in minute one; ship the gate, layer the
+   bonus once players know what mana is for.
+
+Credit where due: P3's fairy-ring invisibility observation matches my own hunt for buildable
+rings, and their live diagnosis of the canvas overflow (924→2296 px on Replay) explains the
+broken layout P2 suffered through 7 runs. I under-ranked layout in my original list because my
+window never triggered it — that was luck of viewport size, not evidence the bug is minor.
+Conceding below.
+
+### Defenses
+
+This is round 1; no critiques of my suggestions exist yet, so I'll defend the two most attackable
+against the objections I expect:
+
+- **Prep phase (my #2)** — expected objection: "tune wave 1 slower instead of adding a mode".
+  Rebuttal from evidence: the failure is not tuning, it's that the game acts before the player
+  has committed to acting. I lost 3 of 5 hearts while reading the screen; P2 lost run 1 entirely
+  to reading; P3 loaded into wave 2 mid-read. Three lenses, one shared first-30-seconds failure.
+  A slower wave 1 still starts without consent. I'll accept either gate (explicit Start, or P2's
+  "spawn only after first placement") — revising my wording accordingly — and I keep the
+  skippable countdown plus a between-waves "incoming" timer.
+- **Ring compatibility tinting (my #3)** — expected objection: "red/green everywhere is
+  hand-holding and visual noise". Rebuttal: three of my seven attempts died to silent mismatches
+  (wrong ring type, no mana, planting while paused) with zero feedback, and I could not tell the
+  game's rules from its bugs — I concluded the game was broken, which was also true. A first-time
+  player has no other channel for learning placement legality. Conceding one refinement: tint
+  only while a card is selected, so the map stays clean the rest of the time.
+- My #1 (firing bug) needs no defense: both other players corroborate the symptom, and the root
+  cause survived re-verification today.
+
+### Revised Top 5
+
+1. **Fix the defender firing bug** — unchanged at #1; corroborated by P2's controlled run, and
+   root cause re-verified in source today. One line + a regression test.
+2. **Start-wave gate + "next wave in Ns" indicator** — was my #2; now wording merges P2's
+   first-placement alternative as an acceptable gate, and defers P3's early-call mana bonus.
+3. **Clamp canvas/layout to viewport (entry + resize)** — NEW, conceded up from a sub-point of
+   my old #4: P2 reproduced it 7×, P3 diagnosed it live, and it also explains the unreachable
+   pause/mute buttons and clipped HUD/card bar I saw as separate symptoms.
+4. **Make rejections speak + compatibility tint while a card is selected** — was my #3, narrowed
+   by my own concession above.
+5. **Explain units at point of use: one-line role text, range ghost on placement, mana-rate
+   readout** — was my #5; narrowed from P2's numeric stat lines to role-first text, and from
+   P3's select/sell panel to a placement-time range ghost; both heavier UIs explicitly deferred.
+
+Changes vs last round: layout clamp enters at #3 (concession), role text replaces stat tables,
+wave-gate wording merged across P2/P3 variants, and field-clear wave restructuring rejected.
+
+### Stance
+
+The group's four shared pillars (fix combat, gate wave 1, clamp layout, make the game talk back)
+are the right spine and I'm fully on board — my open objections are to building optimizer
+furniture (stat panels, sell UI) and restructuring wave pacing before those pillars land.
+

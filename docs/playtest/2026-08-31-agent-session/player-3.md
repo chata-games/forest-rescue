@@ -168,3 +168,88 @@ opener still loses by Wave 2 — five times out of five. The bones are good (ins
 readable defenders/beams/enemies, clean HUD, zero JS errors); add a start-wave gate, clamp the
 layout to the viewport, and let players see tower ranges, and this becomes a legitimately
 challenging mid-campaign level instead of a coin-flip against the clock.
+
+## Debate round 1
+
+Process note: no prior debate sections exist in any report — this is the first round — so no
+critique has been aimed at my list yet. I use the Defenses slot for pre-rebuttals to the
+objections I expect, including one concession against my own data.
+
+### Critiques
+
+1. **P1 #2 — prep phase as a fixed 15–20s skippable countdown.** Disagree with the mechanism,
+   agree with the diagnosis. A mandatory countdown taxes every retry, and my session lived on the
+   retry loop: 5 restarts at ~1–2s each is why five defeats in 12 minutes stayed tolerable. A
+   first-timer running 7+ attempts would sit through minutes of pure dead air. A "Start Wave"
+   button with an early-call mana bonus gives newcomers unlimited planning time and veterans zero
+   waiting; a fixed clock is the strictly worse shape. P2's variant (hold wave 1 until first
+   placement or Start) is closer to right.
+2. **P1 #3 — tint all rings red/green when a card is selected.** Disagree with the red half. From
+   the clarity-in-chaos seat: mid-wave, tinting every ring red means the whole battlefield pulses
+   red and green exactly when the player most needs to read enemy positions — I spent attempts
+   3–5 hunting rings while borers crossed, and painting the map in alert colors makes that worse.
+   Tint valid targets green only, leave invalid rings unstyled, and spend the shake + floating
+   reason on the explicit failed tap. Feedback on the failed action teaches; feedback on every
+   frame clutters.
+3. **P2 #5b — gate waves on field clear.** Disagree, and this is my sharpest objection in the
+   round. Field-clear gating deletes time pressure from the genre: once the next wave only comes
+   when the field is clean, there is no overlap to manage, no "spend now or bank for wave 3" call,
+   and late waves become untimed puzzles with infinite setup. That is a shallower game wearing
+   this one's art. P2's own evidence (counter advances 3s after last *spawn*, waves visibly
+   overlap) indicts the *signal*, not the *pressure*: a visible "next wave in Ns" timer plus a
+   start gate keeps the clock honest and readable without removing it. Also flagging scope: this
+   bundles an unrelated UI fix (card bar) with a design decision (pacing); they should be tracked
+   separately because one is a bug and the other changes the game.
+4. **P2 #1 — effort estimate "M-L if logic."** Miscalibrated. P1's forensics show the logic fix is
+   one missing line (`cooldown -= dt`, present in `legacy-lane.js`). Three independent sessions of
+   "towers do nothing" reducing to a one-line decrement means logic is effort S; only the
+   feedback layer (HP bars, projectiles) is M. This matters for sequencing: the ship-stopper is
+   also the cheapest item on the board.
+5. **P1 #5 — explain units at point of use.** Right idea, incomplete for the first-hour lens it
+   comes from. Card text and ring glyphs explain what a unit *is*; P1's own run log ("I never saw
+   a projectile or a kill") shows the missing lesson is what a unit *did*. Enemy HP bars and
+   floating kill income are how a newcomer learns cause and effect — without them, post-fix
+   players will still report "my tower did nothing" whenever DPS is low. Merge this with combat
+   feedback into one package rather than two lists.
+
+### Defenses
+
+- **Conceding my #5 (opening-triangle retune).** My "towers fire but wave 1 still leaks" data is
+  contaminated. P1 traced DefenderEntity never decrementing cooldown — a shared class, so Boulder
+  Pass has it too. What I recorded as my choke Sprig "visibly firing (green beam)" was almost
+  certainly the idle green streak P1 describes under every sentinel, not a shot. My borer-HP vs
+  tower-DPS reasoning was measured against towers that deal zero damage, so the tuning claim is
+  unsupported until the bug is fixed. Revised: fix firing first, then re-measure the opener with a
+  scripted fast build; tune only what the re-measure indicts. I keep the Thornvine-visibility half
+  — placement verification is independent of DPS.
+- **Standing by #2/#3 (canvas overflow, build bar).** P2 reproduced the resize break on 7/7 runs
+  at 940px; I reproduced it on every Replay; it also ate my hearts/wave HUD cluster and made
+  pause/mute unreachable for P2. Not graphical polish — it decides whether the game exists on a
+  laptop.
+- **Standing by #1 (start gate).** P1 lost 3 hearts while reading the screen on Meadow's Edge, P2
+  lost a whole run to reading on Mushroom Hollow, I lost attempts on Boulder Pass. Three lenses,
+  three levels, one structural hole — that is not tuning, it is missing scaffolding.
+
+### Revised Top 5
+
+1. **Fix the defender firing bug** (+ regression test: a defender must kill a dummy dummy in N
+   seconds). Changed: new entry at #1 — P1's forensics explain my leaks and P2's zero kills, and
+   it is the cheapest ship-stopper available.
+2. **Clamp canvas/wrap to the viewport** on level entry and resize. Unchanged at #2; reproduced
+   independently by all three players on three levels.
+3. **Wave-start gate: "Start Wave" button between waves**, early-call mana bonus, no forced
+   countdown. Changed: was my #1; kept the mechanism, switched from timer to button after weighing
+   the cost to the instant-retry loop.
+4. **Make the build bar fit normal windows** (wrap to two rows or scroll with a visible
+   affordance). Was #3; P2's cut-off-card evidence (cheapest unit invisible at 940px) confirms
+   priority over any new content.
+5. **Combat verifiability + tower info**: enemy HP bars, kill/damage feedback, select-tower →
+   range ring + one-line stats, card tooltips. Changed: replaces "retune opening triangle", which
+   is demoted to post-fix measurement; Thornvine sprite visibility folded in here.
+
+### Stance
+
+The group's real priorities are converging fast — make defenders fight, make the level fit the
+window, give players time to plan — and I back all three; my one live objection is to field-clear
+wave gating, which must stay a visible timer, not a stopped clock.
+

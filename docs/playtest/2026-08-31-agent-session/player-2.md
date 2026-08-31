@@ -50,3 +50,40 @@ Last HUD state: Wave 2 / 10, 0 hearts, defeat in all seven runs.
 ## Verdict
 
 Not fun today, and not really playable: the run I can actually recommend is reading the card bar, which loses. The art, the trail, and the flavor text are genuinely charming, and zero JS errors in forty minutes says the engineering discipline exists. But the core loop currently punishes every rational action: planning, building, replaying, even clicking flowers. Fix defender combat resolution and the canvas resize first; everything else is polish on a game that needs its heart beating.
+
+## Debate round 1
+
+Read Player 1 and Player 3 in full. Three levels, three loss streaks, one shared shape of failure — and one direct contradiction between reports that has to be settled before anyone touches a tuning number.
+
+### Critiques
+
+**Player 1 #2 (15–20s skippable prep countdown) — half disagree.** A countdown taxes exactly the players who don't need it. By my run 4 my opener was under 5 seconds; a fixed 15s timer would have charged me ~10s of dead air per replay, seven replays in a row. Player 3's version — explicit Start-Wave gate with a small early-call mana bonus — is strictly better for decision depth: waiting is never the optimal play, speed converts to resources, and novices still get unlimited prep. Take P3's mechanism; P1's countdown is the weaker tool for the same job.
+
+**Player 1 #4 (HUD scoping + campaign marker de-duplication) — disagree with the slot, not the fixes.** Both are real, neither touches win-rate, and together they hold a top-5 seat while the defender card bar — the actual purchase interface — appears nowhere in P1's list. Compare damage done in my session: the duplicated map numbers cost me one mis-click, once. The truncated card bar hid three of six cards at 940px, including the 35-mana Thornvine I needed in run 7, which I had to select off a 68px sliver. One is polish; the other gates access to half the roster on a normal laptop window. It should outrank both of P1's #4 halves.
+
+**Player 3 #5 (retune the wave-1 opening triangle) — disagree with the sequencing, and I question the data.** P1's source forensics says `cooldown` is initialized to 0.45, gated on, and never decremented in `src/entities/defender.js` — no defender can ever fire, on any level. That contradicts P3's "my choke Sprig visibly fired (green beam)", and it matches what I actually saw: P1 identifies that green streak as static idle decoration, and in my run 6 three poachers passed a sentinel within a sprite's width with zero effect — 7/7 runs, no projectile, no HP change, ever. P3's own outcome (role-correct opener, 3–4 towers placed in 6 seconds, still 3 leaked hearts, five defeats out of five) is precisely what zero DPS produces. Tuning borer HP versus Sprig DPS while DPS may be 0 is calibrating against a broken meter: we'd ship the retune, the decrement lands, and the curve moves under us. Measure after the fix. (The Thornvine-visibility half of P3's #5 I agree with unconditionally — I couldn't verify my own placement either.)
+
+**Player 3 #4 (select → range ring + stats + sell/refund) — mostly agree, cut the sell.** Range ring and stat line are the high-leverage half; that's my #4 and I want it too. Sell/refund is scope creep right now: a refund ratio is a new economy constant (100% refund means free repositioning mid-wave — degenerate; 70% means another number to tune), and it sits downstream of combat that doesn't verifiably work yet. Defer it one iteration.
+
+Agreement worth recording: P1 #3's tint-compatible-rings does double duty — the moment a card is selected it also fixes P3's "fairy rings are nearly invisible" observation for free. Two players found the same hole from opposite sides; merge them.
+
+### Defenses
+
+Nothing has been aimed at me yet — these are first-pass reports — so I'll answer the objections my own five invite.
+
+- **Concede the hedge in my #1.** I wrote "fix target acquisition (M–L) or add feedback (S)". P1's forensics collapses the fork: the fire gate can never open, so it's an S-effort logic fix plus a test. One revision I'm adding from the cross-session contradiction: P3 saw beams in Boulder Pass, I saw nothing in Mushroom Hollow. The regression test should assert a kill on every level's compiled data, not only a synthetic dummy — if Boulder Pass genuinely resolves attacks, part of this bug may live in per-level config, not just the shared entity.
+- **Defend #2 (canvas clamp) against "just maximize the window."** P3 had to emulate a 2360px viewport to keep playing; nobody on a 940px laptop can. The same overflow parked my pause button at x=1680 in a 940px window — the one control that enables planning was physically unreachable in all seven runs. A bug that also hides two HUD buttons is not a cosmetic resize.
+- **Defend #3 (build phase) against "just slow wave 1 down."** Run 1 of any level is spent reading six cards on a dark map; that's a first-run constant, not a skill issue. Slowing enemies spreads the same punishment thinner and taxes replays. The gate gives novices unlimited prep and veterans a 5-second opener without charging anyone for the difference.
+- **Defend #4 (stats/ranges) against "tooltips are polish."** Two independent sessions hit the same wall from opposite angles: I spam-purchased the cheapest visible unit because costs came with no outputs, and P3 banked 256 unspent mana at Game Over because nothing said what mana buys. An economy that withholds its own exchange rates isn't an economy — that was my line last round, and the cross-playtest data backs it.
+
+### Revised Top 5
+
+1. **Fix defender firing (`cooldown -= dt`) + per-level kill regression test** — play-technical — changed: hedge removed, pinned to P1's forensics; test scope widened from a dummy to every level because P3's beams contradict my dead air.
+2. **Clamp canvas and card bar to the viewport on entry + resize** — graphical/play-technical — changed: merged my old #2 with the card-bar half of my old #5; same root overflow, one fix restores 5 unreachable rings, 3 off-screen cards, and both pause/mute.
+3. **Wave pacing: Start-Wave gate before wave 1, later waves gated on field clear, small flat early-call bonus** — play-technical — changed: swapped my countdown for P3's gate + bonus (flat and small — a proportional bonus becomes mandatory-optimal and warps difficulty), absorbing field-clear gating from my old #5.
+4. **Surface unit stats: one stat line per card, range circle on placement, rejection reasons on failed placement** — play-technical — changed: rejection reasons folded in from P1 #3; sell/refund explicitly cut for now.
+5. **Economy legibility: ~5/s income readout, floating +8 on kills, working flower taps with pickup burst** — play-technical — changed: promoted from my old #4's second half; four flower taps across two runs never collected anything, so half of this is a broken interaction, not a display preference.
+
+### Stance
+
+The group's blocker set is converging where my data says it should — combat resolution, viewport/layout, wave-start gate, unit information — I'm on board with one condition: every HP/DPS retune waits until defenders verifiably deal damage, because every balance number we collected this session was measured against zero DPS.
