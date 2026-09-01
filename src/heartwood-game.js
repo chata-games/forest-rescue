@@ -17,6 +17,7 @@ import {
   tickFire,
   FIRE,
 } from "./level/fire.js";
+import { plantRejectionReason } from "./combat/plant-rules.js";
 import { getDefender } from "./content/defenders.js";
 import { getSpell } from "./content/spells.js";
 import { createDefender } from "./entities/defender.js";
@@ -150,7 +151,10 @@ export function initHeartwoodGame(dom, level, options = {}) {
       if (enemy.hp <= 0) {
         enemy.dead = true;
         burst(state, enemy.x, enemy.y, "#a5ff70", 18);
-        state.mana = Math.min(999, state.mana + (enemy.stats.manaBounty || 8));
+        const bounty = enemy.stats.manaBounty || 8;
+        state.mana = Math.min(999, state.mana + bounty);
+        // RP-k55mkt: income must be visible — float the actual bounty paid.
+        state.floatTexts.push(new FloatText(enemy.x, enemy.y - 14, `+${bounty}`, "#9cf7ff"));
       }
     },
     onEnemyBurrow(enemy) {
@@ -367,6 +371,26 @@ export function initHeartwoodGame(dom, level, options = {}) {
     ctx.fill();
   }
 
+  // RP-k55mkt: while a defender card is selected, every ring it can be planted
+  // on right now glows green — selection-scoped (never always-on) and
+  // green-only per the debate; the hover ghost (drawRangeGhost) stays the
+  // precise "will it fit here" preview.
+  function drawValidRingHighlights(wctx) {
+    if (!state || state.state !== "playing" || spellSelected) return;
+    const def = getDefender(selectedDefender);
+    if (!def) return;
+    wctx.lineWidth = 2.5;
+    for (const ring of rings) {
+      if (!canPlantAt(ring, def)) continue;
+      wctx.fillStyle = "rgba(141,255,156,0.18)";
+      wctx.strokeStyle = "rgba(141,255,156,0.65)";
+      wctx.beginPath();
+      wctx.arc(ring.x, ring.y, ring.buildRadius, 0, Math.PI * 2);
+      wctx.fill();
+      wctx.stroke();
+    }
+  }
+
   function render() {
     ctx.save();
     if (state?.shake > 0) {
@@ -376,6 +400,7 @@ export function initHeartwoodGame(dom, level, options = {}) {
     battlefield.render(ctx, view.width, view.height, (wctx) => {
       drawHeartwoodGate(wctx);
       if (!state) return;
+      drawValidRingHighlights(wctx);
       const sorted = [...state.defenders, ...state.enemies].sort((a, b) => a.y - b.y);
       for (const ent of sorted) {
         if (ent.typeId) drawDefenderEntity(wctx, ent, options.catalog, bobPhase + ent.x, options.atlas);
@@ -418,19 +443,34 @@ export function initHeartwoodGame(dom, level, options = {}) {
     ctx.restore();
   }
 
+  function plantContext(ring) {
+    return {
+      mana: state.mana,
+      occupied: state.defenders.some((d) => d.ringId === ring.id),
+      ringBurning: fireState ? !canPlantOnRing(ring.id, fireState) : false,
+    };
+  }
+
   function canPlantAt(ring, def) {
     if (!ring || !def || !state) return false;
-    if (def.placement === "on-path" && ring.placement !== "on-path") return false;
-    if (def.placement !== "on-path" && ring.placement === "on-path") return false;
-    if (state.mana < def.cost) return false;
-    if (fireState && !canPlantOnRing(ring.id, fireState)) return false;
-    return !state.defenders.some((d) => d.ringId === ring.id);
+    return plantRejectionReason(ring, def, plantContext(ring)) === null;
+  }
+
+  // RP-k55mkt: a rejected action must say why — shake the board and float the
+  // reason so "nothing happened" can never be mistaken for a frozen game.
+  function rejectAt(x, y, reason) {
+    state.shake = Math.max(state.shake, 0.15);
+    state.floatTexts.push(new FloatText(x, y - 20, reason, "#ffb35c", 1.5));
   }
 
   function plant(ringId, typeId) {
     const ring = ringMap.get(ringId);
     const def = getDefender(typeId);
-    if (!canPlantAt(ring, def)) return;
+    const reason = ring && def ? plantRejectionReason(ring, def, plantContext(ring)) : "Tap a fairy ring to plant";
+    if (reason) {
+      if (ring) rejectAt(ring.x, ring.y - ring.buildRadius, reason);
+      return;
+    }
     const entity = createDefender(ring, typeId);
     if (!entity) return;
     state.defenders.push(entity);
@@ -480,7 +520,7 @@ export function initHeartwoodGame(dom, level, options = {}) {
     audio.mana();
   }
 
-  function handlePointer(ev) {
+  function handlePointer(ev, isDrag = false) {
     if (!state || state.state !== "playing") return;
     const { x: wx, y: wy } = screenToWorld(ev);
 
@@ -494,7 +534,13 @@ export function initHeartwoodGame(dom, level, options = {}) {
       plant(ring.id, selectedDefender);
       return;
     }
-    if (spellSelected && spellId) castSpell(wx, wy);
+    if (spellSelected && spellId) {
+      castSpell(wx, wy);
+      return;
+    }
+    // RP-k55mkt: a tap that hits neither flower nor ring is a rejected plant —
+    // say so (drag-plants sweep silently, only fresh taps speak).
+    if (!isDrag) rejectAt(wx, wy, "Tap a fairy ring to plant");
   }
 
   function finish(won) {
@@ -533,6 +579,18 @@ export function initHeartwoodGame(dom, level, options = {}) {
         pauseOverlay.classList.remove("hidden");
       }
     });
+    // RP-k55mkt: while paused the overlay swallows every tap — a tap on the
+    // backdrop is a rejected action and gets a floating reason of its own.
+    pauseOverlay?.addEventListener("pointerdown", (e) => {
+      if (e.target.closest(".overlay__panel")) return;
+      const hint = dom.createElement("div");
+      hint.className = "reject-float";
+      hint.textContent = "Paused — resume to plant";
+      hint.style.left = `${e.clientX}px`;
+      hint.style.top = `${e.clientY}px`;
+      hint.addEventListener("animationend", () => hint.remove());
+      dom.body.appendChild(hint);
+    });
     resumeButton?.addEventListener("click", () => {
       if (state?.state === "paused") {
         state.state = "playing";
@@ -557,7 +615,7 @@ export function initHeartwoodGame(dom, level, options = {}) {
     });
     canvas.addEventListener("pointermove", (e) => {
       aim = screenToWorld(e);
-      if (pointerDown) handlePointer(e);
+      if (pointerDown) handlePointer(e, true);
     });
     canvas.addEventListener("pointerup", () => { pointerDown = false; });
     canvas.addEventListener("pointerleave", () => { aim = null; });

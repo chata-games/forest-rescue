@@ -19,12 +19,12 @@ export class Particle {
 }
 
 export class FloatText {
-  constructor(x, y, text, color) {
+  constructor(x, y, text, color, life = 1) {
     this.x = x;
     this.y = y;
     this.text = text;
     this.color = color;
-    this.life = 1;
+    this.life = life;
   }
 
   update(dt) {

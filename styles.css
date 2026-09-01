@@ -395,3 +395,28 @@ h2 {
     letter-spacing: 0;
   }
 }
+
+/* RP-k55mkt: rejection reasons float at the tap point. The pause overlay
+   swallows canvas floats, so paused taps get this DOM floater above it. */
+.reject-float {
+  position: fixed;
+  z-index: 40;
+  pointer-events: none;
+  font: 900 20px system-ui;
+  color: #ffb35c;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.85);
+  transform: translate(-50%, -50%);
+  animation: reject-float-rise 1.4s ease-out forwards;
+}
+
+@keyframes reject-float-rise {
+  from {
+    opacity: 1;
+    translate: 0 0;
+  }
+
+  to {
+    opacity: 0;
+    translate: 0 -34px;
+  }
+}
