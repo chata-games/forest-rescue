@@ -80,6 +80,7 @@ export function initHeartwoodGame(dom, level, options = {}) {
   let state = null;
   let fireClock = 0;
   let pointerDown = false;
+  let aim = null; // last pointer position in world coords — anchors the range ghost
   let bobPhase = 0;
   const onComplete = options.onComplete || (() => {});
 
@@ -185,7 +186,7 @@ export function initHeartwoodGame(dom, level, options = {}) {
       const btn = dom.createElement("button");
       btn.type = "button";
       btn.className = `tool-button${!spellSelected && id === selectedDefender ? " selected" : ""}`;
-      btn.innerHTML = `<span class="tool-button__art">✦</span><span>${def.name}</span><small>${def.cost} mana</small>`;
+      btn.innerHTML = `<span class="tool-button__art">✦</span><span>${def.name}</span><span class="tool-button__role">${def.role}</span><small>${def.cost} mana</small>`;
       btn.addEventListener("click", () => {
         selectedDefender = id;
         spellSelected = false;
@@ -201,7 +202,7 @@ export function initHeartwoodGame(dom, level, options = {}) {
         btn.className = `tool-button tool-button--spell${spellSelected ? " selected" : ""}`;
         const cd = state?.spellCooldown > 0 ? ` (${Math.ceil(state.spellCooldown)}s)` : "";
         const icon = spellId === "cleansing-rain" ? "🌧" : "🌿";
-        btn.innerHTML = `<span class="tool-button__art">${icon}</span><span>${spell.name}</span><small>${spell.cost} mana${cd}</small>`;
+        btn.innerHTML = `<span class="tool-button__art">${icon}</span><span>${spell.name}</span><span class="tool-button__role">${spell.role}</span><small>${spell.cost} mana${cd}</small>`;
         btn.disabled = state?.spellCooldown > 0;
         btn.addEventListener("click", () => {
           spellSelected = true;
@@ -327,6 +328,58 @@ export function initHeartwoodGame(dom, level, options = {}) {
     return { scale, ox, oy };
   }
 
+  function screenToWorld(ev) {
+    const rect = canvas.getBoundingClientRect();
+    const { scale, ox, oy } = viewTransform();
+    return { x: (ev.clientX - rect.left - ox) / scale, y: (ev.clientY - rect.top - oy) / scale };
+  }
+
+  // RP-pyvp2r: translucent circle showing the selected card's area of effect at
+  // the hover/press point, snapped to the fairy ring under the pointer when one
+  // is. Green = placeable there, red/white = not. Role text on the cards tells
+  // players WHAT a defender does; the ghost shows WHERE it pays off.
+  function drawRangeGhost(ox, oy, scale) {
+    if (!aim || state.state !== "playing") return;
+    let x = aim.x;
+    let y = aim.y;
+    let r = 0;
+    let fill = "rgba(255,255,255,0.10)";
+    let stroke = "#ff8f7a";
+    if (spellSelected) {
+      const spell = getSpell(spellId);
+      if (!spell) return;
+      r = spell.radius;
+      stroke = spell.color;
+      fill = "rgba(255,255,255,0.12)";
+    } else {
+      const def = getDefender(selectedDefender);
+      if (!def) return;
+      const ring = hitTestRing(rings, aim.x, aim.y);
+      if (ring) {
+        x = ring.x;
+        y = ring.y;
+      }
+      r = def.range || def.glowRadius || 42;
+      if (ring && canPlantAt(ring, def)) {
+        fill = "rgba(180,255,160,0.16)";
+        stroke = "#b4ffa0";
+      }
+    }
+    const sx = ox + x * scale;
+    const sy = oy + y * scale;
+    ctx.fillStyle = fill;
+    ctx.beginPath();
+    ctx.arc(sx, sy, r * scale, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = stroke;
+    ctx.stroke();
+    ctx.fillStyle = stroke;
+    ctx.beginPath();
+    ctx.arc(sx, sy, 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
   function render() {
     ctx.save();
     if (state?.shake > 0) {
@@ -364,6 +417,7 @@ export function initHeartwoodGame(dom, level, options = {}) {
       if (isDebugMode()) drawDebugOverlay(wctx, level, paths);
     });
     if (state) {
+      drawRangeGhost(ox, oy, scale);
       for (const f of state.flowers) {
         ctx.fillStyle = "rgba(97,232,255,.35)";
         ctx.beginPath();
@@ -380,15 +434,19 @@ export function initHeartwoodGame(dom, level, options = {}) {
     ctx.restore();
   }
 
+  function canPlantAt(ring, def) {
+    if (!ring || !def || !state) return false;
+    if (def.placement === "on-path" && ring.placement !== "on-path") return false;
+    if (def.placement !== "on-path" && ring.placement === "on-path") return false;
+    if (state.mana < def.cost) return false;
+    if (fireState && !canPlantOnRing(ring.id, fireState)) return false;
+    return !state.defenders.some((d) => d.ringId === ring.id);
+  }
+
   function plant(ringId, typeId) {
     const ring = ringMap.get(ringId);
     const def = getDefender(typeId);
-    if (!ring || !def || !state) return;
-    if (def.placement === "on-path" && ring.placement !== "on-path") return;
-    if (def.placement !== "on-path" && ring.placement === "on-path") return;
-    if (state.mana < def.cost) return;
-    if (fireState && !canPlantOnRing(ringId, fireState)) return;
-    if (state.defenders.some((d) => d.ringId === ringId)) return;
+    if (!canPlantAt(ring, def)) return;
     const entity = createDefender(ring, typeId);
     if (!entity) return;
     state.defenders.push(entity);
@@ -429,12 +487,7 @@ export function initHeartwoodGame(dom, level, options = {}) {
 
   function handlePointer(ev) {
     if (!state || state.state !== "playing") return;
-    const rect = canvas.getBoundingClientRect();
-    const sx = ev.clientX - rect.left;
-    const sy = ev.clientY - rect.top;
-    const { scale, ox, oy } = viewTransform();
-    const wx = (sx - ox) / scale;
-    const wy = (sy - oy) / scale;
+    const { x: wx, y: wy } = screenToWorld(ev);
 
     for (let i = state.flowers.length - 1; i >= 0; i--) {
       const f = state.flowers[i];
@@ -510,12 +563,15 @@ export function initHeartwoodGame(dom, level, options = {}) {
     });
     canvas.addEventListener("pointerdown", (e) => {
       pointerDown = true;
+      aim = screenToWorld(e);
       handlePointer(e);
     });
     canvas.addEventListener("pointermove", (e) => {
+      aim = screenToWorld(e);
       if (pointerDown) handlePointer(e);
     });
     canvas.addEventListener("pointerup", () => { pointerDown = false; });
+    canvas.addEventListener("pointerleave", () => { aim = null; });
   }
 
   const loop = createGameLoop(update, render);

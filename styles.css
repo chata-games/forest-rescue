@@ -282,7 +282,7 @@ h2 {
 .tool-button {
   display: grid;
   grid-template-columns: auto 1fr;
-  grid-template-rows: auto auto;
+  grid-template-rows: auto auto auto;
   column-gap: 10px;
   align-items: center;
   min-width: min(280px, 92vw);
@@ -304,7 +304,7 @@ h2 {
 }
 
 .tool-button__art {
-  grid-row: 1 / span 2;
+  grid-row: 1 / span 3;
   display: grid;
   place-items: center;
   width: 42px;
@@ -313,6 +313,16 @@ h2 {
   background: #2faf52;
   color: #e7ffad;
   font-size: 1.7rem;
+}
+
+/* One-line role text (RP-pyvp2r): what the defender DOES, before any stats. */
+.tool-button__role {
+  color: #567a58;
+  font-size: 0.8rem;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .tool-button small {
@@ -362,6 +372,12 @@ h2 {
   .tool-button__art {
     grid-row: auto;
     justify-self: center;
+  }
+
+  /* Compact side rail: it was already at capacity pre-RP-pyvp2r (8 stacked
+     cards vs ~550px of rail), so the role line only ships in the full layout. */
+  .tool-button__role {
+    display: none;
   }
 }
 

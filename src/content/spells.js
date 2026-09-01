@@ -2,6 +2,7 @@ export const SPELLS = {
   "root-snare": {
     id: "root-snare",
     name: "Root Snare",
+    role: "Roots enemies in an area",
     cost: 45,
     cooldown: 25,
     radius: 140,
@@ -11,6 +12,7 @@ export const SPELLS = {
   "cleansing-rain": {
     id: "cleansing-rain",
     name: "Cleansing Rain",
+    role: "Douses fires in an area",
     cost: 50,
     cooldown: 22,
     radius: 160,

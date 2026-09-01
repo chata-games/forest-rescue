@@ -2,6 +2,7 @@ export const DEFENDERS = {
   "sprig-sentinel": {
     id: "sprig-sentinel",
     name: "Sprig Sentinel",
+    role: "Shoots from beside the path",
     cost: 50,
     range: 160,
     damage: 35,
@@ -15,6 +16,7 @@ export const DEFENDERS = {
   "thornvine-bramble": {
     id: "thornvine-bramble",
     name: "Thornvine Bramble",
+    role: "Blocks enemies on the path",
     cost: 35,
     range: 0,
     damage: 0,
@@ -28,6 +30,7 @@ export const DEFENDERS = {
   "wisp-willow": {
     id: "wisp-willow",
     name: "Wisp Willow",
+    role: "Chain lightning, hits flyers",
     cost: 90,
     range: 180,
     damage: 28,
@@ -41,6 +44,7 @@ export const DEFENDERS = {
   "dewdrop-nymph": {
     id: "dewdrop-nymph",
     name: "Dewdrop Nymph",
+    role: "Slows and rusts enemies",
     cost: 75,
     range: 140,
     damage: 18,
@@ -54,6 +58,7 @@ export const DEFENDERS = {
   "firefly-beacon": {
     id: "firefly-beacon",
     name: "Firefly Beacon",
+    role: "Buffs and lights nearby",
     cost: 60,
     range: 0,
     damage: 0,
@@ -68,6 +73,7 @@ export const DEFENDERS = {
   "mushroom-shaman": {
     id: "mushroom-shaman",
     name: "Mushroom Shaman",
+    role: "Poison clouds hit groups",
     cost: 80,
     range: 130,
     damage: 8,
@@ -83,6 +89,7 @@ export const DEFENDERS = {
   "mossback-golem": {
     id: "mossback-golem",
     name: "Mossback Golem",
+    role: "Heavy hitter, pierces armor",
     cost: 100,
     range: 115,
     damage: 46,
