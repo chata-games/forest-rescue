@@ -4,6 +4,7 @@ import { AudioKit } from "./engine/audio.js";
 import { createRng } from "./engine/rng.js";
 import { pathsFromLevel } from "./level/path.js";
 import { hitTestRing, ringsFromLevel } from "./level/rings.js";
+import { FLOWER_TAP_RADIUS, ManaFlower, drawManaFlower, flowerAt } from "./level/flowers.js";
 import { levelStartingMana, levelMaxHearts, levelWaves } from "./level/loader.js";
 import { fireflyBuff } from "./level/light.js";
 import {
@@ -83,20 +84,6 @@ export function initHeartwoodGame(dom, level, options = {}) {
   let aim = null; // last pointer position in world coords — anchors the range ghost
   let bobPhase = 0;
   const onComplete = options.onComplete || (() => {});
-
-  class ManaFlower {
-    constructor(g) {
-      this.x = 120 + g.rng() * 1200;
-      this.y = 100 + g.rng() * 824;
-      this.r = 22;
-      this.life = 8.5;
-      this.pulse = g.rng() * 6;
-    }
-    update(dt) {
-      this.life -= dt;
-      this.pulse += dt * 5;
-    }
-  }
 
   function createGameState() {
     return {
@@ -419,10 +406,7 @@ export function initHeartwoodGame(dom, level, options = {}) {
     if (state) {
       drawRangeGhost(ox, oy, scale);
       for (const f of state.flowers) {
-        ctx.fillStyle = "rgba(97,232,255,.35)";
-        ctx.beginPath();
-        ctx.arc(ox + f.x * scale, oy + f.y * scale, (f.r + Math.sin(f.pulse) * 2) * scale, 0, Math.PI * 2);
-        ctx.fill();
+        drawManaFlower(ctx, f, ox, oy, scale);
       }
       for (const p of state.particles) {
         drawParticle(ctx, { ...p, x: ox + p.x * scale, y: oy + p.y * scale });
@@ -485,20 +469,25 @@ export function initHeartwoodGame(dom, level, options = {}) {
     return true;
   }
 
+  function collectFlower(f) {
+    const i = state.flowers.indexOf(f);
+    if (i === -1) return;
+    state.flowers.splice(i, 1);
+    state.mana = Math.min(999, state.mana + 25);
+    state.floatTexts.push(new FloatText(f.x, f.y - f.r - 8, "+25", "#9cf7ff"));
+    burst(state, f.x, f.y, "#9cf7ff", 18);
+    state.snareFx.push({ x: f.x, y: f.y, r: FLOWER_TAP_RADIUS, life: 0.5, color: "#ffe08a" });
+    audio.mana();
+  }
+
   function handlePointer(ev) {
     if (!state || state.state !== "playing") return;
     const { x: wx, y: wy } = screenToWorld(ev);
 
-    for (let i = state.flowers.length - 1; i >= 0; i--) {
-      const f = state.flowers[i];
-      if (Math.hypot(f.x - wx, f.y - wy) <= f.r * 1.4) {
-        state.flowers.splice(i, 1);
-        state.mana = Math.min(999, state.mana + 25);
-        state.floatTexts.push(new FloatText(wx, wy, "+25", "#9cf7ff"));
-        burst(state, wx, wy, "#9cf7ff", 14);
-        audio.mana();
-        return;
-      }
+    const flower = flowerAt(state.flowers, wx, wy);
+    if (flower) {
+      collectFlower(flower);
+      return;
     }
     const ring = hitTestRing(rings, wx, wy);
     if (ring) {

@@ -1,5 +1,6 @@
 import { loadLevel, loadCatalog } from "./level/loader.js";
 import { initHeartwoodGame } from "./heartwood-game.js";
+import { isDebugMode } from "./rendering/debug.js";
 import { loadSprites, loadUnitsAtlas, loadCatalogSprites } from "./rendering/sprites.js";
 import { campaignLevels, cumulativeUnlocks, cumulativeSpellUnlock } from "./campaign-data.js";
 
@@ -110,6 +111,9 @@ export async function initCampaign(dom) {
       },
     });
     activeGame.start();
+    // ?debug exposes the live battle state (RP-a7h9z5: scripted flower taps in
+    // the e2e smoke read flower world coords from window.__fr.getState()).
+    if (isDebugMode()) window.__fr = activeGame;
   }
 
   function bindEvents() {
