@@ -5,6 +5,7 @@ import { glowSources } from "../level/light.js";
 import { isRingBurning } from "../level/fire.js";
 import { drawHp } from "./draw-utils.js";
 import { drawAtlasSprite, catalogAsset } from "./sprites.js";
+import { PLANT_FLASH } from "../entities/defender.js";
 
 export function createBattlefieldRenderer(level, catalog, options = {}) {
   const biome = getBiome(level.biome);
@@ -227,18 +228,110 @@ function drawEntitySprite(ctx, spriteId, x, y, catalog, atlas, bob = 0, flash = 
   return drawn;
 }
 
-export function drawDefenderEntity(ctx, d, catalog, bob = 0, atlas = null) {
+// RP-k0e3xc: placed defenders must stay findable. Each type gets a persistent
+// ground pad plus a tinted silhouette outline in its accent color, and a
+// one-shot ring flash confirms planting. Deliberately dim and static — this
+// must NOT read as a selection highlight (no selection UI exists).
+const silhouetteCache = new Map();
+
+function defenderAccent(d) {
+  return d.stats?.accent || "#eaf7d8";
+}
+
+function defenderPadRadius(catalog, d) {
+  const asset = catalogAsset(catalog, d.stats?.sprite);
+  return ((asset?.drawSize?.[0]) || 64) * 0.42;
+}
+
+// Tinted copy of the atlas frame in the type's accent color, cached per
+// sprite+color. Never cache a miss: the atlas may still be loading.
+function tintedSilhouette(atlas, spriteId, accent) {
+  const key = `${spriteId}|${accent}`;
+  if (silhouetteCache.has(key)) return silhouetteCache.get(key);
+  const frame = atlas?.frames?.[spriteId];
+  if (!atlas?.ready || !frame) return null;
+  const cv = document.createElement("canvas");
+  cv.width = frame.w;
+  cv.height = frame.h;
+  const cctx = cv.getContext("2d");
+  cctx.drawImage(atlas.img, frame.x, frame.y, frame.w, frame.h, 0, 0, frame.w, frame.h);
+  cctx.globalCompositeOperation = "source-in";
+  cctx.fillStyle = accent;
+  cctx.fillRect(0, 0, frame.w, frame.h);
+  silhouetteCache.set(key, cv);
+  return cv;
+}
+
+function stampSilhouetteOutline(ctx, d, catalog, atlas, accent, yOff) {
   const spriteId = d.stats?.sprite;
-  if (spriteId && drawEntitySprite(ctx, spriteId, d.x, d.y, catalog, atlas, bob, d.flash)) {
-    if (d.hp < d.maxHp) drawHp(ctx, d.x - 28, d.y + 20, 56, d.hp / d.maxHp, "#58e36d");
-    return;
+  const tinted = tintedSilhouette(atlas, spriteId, accent);
+  const asset = catalogAsset(catalog, spriteId);
+  if (!tinted || !asset) return;
+  const [w, h] = asset.drawSize;
+  const [ax, ay] = asset.anchor;
+  const dx = d.x - w * ax;
+  const dy = d.y + yOff - h * ay;
+  ctx.save();
+  ctx.globalAlpha = 0.55;
+  for (let i = 0; i < 8; i++) {
+    const a = (Math.PI * 2 * i) / 8;
+    ctx.drawImage(tinted, dx + Math.cos(a) * 2.6, dy + Math.sin(a) * 2.6, w, h);
   }
-  const size = 64;
-  const yOff = Math.sin(bob) * 3;
-  ctx.fillStyle = d.flash > 0 ? "#fff7ab" : "#2ccb5a";
+  ctx.restore();
+}
+
+function drawDefenderPad(ctx, d, catalog, accent) {
+  ctx.save();
+  const rx = Math.round(defenderPadRadius(catalog, d));
+  const ry = Math.round(rx * 0.45);
+  ctx.fillStyle = "rgba(10,18,12,0.4)";
   ctx.beginPath();
-  ctx.arc(d.x, d.y + yOff - 10, size * 0.35, 0, Math.PI * 2);
+  ctx.ellipse(d.x, d.y + 6, rx, ry, 0, 0, Math.PI * 2);
   ctx.fill();
+  ctx.globalAlpha = 0.62;
+  ctx.strokeStyle = accent;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.ellipse(d.x, d.y + 6, rx, ry, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+}
+
+// One-shot on plant: an expanding accent ring + soft glow that spends
+// plantFlash (decayed by DefenderEntity.update).
+function drawPlacementFlash(ctx, d, catalog, accent) {
+  const t = 1 - d.plantFlash / PLANT_FLASH; // 0 fresh → 1 spent
+  const r = Math.round(defenderPadRadius(catalog, d) * (0.7 + t * 1.5));
+  ctx.save();
+  ctx.globalCompositeOperation = "source-over";
+  ctx.globalAlpha = (1 - t) * 0.32;
+  ctx.fillStyle = accent;
+  ctx.beginPath();
+  ctx.arc(d.x, d.y + 4, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.globalAlpha = (1 - t) * 0.9;
+  ctx.strokeStyle = accent;
+  ctx.lineWidth = 1 + 3 * (1 - t);
+  ctx.beginPath();
+  ctx.arc(d.x, d.y + 4, r, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+}
+
+export function drawDefenderEntity(ctx, d, catalog, bob = 0, atlas = null) {
+  const accent = defenderAccent(d);
+  const yOff = Math.sin(bob) * 3;
+  drawDefenderPad(ctx, d, catalog, accent);
+  stampSilhouetteOutline(ctx, d, catalog, atlas, accent, yOff);
+  const spriteId = d.stats?.sprite;
+  const drewSprite = spriteId && drawEntitySprite(ctx, spriteId, d.x, d.y, catalog, atlas, bob, d.flash);
+  if (!drewSprite) {
+    const size = 64;
+    ctx.fillStyle = d.flash > 0 ? "#fff7ab" : "#2ccb5a";
+    ctx.beginPath();
+    ctx.arc(d.x, d.y + yOff - 10, size * 0.35, 0, Math.PI * 2);
+    ctx.fill();
+  }
   if (d.hp < d.maxHp) drawHp(ctx, d.x - 28, d.y + 20, 56, d.hp / d.maxHp, "#58e36d");
 }
 
@@ -304,6 +397,19 @@ export function drawDarknessOverlay(ctx, level, defenders) {
     ctx.fillStyle = g;
     ctx.beginPath();
     ctx.arc(src.x, src.y, src.r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // RP-k0e3xc: every placed defender keeps a small pool of light so units stay
+  // findable in dark levels (the old 2–3px-in-ring-glow failure). Visual only —
+  // glowSources (and thus enemy targeting) is untouched.
+  for (const d of defenders || []) {
+    if (d.dead) continue;
+    const g = ctx.createRadialGradient(d.x, d.y, 0, d.x, d.y, 60);
+    g.addColorStop(0, "rgba(255,255,255,0.75)");
+    g.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(d.x, d.y, 60, 0, Math.PI * 2);
     ctx.fill();
   }
   ctx.restore();

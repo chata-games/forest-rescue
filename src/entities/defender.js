@@ -2,6 +2,10 @@ import { getDefender } from "../content/defenders.js";
 import { canTargetEnemy, fireflyBuff } from "../level/light.js";
 import { smokeRangeMul, douseNeighbors } from "../level/fire.js";
 
+// RP-k0e3xc: one-shot placement flash duration (seconds). The renderer derives
+// the flash progress from the remaining time; the entity only owns the decay.
+export const PLANT_FLASH = 0.55;
+
 export class DefenderEntity {
   constructor(ringId, typeId, ring, stats) {
     this.ringId = ringId;
@@ -15,12 +19,16 @@ export class DefenderEntity {
     this.cooldown = 0.45;
     this.cooldownMax = stats.cooldown;
     this.flash = 0;
+    // Every placement is constructed fresh, so seeding the flash here makes it
+    // a true one-shot on plant — no extra hook needed at the call site.
+    this.plantFlash = PLANT_FLASH;
     this.stats = stats;
     this.dead = false;
   }
 
   update(dt, game) {
     this.flash = Math.max(0, this.flash - dt);
+    this.plantFlash = Math.max(0, this.plantFlash - dt);
     // Cooldown must tick down here; gating alone left defenders frozen at the
     // initial 0.45 windup so they never fired (RP-h06svz).
     this.cooldown = Math.max(0, this.cooldown - dt);
