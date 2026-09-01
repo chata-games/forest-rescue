@@ -32,6 +32,10 @@ export function initLegacyLane(dom) {
   const treeTool = $("treeTool");
   const endTitle = $("endTitle");
   const endMessage = $("endMessage");
+  const endSummary = $("endSummary");
+  const endWaveText = $("endWaveText");
+  const endLeaksText = $("endLeaksText");
+  const endManaText = $("endManaText");
 
   const view = setupCanvas(canvas, wrap);
   const { ctx } = view;
@@ -442,6 +446,12 @@ export function initLegacyLane(dom) {
     game.state = won ? "victory" : "gameover";
     endTitle.textContent = won ? "Victory" : "Game Over";
     endMessage.textContent = won ? "The jungle is saved." : "The jungle was cleared into farmland.";
+    // RP-nqfepx recap — legacy mode shares the end modal with the campaign game,
+    // so the same read-only numbers go in (clamped like the HUD).
+    endWaveText.textContent = String(Math.max(1, Math.min(game.wave, TOTAL_WAVES)));
+    endLeaksText.textContent = String(Math.max(0, MAX_HEARTS - game.hearts));
+    endManaText.textContent = String(Math.floor(game.mana));
+    endSummary.classList.remove("hidden");
     endOverlay.classList.remove("hidden");
     audio.end(won);
   }

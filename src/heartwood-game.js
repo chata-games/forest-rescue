@@ -54,6 +54,10 @@ export function initHeartwoodGame(dom, level, options = {}) {
   const muteButton = $("muteButton");
   const endTitle = $("endTitle");
   const endMessage = $("endMessage");
+  const endSummary = $("endSummary");
+  const endWaveText = $("endWaveText");
+  const endLeaksText = $("endLeaksText");
+  const endManaText = $("endManaText");
   const toolbar = dom.querySelector(".toolbar");
 
   const view = setupCanvas(canvas, wrap);
@@ -548,6 +552,14 @@ export function initHeartwoodGame(dom, level, options = {}) {
     state.state = won ? "victory" : "gameover";
     endTitle.textContent = won ? "Victory" : "Game Over";
     endMessage.textContent = won ? `${level.name || level.id} defended!` : "The Heartwood was breached.";
+    // RP-nqfepx: read-only recap on both outcomes — wave reached (clamped to
+    // the wave count exactly like the HUD), enemies leaked (hearts lost,
+    // clamped: several leaks can land after the fatal one in the same frame),
+    // mana banked at the moment the battle ended.
+    endWaveText.textContent = String(Math.max(1, Math.min(state.wave, totalWaves)));
+    endLeaksText.textContent = String(Math.max(0, levelMaxHearts(level) - state.hearts));
+    endManaText.textContent = String(Math.floor(state.mana));
+    endSummary.classList.remove("hidden");
     endOverlay.classList.remove("hidden");
     audio.end(won);
     if (won) onComplete(level, state.hearts);

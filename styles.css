@@ -347,6 +347,22 @@ h2 {
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
 }
 
+/* RP-nqfepx: read-only battle recap on the end modal (both outcomes). */
+.end-summary {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 16px;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: #9fc4a3;
+}
+
+.end-summary strong {
+  color: #eaffea;
+}
+
 @media (orientation: landscape) and (max-height: 620px) {
   .game-screen {
     grid-template-columns: minmax(0, 1fr) 132px;
