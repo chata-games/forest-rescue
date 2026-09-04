@@ -27,45 +27,45 @@
     {
       "id": "01-meadows-edge",
       "act": "act-1-first-sprouts",
-      "mapPosition": { "x": 0.12, "y": 0.72 },
+      "mapPosition": { "x": 0.236, "y": 0.864 },
       "unlocks": ["sprig-sentinel", "thornvine-bramble"]
     },
     {
       "id": "02-old-stump-crossroads",
       "act": "act-1-first-sprouts",
-      "mapPosition": { "x": 0.28, "y": 0.58 },
+      "mapPosition": { "x": 0.406, "y": 0.745 },
       "unlocks": ["wisp-willow"]
     },
     {
       "id": "03-whispering-river",
       "act": "act-1-first-sprouts",
-      "mapPosition": { "x": 0.44, "y": 0.48 },
+      "mapPosition": { "x": 0.295, "y": 0.573 },
       "unlocks": ["wisp-willow", "dewdrop-nymph"]
     },
     {
       "id": "04-mushroom-hollow",
       "act": "act-2-deepening-shadow",
-      "mapPosition": { "x": 0.58, "y": 0.38 },
+      "mapPosition": { "x": 0.214, "y": 0.448 },
       "unlocks": ["firefly-beacon", "mushroom-shaman"]
     },
     {
       "id": "05-sawmill-clearing",
       "act": "act-2-deepening-shadow",
-      "mapPosition": { "x": 0.72, "y": 0.32 },
+      "mapPosition": { "x": 0.572, "y": 0.579 },
       "unlocks": [],
       "spellUnlock": "root-snare"
     },
     {
       "id": "06-ashfall-scar",
       "act": "act-3-heartwood-stand",
-      "mapPosition": { "x": 0.82, "y": 0.42 },
+      "mapPosition": { "x": 0.774, "y": 0.705 },
       "unlocks": [],
       "spellUnlock": "cleansing-rain"
     },
     {
       "id": "07-boulder-pass",
       "act": "act-3-heartwood-stand",
-      "mapPosition": { "x": 0.9, "y": 0.55 },
+      "mapPosition": { "x": 0.831, "y": 0.428 },
       "unlocks": ["mossback-golem"]
     }
   ]
