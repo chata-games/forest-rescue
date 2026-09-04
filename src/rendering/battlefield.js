@@ -143,7 +143,7 @@ const DECORATION_SPRITES = {
   stump: { id: "decoration-stump", scale: 5 },
   flower: { id: "decoration-meadow-flowers", scale: 2.5 },
   mushroom: { id: "decoration-meadow-mushroom", scale: 2.5 },
-  fence: { id: "landmark-broken-fence", scale: 6 },
+  fence: { id: "landmark-broken-fence", scale: 7.5 },
 };
 
 function drawCatalogProp(ctx, spriteId, x, y, catalog, images, sizeOverride) {
