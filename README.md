@@ -23,6 +23,12 @@ Open http://localhost:8341
 
 Play at https://chata-games.github.io/forest-rescue/. For the first deployment, set **Settings → Pages → Source** to **GitHub Actions**.
 
+The deploy workflow also builds the Phaser battle stack (`app/`, `npm run build:app`) into `dist/app/`, so the new build is live at https://chata-games.github.io/forest-rescue/dist/app/ and linked from the start screen.
+
+### Playing sideways on an iPhone
+
+iPhone browsers (Safari and Chrome, both WebKit) do not rotate while **Portrait Orientation Lock** is on, and a web page cannot lock or request an orientation there. Both the legacy page and the Phaser app have a **Sideways mode** that rotates the game 90 degrees inside the portrait browser: the start screen's **Rotate screen** toggle and the HUD ⟳ button on the legacy page; **Rotate the screen** in the "Best played sideways" tip and the **Sideways** toggle under Pause → Settings in the app. The preference is remembered; it only takes effect while the viewport is actually portrait.
+
 ## Level pipeline
 
 Levels are authored as **LevelIntent** (creative brief) and compiled to **CompiledLevel** (geometry, rings, waves):

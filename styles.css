@@ -382,6 +382,77 @@ h2 {
   color: #eaffea;
 }
 
+/* --- Sideways mode (RP-eqbawv) ---
+   iPhone browsers never rotate while Portrait Orientation Lock is on. With the
+   toggle on and the viewport physically portrait, src/engine/sideways.js sets
+   body[data-sideways="true"] and the whole frame turns 90 degrees clockwise: laid
+   out at viewport-height x viewport-width, rotated about its top-left corner and
+   shifted up by its own height so it lands exactly over the viewport. Its top
+   edge runs along the screen's right edge, so a phone held with its top to the
+   left shows an upright landscape game. */
+body[data-sideways="true"] .app {
+  inset: auto;
+  top: 0;
+  left: 0;
+  width: 100vh;
+  width: 100dvh;
+  height: 100vw;
+  transform-origin: top left;
+  transform: rotate(90deg) translateY(-100%);
+}
+
+/* The rotated frame is only as tall as the phone is wide, so the start and
+   campaign screens may not fit: centre them with auto margins (which collapse to
+   0 when the content overflows) and let them scroll. The screen is the nearest
+   scroll container, so pan-y here re-enables touch scrolling under the page's
+   touch-action: none. */
+body[data-sideways="true"] .screen {
+  justify-content: flex-start;
+  overflow-y: auto;
+  touch-action: pan-y;
+}
+body[data-sideways="true"] .screen > :first-child {
+  margin-top: auto;
+}
+body[data-sideways="true"] .screen > :last-child {
+  margin-bottom: auto;
+}
+
+/* The rotated frame is a short landscape frame whose height is the viewport
+   width, so the compact side-rail layout below applies to it under a max-width
+   query. Keep these two blocks in step. */
+@media (max-width: 620px) {
+  body[data-sideways="true"] .game-screen {
+    grid-template-columns: minmax(0, 1fr) 132px;
+    grid-template-rows: auto 1fr;
+  }
+
+  body[data-sideways="true"] .hud {
+    grid-column: 1 / span 2;
+  }
+
+  body[data-sideways="true"] .toolbar {
+    min-height: 0;
+    align-items: stretch;
+  }
+
+  body[data-sideways="true"] .tool-button {
+    min-width: 116px;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+    text-align: center;
+  }
+
+  body[data-sideways="true"] .tool-button__art {
+    grid-row: auto;
+    justify-self: center;
+  }
+
+  body[data-sideways="true"] .tool-button__role {
+    display: none;
+  }
+}
+
 @media (orientation: landscape) and (max-height: 620px) {
   .game-screen {
     grid-template-columns: minmax(0, 1fr) 132px;

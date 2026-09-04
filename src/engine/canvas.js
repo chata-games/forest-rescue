@@ -1,4 +1,11 @@
-export function setupCanvas(canvas, wrap) {
+/**
+ * @param {HTMLCanvasElement} canvas
+ * @param {HTMLElement} wrap
+ * @param {object} [sideways] Sideways-mode controller (RP-eqbawv): while the frame
+ *   is rotated, screen-space measurements have their axes swapped and this maps
+ *   them back. Omit for an unrotated page.
+ */
+export function setupCanvas(canvas, wrap, sideways = null) {
   let width = 1;
   let height = 1;
   let dpr = 1;
@@ -6,11 +13,15 @@ export function setupCanvas(canvas, wrap) {
 
   function resize() {
     const rect = wrap.getBoundingClientRect();
+    const frame = sideways ? sideways.frameSize(rect) : { width: rect.width, height: rect.height };
+    const viewport = sideways
+      ? sideways.viewportSize()
+      : { width: window.innerWidth, height: window.innerHeight };
     dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
     // Clamp to the viewport: an upstream layout bug must never push the
     // playfield (spawn rings, pause, mute) off-screen.
-    width = Math.max(320, Math.min(Math.floor(rect.width), window.innerWidth));
-    height = Math.max(220, Math.min(Math.floor(rect.height), window.innerHeight));
+    width = Math.max(320, Math.min(Math.floor(frame.width), viewport.width));
+    height = Math.max(220, Math.min(Math.floor(frame.height), viewport.height));
     canvas.width = Math.floor(width * dpr);
     canvas.height = Math.floor(height * dpr);
     canvas.style.width = width + "px";

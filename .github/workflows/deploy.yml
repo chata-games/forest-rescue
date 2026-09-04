@@ -22,6 +22,15 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      # The Phaser battle build (app/) is a Vite project; the legacy page at the
+      # site root is static. Build the app into dist/app so both ship together:
+      # https://chata-games.github.io/forest-rescue/dist/app/
+      - run: npm ci
+      - run: npm run build:app
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

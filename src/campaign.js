@@ -1,6 +1,7 @@
 import { loadLevel, loadCatalog } from "./level/loader.js";
 import { initHeartwoodGame } from "./heartwood-game.js";
 import { isDebugMode } from "./rendering/debug.js";
+import { getSideways } from "./engine/sideways.js";
 import { loadSprites, loadUnitsAtlas, loadCatalogSprites } from "./rendering/sprites.js";
 import {
   campaignLevels,
@@ -143,9 +144,13 @@ export async function initCampaign(dom) {
       goToCampaign();
     });
     campaignMap?.addEventListener("click", (e) => {
+      // Normalised map point; in Sideways mode the screen rect's axes are swapped.
+      const sideways = getSideways(dom);
       const rect = campaignMap.getBoundingClientRect();
-      const x = (e.clientX - rect.left) / rect.width;
-      const y = (e.clientY - rect.top) / rect.height;
+      const p = sideways.localPoint(rect, e.clientX, e.clientY);
+      const size = sideways.frameSize(rect);
+      const x = p.x / size.width;
+      const y = p.y / size.height;
       let best = null;
       let bestD = Infinity;
       for (const lvl of campaignLevels(manifest)) {

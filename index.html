@@ -16,7 +16,8 @@
       <h1>Forest Rescue: Heartwood</h1>
       <p class="tagline">Defend the grove</p>
       <button id="playButton" class="primary-button" type="button">Campaign</button>
-      <p class="howto">Plant defenders on fairy rings beside the trail. Stop ChopCo crews and machines before they reach the Heartwood. Tap mana flowers for bonus mana. <a href="?mode=legacy">Play classic lane mode</a>.</p>
+      <button id="sidewaysStartButton" class="secondary-button" type="button" aria-pressed="false">Rotate screen: Off</button>
+      <p class="howto">Plant defenders on fairy rings beside the trail. Stop ChopCo crews and machines before they reach the Heartwood. Tap mana flowers for bonus mana. Best played sideways: if your phone does not rotate, turn off Portrait Orientation Lock, or use Rotate screen to play sideways anyway. <a href="?mode=legacy">Play classic lane mode</a>. <a href="dist/app/">Try the new Heartwood battle build</a>.</p>
     </section>
 
     <section id="campaignScreen" class="screen screen--campaign hidden" aria-label="Campaign map">
@@ -32,6 +33,7 @@
         <div class="hud__item"><span class="hud__icon mana-dot"></span><span id="manaText">100</span></div>
         <div class="hud__item hearts" id="heartText" aria-label="Jungle health">♥♥♥♥♥</div>
         <div class="hud__item" id="waveText">Wave 1 / 8</div>
+        <button id="rotateButton" class="icon-button" type="button" aria-label="Rotate screen sideways" aria-pressed="false">⟳</button>
         <button id="muteButton" class="icon-button" type="button" aria-label="Mute sound">🔊</button>
         <button id="pauseButton" class="icon-button" type="button" aria-label="Pause game">Ⅱ</button>
       </header>

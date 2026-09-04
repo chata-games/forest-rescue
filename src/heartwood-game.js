@@ -33,6 +33,7 @@ import {
   drawFireOverlay,
 } from "./rendering/battlefield.js";
 import { drawDebugOverlay, isDebugMode } from "./rendering/debug.js";
+import { getSideways } from "./engine/sideways.js";
 
 export function initHeartwoodGame(dom, level, options = {}) {
   const $ = (id) => dom.getElementById(id);
@@ -61,7 +62,8 @@ export function initHeartwoodGame(dom, level, options = {}) {
   const endManaText = $("endManaText");
   const toolbar = dom.querySelector(".toolbar");
 
-  const view = setupCanvas(canvas, wrap);
+  const sideways = getSideways(dom);
+  const view = setupCanvas(canvas, wrap, sideways);
   const { ctx } = view;
   let muted = false;
   const audio = new AudioKit(() => muted);
@@ -329,7 +331,9 @@ export function initHeartwoodGame(dom, level, options = {}) {
   function screenToWorld(ev) {
     const rect = canvas.getBoundingClientRect();
     const { scale, ox, oy } = viewTransform();
-    return { x: (ev.clientX - rect.left - ox) / scale, y: (ev.clientY - rect.top - oy) / scale };
+    // Frame-local point: the identity unrotated, the axis swap in Sideways mode.
+    const p = sideways.localPoint(rect, ev.clientX, ev.clientY);
+    return { x: (p.x - ox) / scale, y: (p.y - oy) / scale };
   }
 
   // RP-pyvp2r: translucent circle showing the selected card's area of effect at
@@ -438,7 +442,7 @@ export function initHeartwoodGame(dom, level, options = {}) {
     if (state) {
       drawRangeGhost(ox, oy, scale);
       for (const f of state.flowers) {
-        drawManaFlower(ctx, f, ox, oy, scale);
+        drawManaFlower(ctx, f, ox, oy, scale, options.images);
       }
       for (const p of state.particles) {
         drawParticle(ctx, { ...p, x: ox + p.x * scale, y: oy + p.y * scale });
@@ -605,10 +609,14 @@ export function initHeartwoodGame(dom, level, options = {}) {
       const hint = dom.createElement("div");
       hint.className = "reject-float";
       hint.textContent = "Paused — resume to plant";
-      hint.style.left = `${e.clientX}px`;
-      hint.style.top = `${e.clientY}px`;
+      // Anchor inside the frame so the hint follows the Sideways rotation
+      // (RP-eqbawv): position:fixed resolves against the transformed frame.
+      const frame = dom.getElementById("app") ?? dom.body;
+      const p = sideways.localPoint(frame.getBoundingClientRect(), e.clientX, e.clientY);
+      hint.style.left = `${p.x}px`;
+      hint.style.top = `${p.y}px`;
       hint.addEventListener("animationend", () => hint.remove());
-      dom.body.appendChild(hint);
+      frame.appendChild(hint);
     });
     resumeButton?.addEventListener("click", () => {
       if (state?.state === "paused") {

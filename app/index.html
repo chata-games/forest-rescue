@@ -218,13 +218,15 @@
     <!-- Portrait recommendation (issue #24 AC2): offered once per session when a
          battle is entered in the Compact portrait layout. Landscape two-thumb play
          is preferred; "Play in portrait" dismisses the advice and keeps the
-         battlefield fully operable at its scaled size. -->
+         battlefield fully operable at its scaled size. "Rotate the screen" turns
+         on Sideways mode (RP-eqbawv) for phones whose browser will not rotate. -->
     <section id="portraitAdvice" class="overlay overlay--advice" role="dialog" aria-modal="true" aria-labelledby="portraitAdviceTitle" hidden>
       <div class="overlay__panel">
         <h2 id="portraitAdviceTitle">Best played sideways</h2>
         <p id="portraitAdviceBody" class="overlay__note"></p>
         <div class="overlay__actions">
           <button id="portraitAdviceKeep" class="primary-btn" type="button">Play in portrait</button>
+          <button id="portraitAdviceRotate" class="overlay__btn" type="button">Rotate the screen</button>
         </div>
       </div>
     </section>
@@ -248,8 +250,11 @@
             <button id="pauseLayoutBtn" class="overlay__btn" type="button">Layout</button>
             <button id="pauseAudioBtn" class="overlay__btn" type="button">Audio</button>
           </div>
-          <button id="pauseGuidanceBtn" class="overlay__btn" type="button" aria-pressed="true">Guidance: On</button>
-          <p class="overlay__note">Two-thumb landscape is preferred; portrait scales the whole battlefield to fit. Audio and Guidance can be changed independently.</p>
+          <div class="overlay__settings-row">
+            <button id="pauseGuidanceBtn" class="overlay__btn" type="button" aria-pressed="true">Guidance: On</button>
+            <button id="pauseSidewaysBtn" class="overlay__btn" type="button" aria-pressed="false">Sideways: Off</button>
+          </div>
+          <p class="overlay__note">Two-thumb landscape is preferred; portrait scales the whole battlefield to fit. Sideways rotates the game on a phone whose browser stays portrait (iPhone with Portrait Orientation Lock on). Audio, Guidance, and Sideways can be changed independently.</p>
         </div>
         <div id="pauseConfirm" class="overlay__confirm" role="alertdialog" aria-label="Confirm action" hidden>
           <p id="pauseConfirmText" class="overlay__note"></p>

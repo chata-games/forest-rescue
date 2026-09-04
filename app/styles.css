@@ -65,6 +65,111 @@ body {
   gap: 0;
 }
 
+/* --- Sideways mode (RP-eqbawv) ---
+   iPhone browsers never rotate while Portrait Orientation Lock is on, and WebKit
+   gives a page no orientation lock. When the Guardian asks for it and the
+   viewport is physically portrait, the shell sets body[data-sideways="true"] and
+   the battle frame turns 90 degrees clockwise in place: the frame is laid out at
+   viewport-height x viewport-width, then rotated about its top-left corner and
+   shifted up by its own height so it lands exactly over the viewport. Its top
+   edge runs along the screen's right edge, so a phone held with its top to the
+   left shows an upright landscape battlefield. DOM controls hit-test correctly
+   under the transform on their own; the Phaser canvas gets its pointer and
+   parent-size mapping from the shell (main.ts). The story/audio sheets live
+   outside the frame and get the same turn so no surface flips back. */
+body[data-sideways="true"] .app-root,
+body[data-sideways="true"] .sheet {
+  position: fixed;
+  inset: auto;
+  top: 0;
+  left: 0;
+  width: 100vh;
+  width: 100dvh;
+  height: 100vw;
+  transform-origin: top left;
+  transform: rotate(90deg) translateY(-100%);
+}
+
+/* --- Short landscape frame (RP-eqbawv) ---
+   A phone held sideways (or the Sideways frame, which is only as tall as the
+   phone is wide) is about 390-430px tall. The regular stack — HUD row, stage,
+   Defender toolbar, spell bar, start row — leaves the battlefield almost nothing,
+   so the shell marks such frames body[data-frame="short"] and the toolbars move
+   into a right-hand rail beside the stage. Controls keep their 48px targets;
+   only the author-only level picker and the title (already the overlay heading)
+   go, so the HUD fits one row. */
+body[data-frame="short"][data-layout="landscape"] .app-root {
+  grid-template-columns: minmax(0, 1fr) 176px;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  grid-template-areas:
+    "hud hud"
+    "stage tools"
+    "stage spells"
+    "stage start";
+}
+body[data-frame="short"][data-layout="landscape"] .hud {
+  grid-area: hud;
+  gap: 6px;
+  padding: 4px 8px;
+}
+body[data-frame="short"][data-layout="landscape"] .hud__title,
+body[data-frame="short"][data-layout="landscape"] .hud__picker {
+  display: none;
+}
+body[data-frame="short"][data-layout="landscape"] .hud__stat {
+  padding: 3px 8px;
+  min-width: 56px;
+}
+body[data-frame="short"][data-layout="landscape"] .hud__btn {
+  padding: 6px 10px;
+}
+body[data-frame="short"][data-layout="landscape"] .stage-wrap {
+  grid-area: stage;
+}
+body[data-frame="short"][data-layout="landscape"] .toolbar {
+  grid-area: tools;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  justify-content: flex-start;
+  overflow-y: auto;
+  min-height: 0;
+  padding: 8px;
+  border-top: 0;
+  border-left: 1px solid #1d5a4055;
+}
+body[data-frame="short"][data-layout="landscape"] .tool {
+  min-width: 0;
+}
+body[data-frame="short"][data-layout="landscape"] .spellbar {
+  grid-area: spells;
+  padding: 6px 8px;
+  border-left: 1px solid #1d5a4055;
+}
+body[data-frame="short"][data-layout="landscape"] .start-row {
+  grid-area: start;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px;
+  border-left: 1px solid #1d5a4055;
+}
+body[data-frame="short"][data-layout="landscape"] .start-row .primary-btn {
+  width: 100%;
+  padding: 12px 10px;
+}
+/* Modal panels (pause menu, outcome, story, audio) can be taller than a short
+   frame: anchor them to the top and let the surface scroll instead of clipping
+   the actions at both ends. */
+body[data-frame="short"] .overlay,
+body[data-frame="short"] .sheet {
+  align-items: start;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+body[data-frame="short"] .overlay__panel {
+  margin: auto 0;
+}
+
 /* Author layout simulation: force a phone aspect so the FIT-scaled battlefield
    demonstrates the Compact portrait (or Preferred landscape) presentation on a
    desktop without resizing the window. */

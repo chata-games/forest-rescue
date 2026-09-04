@@ -1,5 +1,6 @@
 import { createGameLoop } from "./engine/loop.js";
 import { setupCanvas } from "./engine/canvas.js";
+import { getSideways } from "./engine/sideways.js";
 import { AudioKit } from "./engine/audio.js";
 import { createRng } from "./engine/rng.js";
 import { Particle, FloatText, burst, drawParticle, drawFloatText } from "./rendering/effects.js";
@@ -37,7 +38,8 @@ export function initLegacyLane(dom) {
   const endLeaksText = $("endLeaksText");
   const endManaText = $("endManaText");
 
-  const view = setupCanvas(canvas, wrap);
+  const sideways = getSideways(dom);
+  const view = setupCanvas(canvas, wrap, sideways);
   const { ctx } = view;
 
   let cellW = 1;
@@ -400,8 +402,7 @@ export function initLegacyLane(dom) {
 
   function cellFromPoint(clientX, clientY) {
     const rect = canvas.getBoundingClientRect();
-    const x = clientX - rect.left;
-    const y = clientY - rect.top;
+    const { x, y } = sideways.localPoint(rect, clientX, clientY);
     if (x < gridLeft || x > gridLeft + COLS * cellW || y < gridTop || y > gridTop + LANES * laneH) return null;
     return { col: Math.floor((x - gridLeft) / cellW), lane: Math.floor((y - gridTop) / laneH), x, y };
   }
@@ -410,8 +411,7 @@ export function initLegacyLane(dom) {
     if (!game || game.state !== "playing") return;
     ev.preventDefault();
     const rect = canvas.getBoundingClientRect();
-    const x = ev.clientX - rect.left;
-    const y = ev.clientY - rect.top;
+    const { x, y } = sideways.localPoint(rect, ev.clientX, ev.clientY);
     for (let i = game.flowers.length - 1; i >= 0; i--) {
       const f = game.flowers[i];
       if (Math.hypot(f.x - x, f.y - y) <= f.r * 1.45) {

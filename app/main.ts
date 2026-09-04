@@ -45,8 +45,14 @@ import {
 } from './hud';
 import {
   effectiveLayout,
+  frameDensity,
+  frameViewport,
+  loadSidewaysPreference,
   portraitAdvice,
+  serializeSidewaysPreference,
   shouldShowPortraitAdvice,
+  sidewaysActive,
+  unrotatePagePoint,
   type LayoutMode,
   type LayoutOverride,
 } from './responsive';
@@ -451,6 +457,7 @@ const portraitAdviceOverlay = $<HTMLElement>('portraitAdvice');
 const portraitAdviceTitle = $<HTMLHeadingElement>('portraitAdviceTitle');
 const portraitAdviceBody = $<HTMLParagraphElement>('portraitAdviceBody');
 const portraitAdviceKeepBtn = $<HTMLButtonElement>('portraitAdviceKeep');
+const portraitAdviceRotateBtn = $<HTMLButtonElement>('portraitAdviceRotate');
 // Planning Pause overlay (issue #32 AC5): Resume / Settings / Restart / Exit.
 const pauseOverlay = $<HTMLElement>('pauseOverlay');
 const pauseWavePreview = $<HTMLElement>('pauseWavePreview');
@@ -460,6 +467,9 @@ const restartBtn = $<HTMLButtonElement>('restartBtn');
 const exitBtn = $<HTMLButtonElement>('exitBtn');
 const pauseSettings = $<HTMLElement>('pauseSettings');
 const pauseLayoutBtn = $<HTMLButtonElement>('pauseLayoutBtn');
+// Sideways toggle (RP-eqbawv): rotates the battle frame for phones whose browser
+// stays portrait. Persisted like Audio and Guidance.
+const pauseSidewaysBtn = $<HTMLButtonElement>('pauseSidewaysBtn');
 const pauseAudioBtn = $<HTMLButtonElement>('pauseAudioBtn');
 // Guidance toggle (issue #23 AC1): mirrors the Layout toggle as the app's other
 // independent setting. Reflects the Guardian's guidance preference; persists.
@@ -815,13 +825,117 @@ detailStoryBtn.addEventListener('click', () => {
 // and the browser journeys can observe it.
 let layoutOverride: LayoutOverride = options.layout;
 
+// --- Sideways mode (RP-eqbawv) --------------------------------------------
+// iPhone browsers never rotate while Portrait Orientation Lock is on, and WebKit
+// gives a page no orientation lock, fullscreen, or manifest orientation. When the
+// Guardian opts in and the viewport is physically portrait, the battle frame is
+// rotated 90 degrees by CSS (body[data-sideways]) and the layout rules see the
+// swapped viewport, so the Preferred landscape layout applies. The preference
+// persists; the rotation itself follows the live viewport, so a phone that does
+// rotate is never turned twice.
+const SIDEWAYS_KEY = 'heartwood-sideways-v1';
+
+function readSidewaysRaw(): string | null {
+  try {
+    return localStorage.getItem(SIDEWAYS_KEY);
+  } catch {
+    return null;
+  }
+}
+
+let sidewaysPref = loadSidewaysPreference(readSidewaysRaw());
+
+function persistSideways(): void {
+  try {
+    localStorage.setItem(SIDEWAYS_KEY, serializeSidewaysPreference(sidewaysPref));
+  } catch {
+    /* localStorage may be unavailable — the preference stays in-memory. */
+  }
+}
+
+function sidewaysNow(): boolean {
+  return sidewaysActive(sidewaysPref, window.innerWidth, window.innerHeight);
+}
+
+function setSideways(on: boolean): void {
+  sidewaysPref = on;
+  persistSideways();
+  refreshLayout();
+  // The rotated frame changes the stage's measured size: let Phaser re-fit now
+  // rather than on the next resize event. Measure first — refresh() fits into the
+  // parent size it already holds and only re-measures afterwards, so a bare
+  // refresh() would keep the pre-rotation size. (On a real resize Phaser marks
+  // itself dirty and measures before fitting, so that path needs no help.)
+  if (game) {
+    game.scale.getParentBounds();
+    game.scale.refresh();
+  }
+}
+
+/**
+ * Phaser measures its parent and reads pointer positions in screen space, which
+ * the CSS rotation swaps. Two seams put the frame's axes back: the parent size
+ * (so FIT scales into the rotated stage) and the pointer page point (so a tap
+ * lands on the ring under the finger). Both fall through untouched while the
+ * frame is not rotated, so desktop and true-landscape play are unchanged.
+ */
+function installSidewaysInput(g: Phaser.Game): void {
+  const scale = g.scale;
+  const parentBounds = scale.getParentBounds.bind(scale);
+  scale.getParentBounds = (): boolean => {
+    if (!sidewaysNow() || !scale.parent) return parentBounds();
+    const parent = scale.parent as HTMLElement;
+    const rect = parent.getBoundingClientRect();
+    const width = rect.height;
+    const height = rect.width;
+    if (scale.parentSize.width !== width || scale.parentSize.height !== height) {
+      scale.parentSize.setSize(width, height);
+      return true;
+    }
+    const canvasRect = scale.canvas.getBoundingClientRect();
+    return canvasRect.x !== scale.canvasBounds.x || canvasRect.y !== scale.canvasBounds.y;
+  };
+  // refresh() derives the pointer scale from the canvas's screen-space bounds,
+  // whose axes the rotation swaps; put it back once refresh has emitted RESIZE.
+  scale.on(Phaser.Scale.Events.RESIZE, () => {
+    if (!sidewaysNow()) return;
+    const b = scale.canvasBounds;
+    if (b.width > 0 && b.height > 0) {
+      scale.displayScale.set(scale.baseSize.width / b.height, scale.baseSize.height / b.width);
+    }
+  });
+  const input = g.input;
+  const transformPointer = input.transformPointer.bind(input);
+  input.transformPointer = (pointer, pageX, pageY, wasMove): void => {
+    if (!sidewaysNow()) {
+      transformPointer(pointer, pageX, pageY, wasMove);
+      return;
+    }
+    const p = unrotatePagePoint(scale.canvasBounds, pageX, pageY);
+    transformPointer(pointer, p.x, p.y, wasMove);
+  };
+}
+
 function effectiveLayoutNow(): LayoutMode {
-  return effectiveLayout(layoutOverride, window.innerWidth, window.innerHeight);
+  const vp = frameViewport(sidewaysNow(), window.innerWidth, window.innerHeight);
+  return effectiveLayout(layoutOverride, vp.width, vp.height);
 }
 
 function refreshLayout(): void {
+  const sideways = sidewaysNow();
+  document.body.dataset.sideways = String(sideways);
+  pauseSidewaysBtn.textContent = `Sideways: ${sidewaysPref ? 'On' : 'Off'}`;
+  pauseSidewaysBtn.setAttribute('aria-pressed', String(sidewaysPref));
+  pauseSidewaysBtn.setAttribute(
+    'aria-label',
+    `Toggle Sideways mode. Rotates the game on a phone whose browser stays portrait. Current: ${sidewaysPref ? 'on' : 'off'}.`,
+  );
   const effective = effectiveLayoutNow();
   document.body.dataset.layout = effective;
+  // Short landscape frames (a phone held sideways, or the Sideways frame) get the
+  // compact rail layout; CSS keys off body[data-frame].
+  const vp = frameViewport(sideways, window.innerWidth, window.innerHeight);
+  document.body.dataset.frame = frameDensity(vp.height);
   // The force-classes drive the author preview's simulated phone/landscape frame.
   document.body.classList.toggle('force-portrait', layoutOverride === 'portrait');
   document.body.classList.toggle('force-landscape', layoutOverride === 'landscape');
@@ -1346,6 +1460,7 @@ settingsBtn.addEventListener('click', () => {
 // The pause Settings surface mirrors the HUD layout toggle (the app's one real
 // setting) so the Guardian can reflow while planning.
 pauseLayoutBtn.addEventListener('click', toggleLayout);
+pauseSidewaysBtn.addEventListener('click', () => setSideways(!sidewaysPref));
 
 // Guidance is the app's other independent setting (issue #23 AC1): on by default,
 // toggleable here, and persisted. It fades as levels are cleared.
@@ -1424,6 +1539,12 @@ function dismissPortraitAdvice(): void {
 }
 
 portraitAdviceKeepBtn.addEventListener('click', dismissPortraitAdvice);
+// "Rotate the screen" turns Sideways mode on (RP-eqbawv): the frame rotates in
+// place, the layout becomes Preferred landscape, and the advice is done.
+portraitAdviceRotateBtn.addEventListener('click', () => {
+  setSideways(true);
+  dismissPortraitAdvice();
+});
 
 /** Build the spell toolbar for a level's unlocked spells (aria-pressed/state sync
  * in syncHud). Each button is a real, focusable control reachable from keyboard. */
@@ -1693,6 +1814,7 @@ function bootBattleScene(): void {
     render: { antialias: true },
     scene: [BattleScene],
   });
+  installSidewaysInput(game);
   game.registry.set('battleApi', {
     battle,
     onRingClick: handleRingTap,
@@ -1971,6 +2093,10 @@ function makeDebugApi(): ForestRescueDebug {
     resume: () => togglePause(false),
     wavePreview: () => (battle ? battle.wavePreview() : null),
     ringIds: () => (battle ? battle.rings.map((r) => r.id) : []),
+    ringCenters: () => (battle ? battle.rings.map((r) => ({ id: r.id, x: r.x, y: r.y })) : []),
+    // --- Sideways seam (RP-eqbawv) ---
+    sideways: () => sidewaysNow(),
+    setSideways,
     spellIds: () => (battle ? battle.snapshot().spells.map((s) => s.id) : []),
     flowerIds: () => (battle ? battle.manaFlowers.map((f) => f.id) : []),
     // --- Darkness / light seam (issue #36 AC6) ---
@@ -2094,6 +2220,11 @@ export interface ForestRescueDebug {
   resume(): void;
   wavePreview(): WavePreview | null;
   ringIds(): string[];
+  /** Ring centres in world (1536x1024) coordinates, for coordinate-mapping journeys. */
+  ringCenters(): { id: string; x: number; y: number }[];
+  // --- Sideways seam (RP-eqbawv) ---
+  sideways(): boolean;
+  setSideways(on: boolean): void;
   spellIds(): string[];
   flowerIds(): string[];
   // --- Darkness / light seam (issue #36 AC6) ---

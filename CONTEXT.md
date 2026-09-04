@@ -32,6 +32,7 @@
 | **Guidance** | The independently selected amount of loadout advice, warnings, and strategic coaching shown to the player |
 | **Preferred battle layout** | The landscape presentation optimized for two-thumb play; recommended but never required |
 | **Compact portrait layout** | The fully playable portrait presentation: the complete battlefield scales down uniformly to fit while the HUD reflows with full-size controls |
+| **Sideways mode** | A player-chosen 90-degree rotation of the game frame inside a browser that stays portrait (iPhone with Portrait Orientation Lock on); the frame is laid out landscape, so the Preferred battle layout applies. Active only while the viewport is physically portrait |
 
 ## Architecture boundaries
 

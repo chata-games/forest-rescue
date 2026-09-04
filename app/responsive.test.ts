@@ -1,8 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import {
   effectiveLayout,
+  frameDensity,
+  frameViewport,
+  loadSidewaysPreference,
   portraitAdvice,
+  serializeSidewaysPreference,
   shouldShowPortraitAdvice,
+  sidewaysActive,
+  unrotatePagePoint,
 } from './responsive';
 
 // The battle shell's responsive + accessible decisions (issue #24). These are the
@@ -43,11 +49,62 @@ describe('portrait recommendation (issue #24 AC2)', () => {
     expect(view.body.length).toBeGreaterThan(0);
   });
 
+  it('offers a Rotate-the-screen action and names the iPhone orientation lock (RP-eqbawv)', () => {
+    const view = portraitAdvice();
+    expect(view.rotateAction).toBe('Rotate the screen');
+    expect(view.body).toContain('Portrait Orientation Lock');
+  });
+
   it('shows once per session, only in the Compact portrait layout', () => {
     expect(shouldShowPortraitAdvice('portrait', false)).toBe(true);
     // Landscape never offers it.
     expect(shouldShowPortraitAdvice('landscape', false)).toBe(false);
     // Already shown this session → do not show again.
     expect(shouldShowPortraitAdvice('portrait', true)).toBe(false);
+  });
+});
+
+describe('Sideways mode (RP-eqbawv)', () => {
+  it('round-trips the persisted preference and defaults to off', () => {
+    expect(loadSidewaysPreference(null)).toBe(false);
+    expect(loadSidewaysPreference('garbage')).toBe(false);
+    expect(loadSidewaysPreference(serializeSidewaysPreference(true))).toBe(true);
+    expect(loadSidewaysPreference(serializeSidewaysPreference(false))).toBe(false);
+  });
+
+  it('rotates only when the preference is on and the viewport is physically portrait', () => {
+    expect(sidewaysActive(true, 390, 844)).toBe(true);
+    // The phone did rotate on its own: never rotate the frame a second time.
+    expect(sidewaysActive(true, 844, 390)).toBe(false);
+    expect(sidewaysActive(true, 800, 800)).toBe(false);
+    expect(sidewaysActive(false, 390, 844)).toBe(false);
+  });
+
+  it('marks phone-height landscape frames short so the toolbars move into a rail', () => {
+    expect(frameDensity(414)).toBe('short'); // iPhone 11 sideways
+    expect(frameDensity(390)).toBe('short');
+    expect(frameDensity(520)).toBe('short');
+    expect(frameDensity(720)).toBe('regular'); // desktop
+    expect(frameDensity(896)).toBe('regular'); // portrait phone (layout is portrait anyway)
+  });
+
+  it('presents the rotated frame as a landscape viewport to the layout rules', () => {
+    expect(frameViewport(true, 390, 844)).toEqual({ width: 844, height: 390 });
+    expect(frameViewport(false, 390, 844)).toEqual({ width: 390, height: 844 });
+    expect(effectiveLayout('auto', 844, 390)).toBe('landscape');
+  });
+
+  it('maps screen taps back onto the unrotated frame', () => {
+    // A 300x200 (layout) canvas rotated clockwise occupies a 200-wide, 300-tall
+    // screen box at (50, 100).
+    const box = { left: 50, top: 100, width: 200, height: 300 };
+    // The frame's top-left corner sits at the screen box's top-right corner.
+    expect(unrotatePagePoint(box, 250, 100)).toEqual({ x: 50, y: 100 });
+    // The frame's top-right corner (layout x=300) sits at the screen box's bottom-right.
+    expect(unrotatePagePoint(box, 250, 400)).toEqual({ x: 350, y: 100 });
+    // The frame's bottom-left corner (layout y=200) sits at the screen box's top-left.
+    expect(unrotatePagePoint(box, 50, 100)).toEqual({ x: 50, y: 300 });
+    // The centre maps to the centre.
+    expect(unrotatePagePoint(box, 150, 250)).toEqual({ x: 200, y: 200 });
   });
 });
