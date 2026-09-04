@@ -70,7 +70,8 @@ test("RP-a7h9z5 audit: every compiled level shares the one runtime flower (no pe
 test("flower sprite renderer draws without touching the transform", () => {
   const calls = [];
   const ctx = new Proxy(
-    { beginPath() {}, arc() {}, fill() {}, stroke() {}, ellipse() {} },
+    { save() { calls.push("save"); }, restore() { calls.push("restore"); },
+      drawImage(...args) { calls.push(["drawImage", ...args]); } },
     {
       get(target, prop) {
         if (prop in target) return target[prop];
@@ -85,6 +86,15 @@ test("flower sprite renderer draws without touching the transform", () => {
   );
   const f = new ManaFlower({ rng: stubRng([0.5, 0.5, 0]) });
   f.update(0.5);
-  assert.doesNotThrow(() => drawManaFlower(ctx, f, 10, 20, 0.5));
+  const img = {};
+  assert.doesNotThrow(() => drawManaFlower(ctx, f, 10, 20, 0.5, {
+    "mana-flower": { ready: true, img },
+  }));
   assert.ok(calls.includes("set:globalAlpha"), "sprite must restore-capable alpha management");
+  assert.equal(calls[0], "save");
+  assert.equal(calls.at(-1), "restore");
+  const draw = calls.find(call => Array.isArray(call));
+  assert.equal(draw[1], img);
+  assert.equal(draw[2] + draw[4] / 2, 10 + f.x * 0.5);
+  assert.equal(draw[3] + draw[5] / 2, 20 + f.y * 0.5);
 });

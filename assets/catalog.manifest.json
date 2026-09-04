@@ -1,6 +1,33 @@
 {
   "assets": [
     {
+      "id": "mana-flower",
+      "preserveAlpha": true,
+      "file": "sprites/pickups/mana-flower.png",
+      "promptFile": "prompts/mana-flower.md",
+      "references": [
+        "assets/sprites/defenders/sprig-sentinel-idle.png"
+      ],
+      "nativeSize": [
+        256,
+        256
+      ],
+      "drawSize": [
+        64,
+        64
+      ],
+      "anchor": [
+        0.5,
+        0.5
+      ],
+      "tags": [
+        "decoration",
+        "pickup",
+        "mana"
+      ],
+      "sourceHash": "11bb769eac3dfcab"
+    },
+    {
       "id": "sprig-sentinel-idle",
       "file": "sprites/defenders/sprig-sentinel-idle.png",
       "sourceHash": "5bf175e51de0c5ba",
@@ -14,8 +41,8 @@
         256
       ],
       "drawSize": [
-        82,
-        82
+        123,
+        123
       ],
       "anchor": [
         0.5,

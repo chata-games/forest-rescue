@@ -107,7 +107,16 @@ function drawPath(ctx, path, biome, images) {
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
   ctx.beginPath();
-  ctx.moveTo(path.samples[0].x, path.samples[0].y);
+  // Continue the entrance tangent beyond the field. Keep simulation distances
+  // unchanged; the static canvas clips the round cap outside the meadow.
+  const first = path.samples[0];
+  const next = path.samples[1];
+  const dx = first.x - next.x;
+  const dy = first.y - next.y;
+  const length = Math.hypot(dx, dy) || 1;
+  const extension = Math.hypot(WORLD_W, WORLD_H) + path.width;
+  ctx.moveTo(first.x + dx / length * extension, first.y + dy / length * extension);
+  ctx.lineTo(first.x, first.y);
   for (let i = 1; i < path.samples.length; i++) ctx.lineTo(path.samples[i].x, path.samples[i].y);
 
   ctx.strokeStyle = biome.pathEdgeColor;
@@ -123,6 +132,18 @@ function drawPath(ctx, path, biome, images) {
 
 function drawRingSpot(ctx, ring) {
   const onPath = ring.placement === "on-path";
+  if (onPath) {
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.arc(ring.x, ring.y, ring.buildRadius || 42, 0, Math.PI * 2);
+    ctx.strokeStyle = "#40502b";
+    ctx.lineWidth = 8;
+    ctx.stroke();
+    ctx.strokeStyle = "#fff0b0";
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    return;
+  }
   ctx.strokeStyle = onPath ? "rgba(255,180,80,0.45)" : "rgba(180,255,160,0.35)";
   ctx.lineWidth = 2;
   ctx.setLineDash(onPath ? [4, 4] : [6, 6]);
@@ -387,7 +408,7 @@ export function drawProjectileEntity(ctx, p) {
 }
 
 export function drawHeartwoodGate(ctx, catalog = null, images = {}) {
-  if (drawCatalogProp(ctx, "landmark-heartwood-gate", 42, 660, catalog, images)) return;
+  if (drawCatalogProp(ctx, "landmark-heartwood-gate", 72, 560, catalog, images)) return;
   ctx.fillStyle = "rgba(255,105,77,0.35)";
   ctx.fillRect(0, 200, 90, 624);
   ctx.fillStyle = "#ffd765";

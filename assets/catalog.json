@@ -1,13 +1,24 @@
 {
   "assets": [
     {
+      "id": "mana-flower",
+      "preserveAlpha": true,
+      "file": "sprites/pickups/mana-flower.png",
+      "promptFile": "prompts/mana-flower.md",
+      "references": ["assets/sprites/defenders/sprig-sentinel-idle.png"],
+      "nativeSize": [256, 256],
+      "drawSize": [64, 64],
+      "anchor": [0.5, 0.5],
+      "tags": ["decoration", "pickup", "mana"]
+    },
+    {
       "id": "sprig-sentinel-idle",
       "file": "sprites/defenders/sprig-sentinel-idle.png",
       "sourceHash": "legacy-tree",
       "promptFile": "prompts/sprig-sentinel-idle.md",
       "references": ["assets/guardian.png", "docs/tower-defense-concept/art/towers-1.png"],
       "nativeSize": [256, 256],
-      "drawSize": [82, 82],
+      "drawSize": [123, 123],
       "anchor": [0.5, 0.82],
       "shadowRadius": 23,
       "tags": ["defender", "forest", "tier-1"],

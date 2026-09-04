@@ -73,8 +73,10 @@ async function chromaKeyAndNormalize(inputPath, outputPath, entry) {
     .raw()
     .toBuffer({ resolveWithObject: true });
 
-  for (let i = 0; i < data.length; i += info.channels) {
-    data[i + 3] = chromaAlpha(data[i], data[i + 1], data[i + 2], data[i + 3]);
+  if (!entry.preserveAlpha) {
+    for (let i = 0; i < data.length; i += info.channels) {
+      data[i + 3] = chromaAlpha(data[i], data[i + 1], data[i + 2], data[i + 3]);
+    }
   }
 
   const bounds = findBounds(data, info.width, info.height, 4);
@@ -175,6 +177,7 @@ async function processAsset(entry) {
   const sourceHash = createHash("sha256")
     .update(readFileSync(source))
     .update(isMaterial ? "material-full-bleed-v2" : "")
+    .update(entry.preserveAlpha ? "preserve-alpha-v1" : "")
     .digest("hex")
     .slice(0, 16);
   if (!force && existsSync(hashPath) && existsSync(outPath)) {
