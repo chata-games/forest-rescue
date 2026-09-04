@@ -2,7 +2,12 @@ import { loadLevel, loadCatalog } from "./level/loader.js";
 import { initHeartwoodGame } from "./heartwood-game.js";
 import { isDebugMode } from "./rendering/debug.js";
 import { loadSprites, loadUnitsAtlas, loadCatalogSprites } from "./rendering/sprites.js";
-import { campaignLevels, cumulativeUnlocks, cumulativeSpellUnlock } from "./campaign-data.js";
+import {
+  campaignLevels,
+  cumulativeUnlocks,
+  cumulativeSpellUnlock,
+  nextLevelEntry,
+} from "./campaign-data.js";
 
 async function loadCampaignManifest() {
   const res = await fetch("levels/campaign.json");
@@ -38,6 +43,16 @@ export async function initCampaign(dom) {
 
   let stars = JSON.parse(localStorage.getItem("heartwood-stars") || "{}");
   let activeGame = null;
+
+  function navigate(params = "") {
+    const url = new URL(window.location.href);
+    url.search = params;
+    window.location.assign(url);
+  }
+
+  function goToCampaign() {
+    navigate("?campaign=1");
+  }
 
   function showCampaign() {
     startScreen?.classList.add("hidden");
@@ -91,6 +106,7 @@ export async function initCampaign(dom) {
 
   async function startLevel(levelId) {
     const level = await loadLevel(levelId);
+    const nextLevel = nextLevelEntry(manifest, levelId);
     const earnedUnlocks = cumulativeUnlocks(manifest, levelId);
     const spellUnlock = cumulativeSpellUnlock(manifest, levelId);
     level.unlocks = [...new Set([...(level.unlocks || []), ...earnedUnlocks])];
@@ -103,6 +119,11 @@ export async function initCampaign(dom) {
       catalog,
       atlas,
       images: sceneImages,
+      hasNextLevel: Boolean(nextLevel),
+      onContinue() {
+        if (nextLevel) navigate(`?level=${encodeURIComponent(nextLevel.id)}`);
+      },
+      onExit: goToCampaign,
       onComplete(lvl, heartsRemaining) {
         const maxHearts = lvl.maxHearts || 5;
         const starCount = heartsRemaining >= maxHearts ? 3 : heartsRemaining >= maxHearts - 1 ? 2 : 1;
@@ -119,9 +140,7 @@ export async function initCampaign(dom) {
   function bindEvents() {
     playButton?.addEventListener("click", showCampaign);
     backToMapButton?.addEventListener("click", () => {
-      gameScreen?.classList.add("hidden");
-      dom.getElementById("endOverlay")?.classList.add("hidden");
-      showCampaign();
+      goToCampaign();
     });
     campaignMap?.addEventListener("click", (e) => {
       const rect = campaignMap.getBoundingClientRect();
@@ -147,7 +166,9 @@ export async function initCampaign(dom) {
       bindEvents();
       setTimeout(drawGuardian, 250);
       const params = new URLSearchParams(window.location.search);
-      if (!params.get("level")) {
+      if (params.get("campaign")) {
+        showCampaign();
+      } else if (!params.get("level")) {
         startScreen?.classList.remove("hidden");
         campaignScreen?.classList.add("hidden");
         gameScreen?.classList.add("hidden");

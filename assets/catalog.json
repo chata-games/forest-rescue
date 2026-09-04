@@ -218,10 +218,11 @@
       "file": "materials/grass-tile.png",
       "promptFile": "prompts/material-grass.md",
       "references": ["docs/tower-defense-concept/art/gameplay-mockup.png"],
-      "nativeSize": [128, 128],
-      "drawSize": [128, 128],
+      "nativeSize": [1536, 1024],
+      "drawSize": [1536, 1024],
       "anchor": [0, 0],
-      "tags": ["material", "tileable", "meadow-edge"]
+      "renderMode": "cover",
+      "tags": ["material", "meadow-edge"]
     },
     {
       "id": "material-mushroom-floor",
@@ -284,14 +285,44 @@
       "tags": ["decoration", "stump-crossroads"]
     },
     {
+      "id": "decoration-meadow-mushroom",
+      "file": "decorations/meadow-mushroom.png",
+      "promptFile": "prompts/decoration-meadow-mushroom.md",
+      "references": ["docs/tower-defense-concept/art/gameplay-mockup.png"],
+      "nativeSize": [256, 256],
+      "drawSize": [64, 64],
+      "anchor": [0.5, 0.86],
+      "tags": ["decoration", "meadow-edge", "greenery"]
+    },
+    {
+      "id": "decoration-meadow-flowers",
+      "file": "decorations/meadow-flowers.png",
+      "promptFile": "prompts/decoration-meadow-flowers.md",
+      "references": ["docs/tower-defense-concept/art/gameplay-mockup.png"],
+      "nativeSize": [256, 256],
+      "drawSize": [64, 64],
+      "anchor": [0.5, 0.86],
+      "tags": ["decoration", "meadow-edge", "greenery"]
+    },
+    {
       "id": "landmark-broken-fence",
       "file": "decorations/broken-fence.png",
       "promptFile": "prompts/landmark-broken-fence.md",
       "references": ["docs/tower-defense-concept/art/gameplay-mockup.png"],
       "nativeSize": [256, 256],
-      "drawSize": [80, 80],
+      "drawSize": [112, 112],
       "anchor": [0.5, 0.9],
       "tags": ["landmark", "meadow-edge"]
+    },
+    {
+      "id": "landmark-heartwood-gate",
+      "file": "decorations/heartwood-gate.png",
+      "promptFile": "prompts/landmark-heartwood-gate.md",
+      "references": ["docs/tower-defense-concept/art/gameplay-mockup.png"],
+      "nativeSize": [512, 768],
+      "drawSize": [240, 440],
+      "anchor": [0.5, 1],
+      "tags": ["landmark", "heartwood", "meadow-edge"]
     },
     {
       "id": "landmark-glow-mushroom",

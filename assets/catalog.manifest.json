@@ -539,23 +539,23 @@
         "docs/tower-defense-concept/art/gameplay-mockup.png"
       ],
       "nativeSize": [
-        128,
-        128
+        1536,
+        1024
       ],
       "drawSize": [
-        128,
-        128
+        1536,
+        1024
       ],
       "anchor": [
         0,
         0
       ],
+      "renderMode": "cover",
       "tags": [
         "material",
-        "tileable",
         "meadow-edge"
       ],
-      "sourceHash": "dd613deef516055a"
+      "sourceHash": "d16fd2f70661a97a"
     },
     {
       "id": "material-mushroom-floor",
@@ -581,7 +581,7 @@
         "tileable",
         "mushroom-hollow"
       ],
-      "sourceHash": "1dbfb3fc131b658e"
+      "sourceHash": "c439806fe2d5aa6b"
     },
     {
       "id": "material-sawmill-floor",
@@ -607,7 +607,7 @@
         "tileable",
         "sawmill"
       ],
-      "sourceHash": "11b9fdaab587a130"
+      "sourceHash": "c839fb757549c2de"
     },
     {
       "id": "material-ashfall-floor",
@@ -633,7 +633,7 @@
         "tileable",
         "ashfall-scar"
       ],
-      "sourceHash": "a084d2421dce9231"
+      "sourceHash": "ee36c0b77a49ec06"
     },
     {
       "id": "material-boulder-floor",
@@ -659,7 +659,7 @@
         "tileable",
         "boulder-pass"
       ],
-      "sourceHash": "4c3ba0e2697c916a"
+      "sourceHash": "a2a73f3c6091d9ac"
     },
     {
       "id": "material-path-interior",
@@ -685,7 +685,7 @@
         "tileable",
         "path"
       ],
-      "sourceHash": "8756d85a8f1116a9"
+      "sourceHash": "4463f27dd03310af"
     },
     {
       "id": "decoration-stump",
@@ -713,6 +713,58 @@
       "sourceHash": "0b9c60a9669695ca"
     },
     {
+      "id": "decoration-meadow-mushroom",
+      "file": "decorations/meadow-mushroom.png",
+      "promptFile": "prompts/decoration-meadow-mushroom.md",
+      "references": [
+        "docs/tower-defense-concept/art/gameplay-mockup.png"
+      ],
+      "nativeSize": [
+        256,
+        256
+      ],
+      "drawSize": [
+        64,
+        64
+      ],
+      "anchor": [
+        0.5,
+        0.86
+      ],
+      "tags": [
+        "decoration",
+        "meadow-edge",
+        "greenery"
+      ],
+      "sourceHash": "f23e73c6162ee673"
+    },
+    {
+      "id": "decoration-meadow-flowers",
+      "file": "decorations/meadow-flowers.png",
+      "promptFile": "prompts/decoration-meadow-flowers.md",
+      "references": [
+        "docs/tower-defense-concept/art/gameplay-mockup.png"
+      ],
+      "nativeSize": [
+        256,
+        256
+      ],
+      "drawSize": [
+        64,
+        64
+      ],
+      "anchor": [
+        0.5,
+        0.86
+      ],
+      "tags": [
+        "decoration",
+        "meadow-edge",
+        "greenery"
+      ],
+      "sourceHash": "ffa5da689a45ad08"
+    },
+    {
       "id": "landmark-broken-fence",
       "file": "decorations/broken-fence.png",
       "promptFile": "prompts/landmark-broken-fence.md",
@@ -724,8 +776,8 @@
         256
       ],
       "drawSize": [
-        80,
-        80
+        112,
+        112
       ],
       "anchor": [
         0.5,
@@ -736,6 +788,32 @@
         "meadow-edge"
       ],
       "sourceHash": "95008fe822283ef4"
+    },
+    {
+      "id": "landmark-heartwood-gate",
+      "file": "decorations/heartwood-gate.png",
+      "promptFile": "prompts/landmark-heartwood-gate.md",
+      "references": [
+        "docs/tower-defense-concept/art/gameplay-mockup.png"
+      ],
+      "nativeSize": [
+        512,
+        768
+      ],
+      "drawSize": [
+        240,
+        440
+      ],
+      "anchor": [
+        0.5,
+        1
+      ],
+      "tags": [
+        "landmark",
+        "heartwood",
+        "meadow-edge"
+      ],
+      "sourceHash": "c53ac0bff275997c"
     },
     {
       "id": "landmark-glow-mushroom",

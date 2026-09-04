@@ -29,6 +29,18 @@ export function setupCanvas(canvas, wrap) {
   };
 }
 
+/** Clear every backing-store pixel without depending on the active DPI transform. */
+export function clearCanvasFrame(ctx) {
+  ctx.save();
+  ctx.resetTransform();
+  ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+  ctx.restore();
+}
+
+export function isInsideWorld(point) {
+  return point.x >= 0 && point.x <= WORLD_W && point.y >= 0 && point.y <= WORLD_H;
+}
+
 export const WORLD_W = 1536;
 export const WORLD_H = 1024;
 

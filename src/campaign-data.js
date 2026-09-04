@@ -24,6 +24,13 @@ export function levelIndex(manifest, levelId) {
   return campaignLevels(manifest).findIndex((l) => l.id === levelId);
 }
 
+/** Next campaign level after levelId, or null at the campaign end. */
+export function nextLevelEntry(manifest, levelId) {
+  const index = levelIndex(manifest, levelId);
+  if (index < 0) return null;
+  return campaignLevels(manifest)[index + 1] ?? null;
+}
+
 /** Act id for a level, or null. */
 export function actOf(manifest, levelId) {
   return levelEntry(manifest, levelId)?.act ?? null;

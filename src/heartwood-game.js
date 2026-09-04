@@ -1,5 +1,5 @@
 import { createGameLoop } from "./engine/loop.js";
-import { setupCanvas, WORLD_W, WORLD_H } from "./engine/canvas.js";
+import { clearCanvasFrame, isInsideWorld, setupCanvas, WORLD_W, WORLD_H } from "./engine/canvas.js";
 import { AudioKit } from "./engine/audio.js";
 import { createRng } from "./engine/rng.js";
 import { pathsFromLevel } from "./level/path.js";
@@ -29,7 +29,6 @@ import {
   drawDefenderEntity,
   drawEnemyEntity,
   drawProjectileEntity,
-  drawHeartwoodGate,
   drawDarknessOverlay,
   drawFireOverlay,
 } from "./rendering/battlefield.js";
@@ -51,6 +50,8 @@ export function initHeartwoodGame(dom, level, options = {}) {
   const pauseButton = $("pauseButton");
   const resumeButton = $("resumeButton");
   const replayButton = $("replayButton");
+  const continueButton = $("continueButton");
+  const campaignButton = $("campaignButton");
   const muteButton = $("muteButton");
   const endTitle = $("endTitle");
   const endMessage = $("endMessage");
@@ -89,6 +90,8 @@ export function initHeartwoodGame(dom, level, options = {}) {
   let aim = null; // last pointer position in world coords — anchors the range ghost
   let bobPhase = 0;
   const onComplete = options.onComplete || (() => {});
+  const onContinue = options.onContinue || (() => {});
+  const onExit = options.onExit || (() => {});
 
   function createGameState() {
     return {
@@ -334,7 +337,7 @@ export function initHeartwoodGame(dom, level, options = {}) {
   // is. Green = placeable there, red/white = not. Role text on the cards tells
   // players WHAT a defender does; the ghost shows WHERE it pays off.
   function drawRangeGhost(ox, oy, scale) {
-    if (!aim || state.state !== "playing") return;
+    if (!aim || !isInsideWorld(aim) || state.state !== "playing") return;
     let x = aim.x;
     let y = aim.y;
     let r = 0;
@@ -396,13 +399,13 @@ export function initHeartwoodGame(dom, level, options = {}) {
   }
 
   function render() {
+    clearCanvasFrame(ctx);
     ctx.save();
     if (state?.shake > 0) {
       ctx.translate((Math.random() - 0.5) * state.shake * 20, (Math.random() - 0.5) * state.shake * 14);
     }
     const { scale, ox, oy } = viewTransform();
     battlefield.render(ctx, view.width, view.height, (wctx) => {
-      drawHeartwoodGate(wctx);
       if (!state) return;
       drawValidRingHighlights(wctx);
       const sorted = [...state.defenders, ...state.enemies].sort((a, b) => a.y - b.y);
@@ -560,6 +563,8 @@ export function initHeartwoodGame(dom, level, options = {}) {
     endLeaksText.textContent = String(Math.max(0, levelMaxHearts(level) - state.hearts));
     endManaText.textContent = String(Math.floor(state.mana));
     endSummary.classList.remove("hidden");
+    continueButton?.classList.toggle("hidden", !won || !options.hasNextLevel);
+    campaignButton?.classList.remove("hidden");
     endOverlay.classList.remove("hidden");
     audio.end(won);
     if (won) onComplete(level, state.hearts);
@@ -578,6 +583,8 @@ export function initHeartwoodGame(dom, level, options = {}) {
     gameScreen.classList.remove("hidden");
     pauseOverlay.classList.add("hidden");
     endOverlay.classList.add("hidden");
+    continueButton?.classList.add("hidden");
+    campaignButton?.classList.add("hidden");
     view.resize();
     buildToolbar();
     showStartGate();
@@ -610,6 +617,8 @@ export function initHeartwoodGame(dom, level, options = {}) {
       }
     });
     replayButton?.addEventListener("click", startLevel);
+    continueButton?.addEventListener("click", () => onContinue(level));
+    campaignButton?.addEventListener("click", () => onExit(level));
     startWaveButton?.addEventListener("click", () => {
       if (!state || state.wave !== 0 || state.waveActive) return;
       audio.ensure();

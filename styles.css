@@ -132,6 +132,13 @@ h2 {
   box-shadow: 0 3px 0 #9d5e12, 0 8px 18px rgba(0, 0, 0, 0.28);
 }
 
+.secondary-button {
+  padding: 14px 24px;
+  color: var(--cream);
+  background: rgba(255, 249, 215, 0.12);
+  border: 2px solid rgba(255, 249, 215, 0.38);
+}
+
 .game-screen {
   position: absolute;
   inset: 0;
@@ -345,6 +352,18 @@ h2 {
   border-radius: 18px;
   background: linear-gradient(#1f5a32, #102b1a);
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+}
+
+.overlay__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+}
+
+.overlay__actions .primary-button,
+.overlay__actions .secondary-button {
+  min-width: 132px;
 }
 
 /* RP-nqfepx: read-only battle recap on the end modal (both outcomes). */

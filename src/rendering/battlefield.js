@@ -23,6 +23,7 @@ export function createBattlefieldRenderer(level, catalog, options = {}) {
     drawGround(sctx, biome, catalog, images);
     drawWaterMasks(sctx, level, biome);
     for (const path of paths) drawPath(sctx, path, biome, images);
+    drawHeartwoodGate(sctx, catalog, images);
     for (const lm of level.landmarks || []) drawLandmark(sctx, lm, catalog, images);
     for (const dec of level.decorations || []) drawDecoration(sctx, dec, biome, catalog, images);
     for (const ring of level.rings || []) drawRingSpot(sctx, ring);
@@ -61,8 +62,13 @@ function drawGround(ctx, biome, catalog, images) {
   const grassId = biome.grassMaterial || "material-grass";
   const grass = images[grassId] || images["material-grass"];
   if (grass?.ready) {
-    ctx.fillStyle = ctx.createPattern(grass.img, "repeat");
-    ctx.fillRect(0, 0, WORLD_W, WORLD_H);
+    const asset = catalogAsset(catalog, grassId) || catalogAsset(catalog, "material-grass");
+    if (asset?.renderMode === "cover") {
+      ctx.drawImage(grass.img, 0, 0, WORLD_W, WORLD_H);
+    } else {
+      ctx.fillStyle = ctx.createPattern(grass.img, "repeat");
+      ctx.fillRect(0, 0, WORLD_W, WORLD_H);
+    }
     if (biome.darkness) {
       ctx.fillStyle = "rgba(8,12,28,0.35)";
       ctx.fillRect(0, 0, WORLD_W, WORLD_H);
@@ -128,12 +134,16 @@ function drawRingSpot(ctx, ring) {
 
 const LANDMARK_SPRITES = {
   "broken-fence": "landmark-broken-fence",
+  "clearance-notice": "landmark-broken-fence",
   "glow-mushroom-cluster": "landmark-glow-mushroom",
   "sawmill-debris": "landmark-sawmill-debris",
 };
 
 const DECORATION_SPRITES = {
-  stump: "decoration-stump",
+  stump: { id: "decoration-stump", scale: 5 },
+  flower: { id: "decoration-meadow-flowers", scale: 2.5 },
+  mushroom: { id: "decoration-meadow-mushroom", scale: 2.5 },
+  fence: { id: "landmark-broken-fence", scale: 6 },
 };
 
 function drawCatalogProp(ctx, spriteId, x, y, catalog, images, sizeOverride) {
@@ -174,9 +184,9 @@ function drawLandmark(ctx, lm, catalog, images) {
 }
 
 function drawDecoration(ctx, dec, biome, catalog, images) {
-  const spriteId = DECORATION_SPRITES[dec.type];
-  const size = dec.size ? [dec.size * 2, dec.size * 2] : null;
-  if (drawCatalogProp(ctx, spriteId, dec.x, dec.y, catalog, images, size)) return;
+  const sprite = DECORATION_SPRITES[dec.type];
+  const size = dec.size && sprite ? [dec.size * sprite.scale, dec.size * sprite.scale] : null;
+  if (drawCatalogProp(ctx, sprite?.id, dec.x, dec.y, catalog, images, size)) return;
   const colors = { stump: "#5c4030", flower: "#ff88cc", mushroom: "#cc88ff", fence: "#8b6914" };
   ctx.fillStyle = colors[dec.type] || biome.accentColor;
   ctx.beginPath();
@@ -376,7 +386,8 @@ export function drawProjectileEntity(ctx, p) {
   ctx.fill();
 }
 
-export function drawHeartwoodGate(ctx) {
+export function drawHeartwoodGate(ctx, catalog = null, images = {}) {
+  if (drawCatalogProp(ctx, "landmark-heartwood-gate", 42, 660, catalog, images)) return;
   ctx.fillStyle = "rgba(255,105,77,0.35)";
   ctx.fillRect(0, 200, 90, 624);
   ctx.fillStyle = "#ffd765";

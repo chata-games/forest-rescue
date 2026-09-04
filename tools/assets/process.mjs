@@ -130,6 +130,16 @@ async function chromaKeyAndNormalize(inputPath, outputPath, entry) {
     .toFile(outputPath);
 }
 
+async function normalizeMaterial(inputPath, outputPath, entry) {
+  const sharp = (await import("sharp")).default;
+  const [width, height] = entry.nativeSize || [128, 128];
+  await sharp(inputPath)
+    .resize(width, height, { fit: "cover", position: "centre" })
+    .removeAlpha()
+    .png({ compressionLevel: 9, palette: true, quality: 92 })
+    .toFile(outputPath);
+}
+
 async function ingestSource(entry) {
   const outPath = join(ROOT, "assets", entry.file);
   const sourcePath = join(ROOT, "assets", "source", `${entry.id}.png`);
@@ -161,7 +171,12 @@ async function processAsset(entry) {
     return;
   }
 
-  const sourceHash = createHash("sha256").update(readFileSync(source)).digest("hex").slice(0, 16);
+  const isMaterial = entry.tags?.includes("material");
+  const sourceHash = createHash("sha256")
+    .update(readFileSync(source))
+    .update(isMaterial ? "material-full-bleed-v2" : "")
+    .digest("hex")
+    .slice(0, 16);
   if (!force && existsSync(hashPath) && existsSync(outPath)) {
     const cached = readFileSync(hashPath, "utf8").trim();
     if (cached === sourceHash) {
@@ -171,7 +186,8 @@ async function processAsset(entry) {
   }
 
   const tmpPath = `${outPath}.tmp.png`;
-  await chromaKeyAndNormalize(source, tmpPath, entry);
+  if (isMaterial) await normalizeMaterial(source, tmpPath, entry);
+  else await chromaKeyAndNormalize(source, tmpPath, entry);
   copyFileSync(tmpPath, outPath);
   try { unlinkSync(tmpPath); } catch { /* ignore */ }
 

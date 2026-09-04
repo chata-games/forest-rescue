@@ -7,6 +7,7 @@ import {
   campaignLevels,
   cumulativeUnlocks,
   cumulativeSpellUnlock,
+  nextLevelEntry,
   actOf,
 } from "../../src/campaign-data.js";
 
@@ -28,6 +29,14 @@ test("campaign manifest owns the ordered stable level IDs", () => {
   const sorted = [...ids].sort();
   assert.deepEqual(ids, sorted, "manifest levels are ordered by stable ID");
   assert.equal(new Set(ids).size, ids.length, "stable IDs are unique");
+});
+
+test("campaign order resolves the next playable level", () => {
+  const manifest = readManifest();
+  assert.equal(nextLevelEntry(manifest, "01-meadows-edge")?.id, "02-old-stump-crossroads");
+  assert.equal(nextLevelEntry(manifest, "06-ashfall-scar")?.id, "07-boulder-pass");
+  assert.equal(nextLevelEntry(manifest, "07-boulder-pass"), null);
+  assert.equal(nextLevelEntry(manifest, "does-not-exist"), null);
 });
 
 test("manifest declares three acts and every level belongs to a declared act", () => {
