@@ -54,3 +54,4 @@ The first release is a 10-level Heartwood campaign across 3 acts. Later campaign
 
 - [Tower defense concept](docs/tower-defense-concept/index.html)
 - [ADR-001: Level intent vs compiled split](docs/adr/001-level-intent-compiled-split.md)
+- [Campaign world-map nodes](docs/campaign-map-nodes.md): painted disc centres and which levels use them; discs 8-10 are reserved for levels 8-10
