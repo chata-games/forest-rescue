@@ -955,6 +955,23 @@ body[data-layout="portrait"] .stage canvas {
   -webkit-tap-highlight-color: transparent;
 }
 
+.trail-node[data-status="current"] {
+  border: 3px solid #78f0b2;
+  box-shadow: 0 0 0 3px #78f0b22e, 0 0 18px #55eca080;
+}
+
+.trail-node[data-status="cleared"] {
+  border: 3px solid #f7d66f;
+  box-shadow: 0 0 0 3px #f7d66f2e, 0 0 18px #f7c84f73;
+}
+
+.trail-node[data-status="locked"] {
+  border: 3px solid #6f8379;
+  background: #33453eb3;
+  box-shadow: inset 0 0 12px #09140fcc, 0 2px 8px #020b0880;
+  backdrop-filter: grayscale(0.75) brightness(0.72);
+}
+
 .trail-node:focus-visible {
   outline: 3px solid #fff4b8;
   outline-offset: 3px;
@@ -965,9 +982,10 @@ body[data-layout="portrait"] .stage canvas {
 .trail__legend {
   position: absolute;
   z-index: 3;
-  top: 50%;
+  top: auto;
+  bottom: max(14px, env(safe-area-inset-bottom));
   left: max(16px, env(safe-area-inset-left));
-  transform: translateY(-50%);
+  transform: none;
   display: flex;
   flex-direction: column;
   gap: 14px;
