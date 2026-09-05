@@ -22,7 +22,7 @@ export function createBattlefieldRenderer(level, catalog, options = {}) {
   function buildStatic() {
     drawGround(sctx, biome, catalog, images);
     drawWaterMasks(sctx, level, biome);
-    for (const path of paths) drawPath(sctx, path, biome, images);
+    drawPaths(sctx, paths, biome, images);
     drawHeartwoodGate(sctx, catalog, images);
     for (const lm of level.landmarks || []) drawLandmark(sctx, lm, catalog, images);
     for (const dec of level.decorations || []) drawDecoration(sctx, dec, biome, catalog, images);
@@ -101,9 +101,19 @@ function drawWaterMasks(ctx, level, biome) {
   }
 }
 
-function drawPath(ctx, path, biome, images) {
-  if (path.samples.length < 2) return;
+function drawPaths(ctx, paths, biome, images) {
   const interior = images["material-path-interior"];
+  const fill = interior?.ready
+    ? ctx.createPattern(interior.img, "repeat")
+    : biome.pathColor;
+  // Draw the combined border first, then cover every internal edge with sand.
+  // All interiors share world coordinates so the texture continues across joins.
+  for (const path of paths) drawPathStroke(ctx, path, biome.pathEdgeColor, 16);
+  for (const path of paths) drawPathStroke(ctx, path, fill, 0);
+}
+
+function drawPathStroke(ctx, path, color, extraWidth) {
+  if (path.samples.length < 2) return;
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
   ctx.beginPath();
@@ -119,14 +129,8 @@ function drawPath(ctx, path, biome, images) {
   ctx.lineTo(first.x, first.y);
   for (let i = 1; i < path.samples.length; i++) ctx.lineTo(path.samples[i].x, path.samples[i].y);
 
-  ctx.strokeStyle = biome.pathEdgeColor;
-  ctx.lineWidth = path.width + 16;
-  ctx.stroke();
-
-  ctx.strokeStyle = interior?.ready
-    ? ctx.createPattern(interior.img, "repeat")
-    : biome.pathColor;
-  ctx.lineWidth = path.width;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = path.width + extraWidth;
   ctx.stroke();
 }
 
