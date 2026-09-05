@@ -348,15 +348,72 @@ export function placeLandmarks(intent, path, rng) {
   });
 }
 
-export function placeDecorations(intent, path, rings, rng) {
+export function placeDecorations(intent, paths, rings, rng, options = {}) {
   const bounds = { x: 80, y: 80, w: WORLD_W - 160, h: WORLD_H - 160 };
+  const pathList = Array.isArray(paths) ? paths : [paths];
   const points = poissonDisk(rng, bounds, 80);
   const types = ["stump", "flower", "mushroom", "fence"];
-  return points.slice(0, 25).map((p, i) => {
-    if (path.distanceAlong(p.x, p.y).distance < 100) return null;
-    if (rings.some((r) => dist(r.x, r.y, p.x, p.y) < 70)) return null;
-    return { type: types[i % types.length], x: Math.round(p.x), y: Math.round(p.y), size: 12 + (i % 4) * 3 };
-  }).filter(Boolean);
+
+  // Preserve the established output for single-path levels. Level 2 opts into
+  // the spread branch below, which can safely use all candidates and a larger
+  // clearance without rewriting unrelated compiled levels.
+  if (!options.spread) {
+    return points.slice(0, 25).map((p, i) => {
+      if (pathList.some((path) => path.distanceAlong(p.x, p.y).distance < 100)) return null;
+      if (rings.some((r) => dist(r.x, r.y, p.x, p.y) < 70)) return null;
+      return { type: types[i % types.length], x: Math.round(p.x), y: Math.round(p.y), size: 12 + (i % 4) * 3 };
+    }).filter(Boolean);
+  }
+
+  const candidates = points.filter((p) => {
+    if (pathList.some((path) => path.distanceAlong(p.x, p.y).distance < 175)) return false;
+    return !rings.some((r) => dist(r.x, r.y, p.x, p.y) < 70);
+  });
+  const selected = spreadDecorationPoints(candidates, bounds, 25);
+
+  return selected.map((p, i) => ({
+    type: types[i % types.length],
+    x: Math.round(p.x),
+    y: Math.round(p.y),
+    size: 12 + (i % 4) * 3,
+  }));
+}
+
+/** Pick decoration candidates across the open field instead of preserving the
+ * clustered order produced by the Poisson sampler's active frontier. */
+function spreadDecorationPoints(candidates, bounds, targetCount) {
+  const columns = 5;
+  const rows = 5;
+  const selected = [];
+  const used = new Set();
+
+  for (let row = 0; row < rows && selected.length < targetCount; row++) {
+    for (let column = 0; column < columns && selected.length < targetCount; column++) {
+      const centerX = bounds.x + (column + 0.5) * bounds.w / columns;
+      const centerY = bounds.y + (row + 0.5) * bounds.h / rows;
+      let bestIndex = -1;
+      let bestDistance = Infinity;
+      for (let i = 0; i < candidates.length; i++) {
+        if (used.has(i)) continue;
+        const candidate = candidates[i];
+        const distance = dist(candidate.x, candidate.y, centerX, centerY);
+        if (distance < bestDistance) {
+          bestIndex = i;
+          bestDistance = distance;
+        }
+      }
+      if (bestIndex < 0) continue;
+      used.add(bestIndex);
+      selected.push(candidates[bestIndex]);
+    }
+  }
+
+  for (let i = 0; i < candidates.length && selected.length < targetCount; i++) {
+    if (used.has(i)) continue;
+    used.add(i);
+    selected.push(candidates[i]);
+  }
+  return selected;
 }
 
 export function scoreCandidate(path, rings, intent, metrics) {
@@ -397,7 +454,28 @@ export function compileIntent(intent, options = {}) {
   const waveRng = createRng(intent.seed + "-waves");
   const waves = generateWaves(intent);
   const landmarks = placeLandmarks(intent, best.path, waveRng);
-  const decorations = placeDecorations(intent, best.path, best.rings, waveRng);
+
+  const paths = [best.path];
+  let secondaryPath = null;
+  if (intent.topology.archetype === "two-path-merge") {
+    // Let the lower road join the upper road once, then reuse the main road's
+    // shared tail. This keeps the split-pressure lesson while removing the
+    // broad double-road overlay at the Heartwood gate.
+    const mergeIndex = Math.min(2, best.path.controlPoints.length - 2);
+    const mergePath = buildPath([
+      { x: 1480, y: 720 },
+      { x: 1220, y: 680 },
+      { x: 1050, y: 570 },
+      best.path.controlPoints[mergeIndex],
+      ...best.path.controlPoints.slice(mergeIndex + 1),
+    ], pathWidth);
+    secondaryPath = mergePath;
+    paths.push(mergePath);
+  }
+
+  const decorations = secondaryPath
+    ? placeDecorations(intent, paths, best.rings, waveRng, { spread: true })
+    : placeDecorations(intent, best.path, best.rings, waveRng);
 
   const compiled = {
     id: intent.id,
@@ -434,14 +512,8 @@ export function compileIntent(intent, options = {}) {
     ];
   }
 
-  if (intent.topology.archetype === "two-path-merge") {
-    const mergePath = buildPath([
-      { x: 1480, y: 720 },
-      { x: 1180, y: 660 },
-      { x: 900, y: 520 },
-      { x: GATE_X, y: 512 },
-    ], pathWidth);
-    compiled.paths.push({ ...mergePath.toJSON(), id: "secondary" });
+  if (secondaryPath) {
+    compiled.paths.push({ ...secondaryPath.toJSON(), id: "secondary" });
     for (let i = 0; i < waves.length; i++) {
       if (i >= 3 && waves[i].enemies[0]) {
         waves[i].enemies.push({ type: waves[i].enemies[0].type, count: 1, pathId: "secondary" });

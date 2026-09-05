@@ -6,7 +6,7 @@
       "won": true,
       "hearts": 5,
       "mana": 999,
-      "ticks": 19289,
+      "ticks": 19271,
       "defendersPlaced": 8,
       "band": "clean-win",
       "bandEvaluation": {
@@ -20,7 +20,7 @@
       "won": true,
       "hearts": 5,
       "mana": 999,
-      "ticks": 19364,
+      "ticks": 19300,
       "defendersPlaced": 8
     },
     "upgrade-first": {
@@ -28,7 +28,7 @@
       "won": true,
       "hearts": 5,
       "mana": 999,
-      "ticks": 18936,
+      "ticks": 18941,
       "defendersPlaced": 8
     },
     "defensive-gate": {
@@ -50,7 +50,7 @@
       "won": true,
       "hearts": 5,
       "mana": 999,
-      "ticks": 18377,
+      "ticks": 18335,
       "defendersPlaced": 8
     }
   }

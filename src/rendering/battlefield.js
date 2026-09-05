@@ -154,6 +154,7 @@ function drawRingSpot(ctx, ring) {
 }
 
 const LANDMARK_SPRITES = {
+  "ancient-stump": "decoration-stump",
   "broken-fence": "landmark-broken-fence",
   "clearance-notice": "landmark-broken-fence",
   "glow-mushroom-cluster": "landmark-glow-mushroom",
