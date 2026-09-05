@@ -955,20 +955,32 @@ body[data-layout="portrait"] .stage canvas {
   -webkit-tap-highlight-color: transparent;
 }
 
-.trail-node[data-status="current"] {
+.trail-node::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 76%;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.trail-node[data-status="current"]::before {
   border: 3px solid #78f0b2;
-  box-shadow: 0 0 0 3px #78f0b22e, 0 0 18px #55eca080;
+  box-shadow: 0 0 0 2px #78f0b22e, 0 0 12px #55eca080;
 }
 
-.trail-node[data-status="cleared"] {
+.trail-node[data-status="cleared"]::before {
   border: 3px solid #f7d66f;
-  box-shadow: 0 0 0 3px #f7d66f2e, 0 0 18px #f7c84f73;
+  box-shadow: 0 0 0 2px #f7d66f2e, 0 0 12px #f7c84f73;
 }
 
-.trail-node[data-status="locked"] {
+.trail-node[data-status="locked"]::before {
   border: 3px solid #6f8379;
   background: #33453eb3;
-  box-shadow: inset 0 0 12px #09140fcc, 0 2px 8px #020b0880;
+  box-shadow: inset 0 0 9px #09140fcc, 0 2px 6px #020b0880;
   backdrop-filter: grayscale(0.75) brightness(0.72);
 }
 
