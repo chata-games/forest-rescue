@@ -18,10 +18,14 @@
     <header class="trail__header">
       <h1 class="trail__title" id="trailTitle">Forest Rescue: Heartwood</h1>
       <p class="trail__subtitle">Follow the Trail to the Heartwood. Select a level to inspect it.</p>
-      <div class="trail__tools">
-        <button id="trailAudioBtn" class="hud__btn" type="button" aria-label="Audio controls">Audio</button>
-      </div>
     </header>
+
+    <div class="trail__tools">
+      <button id="trailAudioBtn" class="trail__audio" type="button" aria-label="Audio controls">
+        <span class="trail__audio-icon" aria-hidden="true">◖))</span>
+        <span>Audio</span>
+      </button>
+    </div>
 
     <!-- One-time save recovery notice (issue #27 AC3/AC4): shown only when a save
          was archived (incompatible content epoch) or recovered (corruption). It is
