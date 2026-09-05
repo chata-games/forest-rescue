@@ -3,12 +3,15 @@ import {
   effectiveLayout,
   frameDensity,
   frameViewport,
+  loadFullscreenPreference,
   loadSidewaysPreference,
   portraitAdvice,
+  serializeFullscreenPreference,
   serializeSidewaysPreference,
   shouldShowPortraitAdvice,
   sidewaysActive,
   unrotatePagePoint,
+  wantsImmersiveBattle,
 } from './responsive';
 
 // The battle shell's responsive + accessible decisions (issue #24). These are the
@@ -86,6 +89,24 @@ describe('Sideways mode (RP-eqbawv)', () => {
     expect(frameDensity(520)).toBe('short');
     expect(frameDensity(720)).toBe('regular'); // desktop
     expect(frameDensity(896)).toBe('regular'); // portrait phone (layout is portrait anyway)
+  });
+
+  it('asks for the immersive battle only on phone-short touch screens with the preference on', () => {
+    expect(wantsImmersiveBattle(true, true, 844, 390)).toBe(true);
+    expect(wantsImmersiveBattle(true, true, 390, 844)).toBe(true);
+    // Desktop pointer: never take over the screen uninvited.
+    expect(wantsImmersiveBattle(true, false, 844, 390)).toBe(false);
+    // Tablet: room enough for browser chrome.
+    expect(wantsImmersiveBattle(true, true, 1024, 768)).toBe(false);
+    // Guardian turned it off.
+    expect(wantsImmersiveBattle(false, true, 844, 390)).toBe(false);
+  });
+
+  it('defaults the fullscreen preference to on and round-trips it', () => {
+    expect(loadFullscreenPreference(null)).toBe(true);
+    expect(loadFullscreenPreference('garbage')).toBe(true);
+    expect(loadFullscreenPreference(serializeFullscreenPreference(false))).toBe(false);
+    expect(loadFullscreenPreference(serializeFullscreenPreference(true))).toBe(true);
   });
 
   it('presents the rotated frame as a landscape viewport to the layout rules', () => {

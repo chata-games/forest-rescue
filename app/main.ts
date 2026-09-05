@@ -48,12 +48,15 @@ import {
   effectiveLayout,
   frameDensity,
   frameViewport,
+  loadFullscreenPreference,
   loadSidewaysPreference,
   portraitAdvice,
+  serializeFullscreenPreference,
   serializeSidewaysPreference,
   shouldShowPortraitAdvice,
   sidewaysActive,
   unrotatePagePoint,
+  wantsImmersiveBattle,
   type LayoutMode,
   type LayoutOverride,
 } from './responsive';
@@ -471,6 +474,7 @@ const pauseLayoutBtn = $<HTMLButtonElement>('pauseLayoutBtn');
 // Sideways toggle (RP-eqbawv): rotates the battle frame for phones whose browser
 // stays portrait. Persisted like Audio and Guidance.
 const pauseSidewaysBtn = $<HTMLButtonElement>('pauseSidewaysBtn');
+const pauseFullscreenBtn = $<HTMLButtonElement>('pauseFullscreenBtn');
 const pauseAudioBtn = $<HTMLButtonElement>('pauseAudioBtn');
 // Guidance toggle (issue #23 AC1): mirrors the Layout toggle as the app's other
 // independent setting. Reflects the Guardian's guidance preference; persists.
@@ -921,6 +925,109 @@ function effectiveLayoutNow(): LayoutMode {
   const vp = frameViewport(sidewaysNow(), window.innerWidth, window.innerHeight);
   return effectiveLayout(layoutOverride, vp.width, vp.height);
 }
+
+// --- Immersive battle (fullscreen + landscape lock) -----------------------
+// A phone screen has no room for browser chrome, so entering a battle on one asks
+// for fullscreen and then a landscape lock. Both are best effort: Android Chrome
+// grants them, desktop browsers grant fullscreen only on request, and iPhone
+// browsers reject both (Sideways mode is their answer). The preference persists
+// so a Guardian who turns it off in pause Settings is not asked again. iPad Safari
+// still exposes only the webkit-prefixed API, hence the shim.
+const FULLSCREEN_KEY = 'heartwood-fullscreen-v1';
+
+interface FullscreenDocument extends Document {
+  webkitFullscreenEnabled?: boolean;
+  webkitFullscreenElement?: Element | null;
+  webkitExitFullscreen?: () => Promise<void> | void;
+}
+interface FullscreenElement extends HTMLElement {
+  webkitRequestFullscreen?: () => Promise<void> | void;
+}
+
+function readFullscreenRaw(): string | null {
+  try {
+    return localStorage.getItem(FULLSCREEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+let fullscreenPref = loadFullscreenPreference(readFullscreenRaw());
+
+function persistFullscreen(): void {
+  try {
+    localStorage.setItem(FULLSCREEN_KEY, serializeFullscreenPreference(fullscreenPref));
+  } catch {
+    /* localStorage may be unavailable — the preference stays in-memory. */
+  }
+}
+
+function fullscreenSupported(): boolean {
+  const doc = document as FullscreenDocument;
+  return Boolean(doc.fullscreenEnabled || doc.webkitFullscreenEnabled);
+}
+
+function fullscreenActive(): boolean {
+  const doc = document as FullscreenDocument;
+  return Boolean(doc.fullscreenElement ?? doc.webkitFullscreenElement);
+}
+
+async function enterFullscreen(): Promise<void> {
+  if (!fullscreenSupported() || fullscreenActive()) return;
+  const root = document.documentElement as FullscreenElement;
+  try {
+    if (root.requestFullscreen) await root.requestFullscreen({ navigationUI: 'hide' });
+    else await root.webkitRequestFullscreen?.();
+  } catch {
+    return; // Denied or unsupported: the page layout is the fallback.
+  }
+  // Orientation lock is only honoured inside fullscreen, and only by some
+  // browsers; failure leaves the phone free to rotate.
+  const orientation = screen.orientation as ScreenOrientation & {
+    lock?: (type: string) => Promise<void>;
+  };
+  try {
+    await orientation?.lock?.('landscape');
+  } catch {
+    /* Not supported or not permitted — nothing to undo. */
+  }
+}
+
+function exitFullscreen(): void {
+  if (!fullscreenActive()) return;
+  const doc = document as FullscreenDocument;
+  const exit = doc.exitFullscreen ? doc.exitFullscreen() : doc.webkitExitFullscreen?.();
+  Promise.resolve(exit).catch(() => {});
+}
+
+/** Ask for fullscreen on battle entry when the device and preference call for it. */
+function enterImmersiveBattle(): void {
+  const coarse = window.matchMedia('(pointer: coarse)').matches;
+  if (wantsImmersiveBattle(fullscreenPref, coarse, window.innerWidth, window.innerHeight)) {
+    void enterFullscreen();
+  }
+}
+
+function syncFullscreenToggle(): void {
+  pauseFullscreenBtn.hidden = !fullscreenSupported();
+  const on = fullscreenActive();
+  pauseFullscreenBtn.textContent = `Fullscreen: ${on ? 'On' : 'Off'}`;
+  pauseFullscreenBtn.setAttribute('aria-pressed', String(on));
+}
+
+pauseFullscreenBtn.addEventListener('click', () => {
+  // The button is also the opt-out: leaving fullscreen here stops the automatic
+  // request on the next battle; entering turns it back on.
+  fullscreenPref = !fullscreenActive();
+  persistFullscreen();
+  if (fullscreenPref) void enterFullscreen();
+  else exitFullscreen();
+});
+
+for (const type of ['fullscreenchange', 'webkitfullscreenchange']) {
+  document.addEventListener(type, syncFullscreenToggle);
+}
+syncFullscreenToggle();
 
 function refreshLayout(): void {
   const sideways = sidewaysNow();
@@ -2003,6 +2110,8 @@ function enterLevel(levelId: string, loadout: Loadout): void {
   trailScreen.hidden = true;
   loadoutScreen.hidden = true;
   battleRoot.hidden = false;
+  // Still inside the click that led here, so the fullscreen request is permitted.
+  enterImmersiveBattle();
   bootBattleScene();
   if (options.preview) renderPreviewLegend();
   window.fr = makeDebugApi();
@@ -2026,6 +2135,7 @@ function enterLevel(levelId: string, loadout: Loadout): void {
 
 function returnToTrail(): void {
   destroyGame();
+  exitFullscreen();
   battle = null;
   currentLevelId = null;
   currentLoadoutCtx = null;

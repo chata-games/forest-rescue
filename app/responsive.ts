@@ -111,6 +111,34 @@ export function frameDensity(frameHeight: number): FrameDensity {
   return frameHeight <= SHORT_FRAME_MAX_HEIGHT ? 'short' : 'regular';
 }
 
+// --- Immersive battle ------------------------------------------------------
+// A phone-sized screen has no room for browser chrome: the battle asks for
+// fullscreen and a landscape lock on entry where the browser allows it (Android
+// Chrome does; iPhone browsers reject both, and Sideways mode covers them).
+
+/**
+ * Whether the battle should ask for fullscreen on entry: only on a touch device
+ * whose screen is phone-short in one direction. Desktop and tablet play never
+ * takes over the screen uninvited; the pause Settings toggle stays available.
+ */
+export function wantsImmersiveBattle(
+  preference: boolean,
+  coarsePointer: boolean,
+  width: number,
+  height: number,
+): boolean {
+  return preference && coarsePointer && Math.min(width, height) <= SHORT_FRAME_MAX_HEIGHT;
+}
+
+/** The persisted fullscreen preference: on unless the Guardian turned it off. */
+export function loadFullscreenPreference(raw: string | null): boolean {
+  return raw !== '0';
+}
+
+export function serializeFullscreenPreference(on: boolean): string {
+  return on ? '1' : '0';
+}
+
 /** A screen-space box, as `getBoundingClientRect` reports it (page offsets applied). */
 export interface ScreenBox {
   left: number;

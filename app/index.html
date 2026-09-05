@@ -254,7 +254,10 @@
             <button id="pauseGuidanceBtn" class="overlay__btn" type="button" aria-pressed="true">Guidance: On</button>
             <button id="pauseSidewaysBtn" class="overlay__btn" type="button" aria-pressed="false">Sideways: Off</button>
           </div>
-          <p class="overlay__note">Two-thumb landscape is preferred; portrait scales the whole battlefield to fit. Sideways rotates the game on a phone whose browser stays portrait (iPhone with Portrait Orientation Lock on). Audio, Guidance, and Sideways can be changed independently.</p>
+          <div class="overlay__settings-row">
+            <button id="pauseFullscreenBtn" class="overlay__btn" type="button" aria-pressed="false" aria-label="Toggle fullscreen. Also sets whether battles open in fullscreen on a phone." hidden>Fullscreen: Off</button>
+          </div>
+          <p class="overlay__note">Two-thumb landscape is preferred; portrait scales the whole battlefield to fit. Sideways rotates the game on a phone whose browser stays portrait (iPhone with Portrait Orientation Lock on). Fullscreen hides the browser bars where the browser allows it. Audio, Guidance, Sideways, and Fullscreen can be changed independently.</p>
         </div>
         <div id="pauseConfirm" class="overlay__confirm" role="alertdialog" aria-label="Confirm action" hidden>
           <p id="pauseConfirmText" class="overlay__note"></p>
