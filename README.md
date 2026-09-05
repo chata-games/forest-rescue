@@ -4,30 +4,29 @@ Tower-defense evolution of Forest Rescue. Defend the Heartwood grove against Cho
 
 ## Play
 
-Requires the dev server (ES modules + level JSON):
+Use Node.js 22 or later:
 
 ```bash
-cd forest-rescue
-npm install
-npm run serve
+npm ci
+npm run dev:app
 ```
 
-Open http://localhost:8341
+Open [the local app](http://localhost:4173). To test the production files, run
+`npm run build:app` and `npm run serve`, then open [the built app](http://localhost:8341).
 
-- **Campaign** — levels 1–3 vertical slice
-- **Classic lane mode** — http://localhost:8341/?mode=legacy
-- **Debug overlays** — add `?debug=1`
-- **Direct level** — `?level=01-meadows-edge`
+The Phaser app contains the seven authored campaign levels. Use
+`?level=01-meadows-edge` to open a level directly, or `?preview=1` for the
+level geometry overlay.
 
 ## GitHub Pages
 
 Play at https://chata-games.github.io/forest-rescue/. For the first deployment, set **Settings → Pages → Source** to **GitHub Actions**.
 
-The deploy workflow also builds the Phaser battle stack (`app/`, `npm run build:app`) into `dist/app/`, so the new build is live at https://chata-games.github.io/forest-rescue/dist/app/ and linked from the start screen.
+The deploy workflow builds the Phaser app and publishes `dist/app/` as the site root. The old app is not part of the deployed artifact.
 
 ### Playing sideways on an iPhone
 
-iPhone browsers (Safari and Chrome, both WebKit) do not rotate while **Portrait Orientation Lock** is on, and a web page cannot lock or request an orientation there. Both the legacy page and the Phaser app have a **Sideways mode** that rotates the game 90 degrees inside the portrait browser: the start screen's **Rotate screen** toggle and the HUD ⟳ button on the legacy page; **Rotate the screen** in the "Best played sideways" tip and the **Sideways** toggle under Pause → Settings in the app. The preference is remembered; it only takes effect while the viewport is actually portrait.
+iPhone browsers do not rotate while **Portrait Orientation Lock** is on. A web page cannot change this setting. Use **Rotate the screen** in the "Best played sideways" tip or **Sideways** under Pause → Settings. The app remembers the setting and uses it when the viewport is in portrait orientation.
 
 ## Level pipeline
 
@@ -44,7 +43,8 @@ Same seed + compiler version → identical compiled output. CI fails if compiled
 
 ## Architecture
 
-- `src/` — ES module game engine (browser, no runtime npm deps)
+- `app/` — Phaser scene, DOM controls, and TypeScript battle simulation
+- `src/` — shared terrain renderer, content, and level tooling modules
 - `levels/intents/` — LLM-authored level briefs
 - `levels/compiled/` — deterministic compiler output
 - `tools/levelgen/` — compile, validate, preview
@@ -65,9 +65,12 @@ node tools/assets/build-atlas.mjs
 ## Tests
 
 ```bash
-npm test
+npm test               # domain and UI projection tests
+npm run test:node      # compiler and asset checks
+npm run test:e2e       # browser journeys
+npm run typecheck
 ```
 
 ## Follow-up work
 
-Ready-to-use agent prompts for levels 4–10: [docs/prompts/](docs/prompts/)
+Design prompts for the campaign: [docs/prompts/](docs/prompts/)

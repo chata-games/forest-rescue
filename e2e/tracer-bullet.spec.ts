@@ -6,6 +6,8 @@ import { TURBO, enterFromTrail, place, type FrApi } from './helpers';
 // starts the scripted waves, and asserts the deterministic battle outcome the
 // engine-independent BattleState predicts for that loadout.
 
+test.setTimeout(120_000);
+
 test.describe("Meadow's Edge launch-to-outcome", () => {
   test('honest loadout is overrun → Defeat', async ({ page }) => {
     await enterFromTrail(page, `?turbo=${TURBO}`);
@@ -20,12 +22,15 @@ test.describe("Meadow's Edge launch-to-outcome", () => {
     // HUD reflects Mana spent on placement (150 - 150 = 0).
     await expect(page.locator('#manaValue')).toHaveText('0');
 
+    // The optional pre-battle story is modal and can cover the Start control.
+    if (await page.locator('#storyPanel').isVisible()) await page.locator('#storySkip').click();
+
     // Start the scripted waves via the real DOM control.
     await page.click('#startBtn');
 
     // Deterministic outcome: the tutorial loadout cannot hold 42 Loggers.
-    await expect(page.locator('#outcomeTitle')).toHaveText('Defeat', { timeout: 30_000 });
-    await expect(page.locator('#outcomeOverlay')).toBeVisible();
+    await expect(page.locator('#outcomeOverlay')).toBeVisible({ timeout: 90_000 });
+    await expect(page.locator('#outcomeTitle')).toHaveText('Defeat', { timeout: 90_000 });
   });
 
   test('full fairy-ring coverage defends the Heartwood → Victory', async ({ page }) => {
@@ -37,9 +42,13 @@ test.describe("Meadow's Edge launch-to-outcome", () => {
     for (const id of ringIds) {
       await place(page, id, id.includes('onpath') ? 'thornvine-bramble' : 'sprig-sentinel');
     }
+    if (await page.locator('#storyPanel').isVisible()) await page.locator('#storySkip').click();
     await page.evaluate(() => (window as unknown as { fr: FrApi }).fr.start());
+    await expect(page.locator('#storyPanel')).toBeVisible({ timeout: 90_000 });
+    await page.locator('#storySkip').click();
 
-    await expect(page.locator('#outcomeTitle')).toHaveText('Victory', { timeout: 30_000 });
+    await expect(page.locator('#outcomeOverlay')).toBeVisible({ timeout: 90_000 });
+    await expect(page.locator('#outcomeTitle')).toHaveText('Victory', { timeout: 90_000 });
     await expect(page.locator('#heartsValue')).toContainText('♥♥♥♥♥');
   });
 });

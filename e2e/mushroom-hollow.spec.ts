@@ -24,6 +24,8 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
+test.setTimeout(120_000);
+
 test.describe('Mushroom Hollow darkness + light', () => {
   test('the level is dark and glow is observable, and a Beacon lights the trail', async ({ page }) => {
     await enterFromTrail(page, `?level=04-mushroom-hollow&god=1&turbo=${TURBO}`);
@@ -54,13 +56,19 @@ test.describe('Mushroom Hollow darkness + light', () => {
       if (id.includes('onpath')) continue;
       await place(page, id, BEACON_RINGS.has(id) ? 'firefly-beacon' : 'sprig-sentinel');
     }
+    if (await page.locator('#storyPanel').isVisible()) await page.locator('#storySkip').click();
     await page.evaluate(() => (window as unknown as { fr: FrApi }).fr.start());
 
     // Victory: the dark trail is held.
-    await expect(page.locator('#outcomeTitle')).toHaveText('Victory', { timeout: 30_000 });
+    // The post-victory story holds the outcome surface until dismissed.
+    await expect(page.locator('#storyPanel')).toBeVisible({ timeout: 90_000 });
+    await page.locator('#storySkip').click();
+    await expect(page.locator('#outcomeOverlay')).toBeVisible({ timeout: 90_000 });
+    await expect(page.locator('#outcomeTitle')).toHaveText('Victory');
 
     // Completion records the Firefly Beacon + Mushroom Shaman as earned unlocks.
-    const unlocks = await page.evaluate(() => (window as unknown as { fr: FrApi }).fr.saveState().unlocks);
-    expect(unlocks).toEqual(expect.arrayContaining(['firefly-beacon', 'mushroom-shaman']));
+    await expect.poll(async () =>
+      page.evaluate(() => (window as unknown as { fr: FrApi }).fr.saveState().unlocks),
+    ).toEqual(expect.arrayContaining(['firefly-beacon', 'mushroom-shaman']));
   });
 });

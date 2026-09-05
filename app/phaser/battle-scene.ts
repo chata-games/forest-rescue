@@ -1,13 +1,8 @@
-// Phaser 4 scene that renders the Meadow's Edge battlefield from the
-// engine-independent BattleState. All gameplay geometry (trail, fairy rings,
-// Heartwood, enemies, defenders, projectiles) is drawn programmatically with
-// Phaser Graphics — no raster art is used as gameplay geometry.
-//
-// The scene owns only rendering and ring hit-testing. Placement intent is sent
-// back to the DOM shell via the onRingClick callback; the simulation itself
-// lives in BattleState.
+// Phaser renders catalog art over compiled geometry. BattleState owns gameplay.
 
 import Phaser from 'phaser';
+import { catalog, assetUrl } from '../art';
+import { createBattlefieldRenderer } from '../../src/rendering/battlefield.js';
 import { STEP, MANA_FLOWER_HIT, FIELD_WIDTH, FIELD_HEIGHT } from '../domain/battle';
 import type { BattleState } from '../domain/battle';
 import { getDefender, getEnemy, getSpell } from '../domain/content';
@@ -38,34 +33,13 @@ const MOVE_THRESHOLD_PX = 12;
 // Minimum Mana-flower radius in CSS pixels, so every flower is a >=48x48 target.
 const MIN_FLOWER_CSS_RADIUS = MANA_FLOWER_HIT / 2;
 
-// Painterly meadow-edge palette (vector composition; generated art is a future task).
+// Control and combat cues stay independent of the painted scenery.
 const COLOR = {
-  ground: 0x1d5a40,
-  groundEdge: 0x123626,
-  trail: 0xb9824e,
-  trailEdge: 0x8a5f37,
-  ring: 0x77e0c1,
-  ringHint: 0xa7f0d6,
-  ringOccupied: 0xf7d66f,
-  heartwood: 0xf7d66f,
-  enemy: 0xe8845c,
-  enemyEdge: 0x6e2f17,
-  hp: 0x6fd49a,
-  hpLow: 0xff6f5b,
-  projectile: 0xd7ff8f,
-  bramble: 0x5bbf73,
-  invalid: 0xff6f5b,
-  inspect: 0xf7d66f,
-  selected: 0x8ef0b6,
-  flower: 0xf77fb0,
-  flowerCore: 0xffe08a,
-  spellReady: 0x8ea0ff,
-  // Darkness (Mushroom Hollow): the night veil dimming unlit ground, the warm
-  // glow that lifts it, and the Firefly Beacon's light.
-  night: 0x05060f,
-  glow: 0xbfdfff,
-  beacon: 0xfff3b0,
-  poacher: 0xc98ad0,
+  ring: 0x77e0c1, ringHint: 0xa7f0d6, ringOccupied: 0xf7d66f,
+  hp: 0x6fd49a, hpLow: 0xff6f5b, projectile: 0xd7ff8f,
+  invalid: 0xff6f5b, inspect: 0xf7d66f, selected: 0x8ef0b6,
+  flower: 0xf77fb0, flowerCore: 0xffe08a, spellReady: 0x8ea0ff,
+  night: 0x05060f, glow: 0xbfdfff,
 };
 
 /**
@@ -125,6 +99,9 @@ export class BattleScene extends Phaser.Scene {
   private terrain!: Phaser.GameObjects.Graphics;
   private dynamic!: Phaser.GameObjects.Graphics;
   private rings: Ring[] = [];
+  private night!: Phaser.GameObjects.Graphics;
+  private art = new Map<string | object, Phaser.GameObjects.Image>();
+  private visibleArt = new Set<string | object>();
 
   private accumulator = 0;
   private timeScale = 1;
@@ -139,6 +116,29 @@ export class BattleScene extends Phaser.Scene {
     super('battle');
   }
 
+  preload(): void {
+    for (const asset of catalog.assets) this.load.image(asset.id, assetUrl(asset.id));
+  }
+
+  private drawArt(id: string | object, assetId: string, x: number, y: number): void {
+    const asset = catalog.assets.find((entry) => entry.id === assetId);
+    if (!asset || !this.textures.exists(assetId)) return;
+    if (asset.shadowRadius) {
+      this.night.fillStyle(0x03110e, 0.28);
+      this.night.fillEllipse(x, y + 6, asset.shadowRadius * 2, asset.shadowRadius * 0.7);
+    }
+    this.visibleArt.add(id);
+    let sprite = this.art.get(id);
+    if (!sprite) {
+      sprite = this.add.image(x, y, assetId);
+      this.art.set(id, sprite);
+    }
+    sprite.setTexture(assetId).setPosition(x, y)
+      .setOrigin(asset.anchor[0], asset.anchor[1])
+      .setDisplaySize(asset.drawSize[0], asset.drawSize[1])
+      .setDepth(3 + y / FIELD_HEIGHT).setVisible(true);
+  }
+
   create(): void {
     const api = this.registry.get('battleApi') as BattleSceneApi | undefined;
     if (!api) throw new Error('BattleScene requires a battleApi in the game registry');
@@ -151,8 +151,9 @@ export class BattleScene extends Phaser.Scene {
     this.summary = this.registry.get('summary') as PreviewSummary | undefined;
     this.rings = [...this.battle.rings];
 
-    this.terrain = this.add.graphics();
-    this.dynamic = this.add.graphics();
+    this.terrain = this.add.graphics().setDepth(1);
+    this.night = this.add.graphics().setDepth(2);
+    this.dynamic = this.add.graphics().setDepth(5);
     this.drawTerrain();
     if (this.preview) this.drawPreviewOverlay();
 
@@ -317,41 +318,16 @@ export class BattleScene extends Phaser.Scene {
   // --- Rendering --------------------------------------------------------
 
   private drawTerrain(): void {
-    const g = this.terrain;
-    const path = this.battle.path;
-
-    // Ground.
-    g.fillStyle(COLOR.ground, 1);
-    g.fillRect(0, 0, FIELD_WIDTH, FIELD_HEIGHT);
-
-    // Trail band: two passes for an edge + fill, drawn through compiled samples.
-    const samples = path.samples;
-    if (samples.length > 1) {
-      g.lineStyle(path.width + 16, COLOR.groundEdge, 0.6);
-      this.strokeSpline(g, samples);
-      g.lineStyle(path.width, COLOR.trail, 0.9);
-      this.strokeSpline(g, samples);
-      g.lineStyle(path.width - 18, COLOR.trailEdge, 0.25);
-      this.strokeSpline(g, samples);
-    }
-
-    // Heartwood grove at the trail's end (the destination enemies reach).
-    const end = path.positionAt(path.length);
-    g.fillStyle(0x0a2a1f, 0.9);
-    g.fillCircle(end.x, end.y, 54);
-    g.lineStyle(3, COLOR.heartwood, 1);
-    g.strokeCircle(end.x, end.y, 48);
-    g.fillStyle(COLOR.heartwood, 1);
-    g.fillCircle(end.x, end.y, 14);
-
-    // Fairy rings (build spots) — drawn empty; occupancy is restroked each
-    // dynamic frame so a freshly planted Defender lights up immediately.
-    for (const ring of this.rings) {
-      g.fillStyle(0x0a2a1faa, 0.8);
-      g.fillCircle(ring.x, ring.y, ring.radius);
-      g.lineStyle(3, COLOR.ring, 0.9);
-      g.strokeCircle(ring.x, ring.y, ring.radius);
-    }
+    const images = Object.fromEntries(catalog.assets.map((asset) => [asset.id, {
+      img: this.textures.get(asset.id).getSourceImage() as HTMLImageElement,
+      ready: this.textures.exists(asset.id),
+    }]));
+    const texture = this.textures.createCanvas('battlefield-art', FIELD_WIDTH, FIELD_HEIGHT);
+    if (!texture) throw new Error('Cannot create battlefield texture');
+    createBattlefieldRenderer(this.battle.level, catalog, { images })
+      .render(texture.context, FIELD_WIDTH, FIELD_HEIGHT);
+    texture.refresh();
+    this.add.image(0, 0, 'battlefield-art').setOrigin(0).setDepth(0);
   }
 
   /**
@@ -399,6 +375,8 @@ export class BattleScene extends Phaser.Scene {
   private drawDynamic(): void {
     const g = this.dynamic;
     g.clear();
+    this.night.clear();
+    this.visibleArt.clear();
 
     // Darkness (Mushroom Hollow, issue #36 AC1): a night veil dims the ground
     // outside every glow source so the Guardian can read where light reaches.
@@ -406,7 +384,7 @@ export class BattleScene extends Phaser.Scene {
     // geometry near a ring/Beacon/landmark stays lit. Cloaked Poachers in the
     // dark are hidden entirely (they are only visible in light).
     const glow = this.battle.darkness ? this.battle.currentGlow() : null;
-    if (glow) this.drawDarkness(g, glow);
+    if (glow) this.drawDarkness(this.night, glow);
 
     // Overlay each fairy ring once: occupied rings glow gold, while empty rings
     // that accept the selected tool get a soft hint so a tap-tap player can see
@@ -445,11 +423,10 @@ export class BattleScene extends Phaser.Scene {
       const stats = getEnemy(enemy.typeId);
       // A cloaked Poacher in the dark is invisible outside the light.
       if (glow && stats?.cloaked && !inGlow(enemy.x, enemy.y, glow)) continue;
-      const r = 16;
-      g.fillStyle(stats?.cloaked ? COLOR.poacher : COLOR.enemy, 1);
-      g.fillCircle(enemy.x, enemy.y, r);
-      g.lineStyle(2, COLOR.enemyEdge, 1);
-      g.strokeCircle(enemy.x, enemy.y, r);
+      const assetId = enemy.typeId === 'the-grinder' && enemy.hp < enemy.maxHp / 2
+        ? 'the-grinder-damaged' : `${enemy.typeId}-idle`;
+      this.drawArt(enemy, assetId, enemy.x, enemy.y);
+      const r = (catalog.assets.find((a) => a.id === assetId)?.drawSize[1] ?? 40) * 0.8;
       // hp bar
       const frac = Math.max(0, enemy.hp / enemy.maxHp);
       const bw = 30;
@@ -462,31 +439,7 @@ export class BattleScene extends Phaser.Scene {
     // Defenders planted on fairy rings.
     for (const defender of this.battle.defenders) {
       if (defender.dead) continue;
-      if (defender.blocksPath) {
-        g.fillStyle(COLOR.bramble, 1);
-        for (let i = 0; i < 6; i++) {
-          const a = (i / 6) * Math.PI * 2;
-          g.fillCircle(defender.x + Math.cos(a) * 16, defender.y + Math.sin(a) * 16, 7);
-        }
-      } else if (getDefender(defender.typeId)?.glowRadius) {
-        // A Firefly Beacon: a soft luminous orb (support-only, casts no attacks).
-        const gr = getDefender(defender.typeId)!.glowRadius!;
-        g.fillStyle(COLOR.beacon, 0.08);
-        g.fillCircle(defender.x, defender.y, gr * 0.5);
-        g.fillStyle(COLOR.beacon, 0.16);
-        g.fillCircle(defender.x, defender.y, gr * 0.28);
-        g.fillStyle(COLOR.beacon, 1);
-        g.fillCircle(defender.x, defender.y, 12);
-        g.fillStyle(0xffffff, 0.9);
-        g.fillCircle(defender.x, defender.y, 5);
-      } else {
-        g.lineStyle(1, COLOR.ring, 0.18);
-        g.strokeCircle(defender.x, defender.y, defender.range);
-        g.fillStyle(COLOR.ring, 1);
-        g.fillCircle(defender.x, defender.y, 18);
-        g.fillStyle(0x0c2a1d, 1);
-        g.fillCircle(defender.x, defender.y, 8);
-      }
+      this.drawArt(`defender:${defender.ringId}`, getDefender(defender.typeId)!.sprite, defender.x, defender.y);
     }
 
     // Projectile tracers from the simulation's view list.
@@ -506,13 +459,13 @@ export class BattleScene extends Phaser.Scene {
       g.fillCircle(flower.x, flower.y, flowerR);
       g.lineStyle(3, COLOR.flower, 0.9);
       g.strokeCircle(flower.x, flower.y, flowerR);
-      g.fillStyle(COLOR.flower, 0.8);
-      for (let i = 0; i < 5; i++) {
-        const a = (i / 5) * Math.PI * 2 - Math.PI / 2;
-        g.fillCircle(flower.x + Math.cos(a) * flowerR * 0.5, flower.y + Math.sin(a) * flowerR * 0.5, flowerR * 0.4);
+      this.drawArt(`flower:${flower.id}`, 'mana-flower', flower.x, flower.y);
+    }
+    for (const [id, sprite] of this.art) {
+      if (!this.visibleArt.has(id)) {
+        sprite.destroy();
+        this.art.delete(id);
       }
-      g.fillStyle(COLOR.flowerCore, 1);
-      g.fillCircle(flower.x, flower.y, flowerR * 0.32);
     }
 
     // In-flight taps: a placement ghost, a harvest highlight, or a spell aim.
@@ -574,14 +527,6 @@ export class BattleScene extends Phaser.Scene {
       g.fillStyle(COLOR.glow, 0.08);
       g.fillCircle(s.x, s.y, s.r * 0.6);
     }
-  }
-
-  private strokeSpline(g: Phaser.GameObjects.Graphics, points: ReadonlyArray<{ x: number; y: number }>): void {
-    if (points.length < 2) return;
-    g.beginPath();
-    g.moveTo(points[0].x, points[0].y);
-    for (let i = 1; i < points.length; i++) g.lineTo(points[i].x, points[i].y);
-    g.strokePath();
   }
 
   private ringAt(wx: number, wy: number): string | null {

@@ -3,7 +3,8 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 
-const root = import.meta.dirname;
+// Serve the production Phaser build. Run `npm run build:app` first.
+const root = path.join(import.meta.dirname, 'dist', 'app');
 const port = Number(process.argv[2] || process.env.PORT || 8341);
 const types = {
   '.html': 'text/html; charset=utf-8',

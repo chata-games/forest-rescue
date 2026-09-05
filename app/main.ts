@@ -1,3 +1,4 @@
+import { defenderIcon } from './art';
 // Production entry point. The campaign starts on the Trail — a semantic DOM/CSS
 // map whose route, nodes, state, labels, and hit regions are all derived from
 // the campaign manifest (generated art supplies scenery only). Entering a level
@@ -1153,7 +1154,7 @@ function buildDefenderToolbar(defenders: AvailableItem[]): void {
     btn.className = 'tool';
     btn.dataset.defender = item.id;
     btn.setAttribute('aria-pressed', 'false');
-    btn.innerHTML = `<span class="tool__name">${item.name}</span>` +
+    btn.innerHTML = defenderIcon(item.id) + `<span class="tool__name">${item.name}</span>` +
       `<span class="tool__cost">${item.cost} mana</span>`;
     btn.addEventListener('click', () => selectDefender(item.id));
     toolbar.append(btn);
@@ -1884,7 +1885,7 @@ function renderLoadout(): void {
     btn.dataset.kind = item.kind;
     btn.dataset.id = item.id;
     btn.setAttribute('aria-pressed', String(slotted));
-    btn.innerHTML =
+    btn.innerHTML = defenderIcon(item.id) +
       `<span class="loadout__pool-name">${item.name}</span>` +
       `<span class="loadout__pool-kind">${item.kind === 'defender' ? 'Defender' : 'Spell'} · ${item.cost} mana</span>`;
     btn.addEventListener('click', () => togglePoolItem(item));

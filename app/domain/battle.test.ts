@@ -720,7 +720,7 @@ describe('wave preview (issue #32 AC1)', () => {
     expect(w3.current!.groups.map((grp) => `${grp.count}× ${grp.name}`)).toEqual(['1× Logger', '2× marker-drone']);
   });
 
-  it('flags a boss wave and falls back to the type id when the boss is uncatalogued', () => {
+  it('flags a boss wave and resolves its catalogue details', () => {
     const level = previewLevel();
     // The boss wave is wave 4; project it directly (it never needs to spawn).
     const preview = buildWavePreview({ waves: level.waves, paths: level.paths, currentWave: 4, clock: 999 });
@@ -729,8 +729,8 @@ describe('wave preview (issue #32 AC1)', () => {
     expect(preview.upcoming).toBeNull();
     const bossGroup = preview.current!.groups[0]!;
     expect(bossGroup.type).toBe('the-grinder');
-    expect(bossGroup.name).toBe('the-grinder'); // not in the catalogue -> id fallback
-    expect(bossGroup.traits).toEqual([]);
+    expect(bossGroup.name).toBe('The Grinder');
+    expect(bossGroup.traits).toContain('boss');
   });
 
   it('lists the level routes so the Guardian knows where foes will arrive', () => {
