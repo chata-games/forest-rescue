@@ -19,14 +19,18 @@ export function createBattlefieldRenderer(level, catalog, options = {}) {
   const sctx = staticCanvas.getContext("2d");
   let built = false;
 
+  function drawScene(ctx, bounds) {
+    drawGround(ctx, biome, catalog, images, bounds);
+    drawWaterMasks(ctx, level, biome);
+    drawPaths(ctx, paths, biome, images, bounds);
+    drawHeartwoodGate(ctx, catalog, images);
+    for (const lm of level.landmarks || []) drawLandmark(ctx, lm, catalog, images);
+    for (const dec of level.decorations || []) drawDecoration(ctx, dec, biome, catalog, images);
+    for (const ring of level.rings || []) drawRingSpot(ctx, ring);
+  }
+
   function buildStatic() {
-    drawGround(sctx, biome, catalog, images);
-    drawWaterMasks(sctx, level, biome);
-    drawPaths(sctx, paths, biome, images);
-    drawHeartwoodGate(sctx, catalog, images);
-    for (const lm of level.landmarks || []) drawLandmark(sctx, lm, catalog, images);
-    for (const dec of level.decorations || []) drawDecoration(sctx, dec, biome, catalog, images);
-    for (const ring of level.rings || []) drawRingSpot(sctx, ring);
+    drawScene(sctx);
     built = true;
   }
 
@@ -55,28 +59,42 @@ export function createBattlefieldRenderer(level, catalog, options = {}) {
     return { x: ox + x * scale, y: oy + y * scale, scale };
   }
 
-  return { render, worldToScreen, rebuild: () => { built = false; } };
+  // Paint the visible world, including the forest outside the compiled field.
+  // Geometry stays in world coordinates; only the camera changes with the page.
+  function renderRegion(ctx, viewW, viewH, bounds) {
+    ctx.save();
+    ctx.scale(viewW / bounds.width, viewH / bounds.height);
+    ctx.translate(-bounds.x, -bounds.y);
+    drawScene(ctx, bounds);
+    ctx.restore();
+  }
+
+  return { render, renderRegion, worldToScreen, rebuild: () => { built = false; } };
 }
 
-function drawGround(ctx, biome, catalog, images) {
+function drawGround(ctx, biome, catalog, images, bounds = { x: 0, y: 0, width: WORLD_W, height: WORLD_H }) {
   const grassId = biome.grassMaterial || "material-grass";
   const grass = images[grassId] || images["material-grass"];
   if (grass?.ready) {
     const asset = catalogAsset(catalog, grassId) || catalogAsset(catalog, "material-grass");
     if (asset?.renderMode === "cover") {
-      ctx.drawImage(grass.img, 0, 0, WORLD_W, WORLD_H);
+      for (let y = Math.floor(bounds.y / WORLD_H) * WORLD_H; y < bounds.y + bounds.height; y += WORLD_H) {
+        for (let x = Math.floor(bounds.x / WORLD_W) * WORLD_W; x < bounds.x + bounds.width; x += WORLD_W) {
+          ctx.drawImage(grass.img, x, y, WORLD_W, WORLD_H);
+        }
+      }
     } else {
       ctx.fillStyle = ctx.createPattern(grass.img, "repeat");
-      ctx.fillRect(0, 0, WORLD_W, WORLD_H);
+      ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
     }
     if (biome.darkness) {
       ctx.fillStyle = "rgba(8,12,28,0.35)";
-      ctx.fillRect(0, 0, WORLD_W, WORLD_H);
+      ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
     }
     return;
   }
   ctx.fillStyle = biome.baseColor;
-  ctx.fillRect(0, 0, WORLD_W, WORLD_H);
+  ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
   drawNoise(ctx, biome);
 }
 
@@ -101,18 +119,19 @@ function drawWaterMasks(ctx, level, biome) {
   }
 }
 
-function drawPaths(ctx, paths, biome, images) {
+function drawPaths(ctx, paths, biome, images, bounds) {
   const interior = images["material-path-interior"];
   const fill = interior?.ready
     ? ctx.createPattern(interior.img, "repeat")
     : biome.pathColor;
   // Draw the combined border first, then cover every internal edge with sand.
   // All interiors share world coordinates so the texture continues across joins.
-  for (const path of paths) drawPathStroke(ctx, path, biome.pathEdgeColor, 16);
-  for (const path of paths) drawPathStroke(ctx, path, fill, 0);
+  const extension = bounds ? Math.hypot(bounds.width, bounds.height) + Math.hypot(WORLD_W, WORLD_H) : undefined;
+  for (const path of paths) drawPathStroke(ctx, path, biome.pathEdgeColor, 16, extension);
+  for (const path of paths) drawPathStroke(ctx, path, fill, 0, extension);
 }
 
-function drawPathStroke(ctx, path, color, extraWidth) {
+function drawPathStroke(ctx, path, color, extraWidth, extent) {
   if (path.samples.length < 2) return;
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
@@ -124,7 +143,7 @@ function drawPathStroke(ctx, path, color, extraWidth) {
   const dx = first.x - next.x;
   const dy = first.y - next.y;
   const length = Math.hypot(dx, dy) || 1;
-  const extension = Math.hypot(WORLD_W, WORLD_H) + path.width;
+  const extension = extent ?? Math.hypot(WORLD_W, WORLD_H) + path.width;
   ctx.moveTo(first.x + dx / length * extension, first.y + dy / length * extension);
   ctx.lineTo(first.x, first.y);
   for (let i = 1; i < path.samples.length; i++) ctx.lineTo(path.samples[i].x, path.samples[i].y);

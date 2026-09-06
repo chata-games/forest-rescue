@@ -16,7 +16,7 @@ import { TURBO, enterFromTrail, type FrApi } from './helpers';
 // ones that need the tip re-enter the level (a confirmed restart) to see it.
 
 async function enterBattle(page: Page, search: string): Promise<void> {
-  await enterFromTrail(page, search);
+  await enterFromTrail(page, `${search}&level=01-meadows-edge`);
   if (await page.locator('#storyPanel').isVisible()) {
     await page.click('#storySkip');
     await expect(page.locator('#storyPanel')).toBeHidden();
@@ -56,7 +56,7 @@ test.describe('Responsive and accessible battle shell (issue #24)', () => {
     await page.click('#portraitAdviceKeep');
 
     const sizes = await page.locator('#battleRoot .hud button').evaluateAll((els) =>
-      els.map((e) => ({ w: (e as HTMLElement).offsetWidth, h: (e as HTMLElement).offsetHeight })),
+      els.filter((e) => (e as HTMLElement).offsetWidth > 0).map((e) => ({ w: (e as HTMLElement).offsetWidth, h: (e as HTMLElement).offsetHeight })),
     );
     expect(sizes.length).toBeGreaterThan(0);
     for (const s of sizes) {
@@ -120,8 +120,8 @@ test.describe('Responsive and accessible battle shell (issue #24)', () => {
     await expect(page.locator('#pauseOverlay')).toBeHidden();
   });
 
-  test('desktop keeps the Preferred layout and the Layout toggle reflows it (desktop/AC1)', async ({ page }) => {
-    await enterBattle(page, `?god=1&turbo=${TURBO}`);
+  test('author preview keeps the Preferred layout and the Layout toggle reflows it (desktop/AC1)', async ({ page }) => {
+    await enterBattle(page, `?preview=1&god=1&turbo=${TURBO}`);
     await expect(page.locator('body')).toHaveAttribute('data-layout', 'landscape');
     // The Layout button forces the Compact portrait layout on a wide desktop.
     await page.click('#layoutBtn');
@@ -161,13 +161,15 @@ test.describe('Responsive and accessible battle shell (issue #24)', () => {
     const rings = await page.evaluate(() => (window as unknown as { fr: FrApi }).fr.ringCenters());
     const box = await page.locator('#game-root canvas').boundingBox();
     expect(box).not.toBeNull();
-    // World (1536x1024) → canvas layout: FIT keeps the aspect, and the rotated
-    // canvas's screen height is its layout width. Layout → screen: the frame's top
-    // edge runs along the screen's right edge.
-    const scale = box!.height / 1536;
+    const camera = await page.evaluate(() => (window as unknown as { fr: FrApi }).fr.battleViewport());
+    // Camera world -> frame; Sideways frame -> visible screen.
     const points = rings
       .filter((r) => !r.id.includes('onpath'))
-      .map((r) => ({ id: r.id, sx: box!.x + (box!.width - r.y * scale), sy: box!.y + r.x * scale }));
+      .map((r) => ({
+        id: r.id,
+        sx: box!.x + box!.width - (r.y * camera.zoom + camera.offsetY),
+        sy: box!.y + r.x * camera.zoom + camera.offsetX,
+      }));
     const target = await page.evaluate(
       (pts) => pts.find((p) => document.elementFromPoint(p.sx, p.sy)?.tagName === 'CANVAS') ?? null,
       points,

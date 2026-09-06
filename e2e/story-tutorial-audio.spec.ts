@@ -10,7 +10,6 @@ import { TURBO, enterFromTrail, place, fr, type FrApi } from './helpers';
 // and independent audio controls (AC4) — through the rendered DOM and the
 // window.fr story/tutorial/audio debug seam (AC6).
 
-const FR = (): FrApi => (window as unknown as { fr: FrApi }).fr;
 
 test.describe('Optional story, tutorials, and audio controls (issue #33)', () => {
   test('the map→story→tutorial→battle→post-level flow is skippable end to end (AC1/AC2/AC5)', async ({ page }) => {
@@ -18,24 +17,24 @@ test.describe('Optional story, tutorials, and audio controls (issue #33)', () =>
 
     // AC1: the pre-battle story beat appears on entry, readable and skippable.
     await expect(page.locator('#storyPanel')).toBeVisible();
-    const pre = await page.evaluate(() => FR().storyFor('01-meadows-edge', 'pre'));
+    const pre = await page.evaluate(() => (window as unknown as { fr: FrApi }).fr.storyFor('01-meadows-edge', 'pre'));
     expect(pre).not.toBeNull();
     await expect(page.locator('#storyTitle')).toHaveText(pre!.title);
     // Skip dismisses it without reading further.
     await page.click('#storySkip');
     await expect(page.locator('#storyPanel')).toBeHidden();
     // …and it won't auto-repeat this session.
-    expect(await page.evaluate(() => FR().storySeen()['01-meadows-edge:pre'])).toBe(true);
+    expect(await page.evaluate(() => (window as unknown as { fr: FrApi }).fr.storySeen()['01-meadows-edge:pre'])).toBe(true);
 
     // AC2: a tutorial tip teaches one concept, in the planning phase only.
-    const steps = await page.evaluate(() => FR().tutorialSteps());
+    const steps = await page.evaluate(() => (window as unknown as { fr: FrApi }).fr.tutorialSteps());
     expect(steps.length).toBeGreaterThan(0);
     await expect(page.locator('#tutorialHint')).toBeVisible();
     await expect(page.locator('#tutorialAdvance')).toBeVisible();
     // "Skip tutorials" dismisses every remaining concept for the level.
     await page.click('#tutorialSkip');
     await expect(page.locator('#tutorialHint')).toBeHidden();
-    expect(await page.evaluate(() => FR().tutorialDismissed()['placement'])).toBe(true);
+    expect(await page.evaluate(() => (window as unknown as { fr: FrApi }).fr.tutorialDismissed()['placement'])).toBe(true);
   });
 
   test('a tutorial never overlays active defense — it hides once the wave starts (AC2)', async ({ page }) => {
@@ -45,9 +44,9 @@ test.describe('Optional story, tutorials, and audio controls (issue #33)', () =>
     await expect(page.locator('#tutorialHint')).toBeVisible();
 
     // Plant + start the wave. The moment the battle is running, the tip is gone.
-    const ringIds = await page.evaluate(() => FR().ringIds());
+    const ringIds = await page.evaluate(() => (window as unknown as { fr: FrApi }).fr.ringIds());
     for (const id of ringIds) await place(page, id, id.includes('onpath') ? 'thornvine-bramble' : 'sprig-sentinel');
-    await page.evaluate(() => FR().start());
+    await page.evaluate(() => (window as unknown as { fr: FrApi }).fr.start());
     await expect(page.locator('#tutorialHint')).toBeHidden();
   });
 
@@ -55,13 +54,13 @@ test.describe('Optional story, tutorials, and audio controls (issue #33)', () =>
     await enterFromTrail(page, `?level=01-meadows-edge&god=1&turbo=${TURBO}`);
     await page.click('#storySkip');
 
-    const ringIds = await page.evaluate(() => FR().ringIds());
+    const ringIds = await page.evaluate(() => (window as unknown as { fr: FrApi }).fr.ringIds());
     for (const id of ringIds) await place(page, id, id.includes('onpath') ? 'thornvine-bramble' : 'sprig-sentinel');
-    await page.evaluate(() => FR().start());
+    await page.evaluate(() => (window as unknown as { fr: FrApi }).fr.start());
 
     // The post-level story beat appears on victory, holding the outcome underneath.
     await expect(page.locator('#storyPanel')).toBeVisible();
-    const post = await page.evaluate(() => FR().storyFor('01-meadows-edge', 'post'));
+    const post = await page.evaluate(() => (window as unknown as { fr: FrApi }).fr.storyFor('01-meadows-edge', 'post'));
     expect(post).not.toBeNull();
     await expect(page.locator('#storyTitle')).toHaveText(post!.title);
     // The outcome overlay waits while the post beat is up.
@@ -89,7 +88,7 @@ test.describe('Optional story, tutorials, and audio controls (issue #33)', () =>
     await expect(page.locator('#trailDetail')).toBeHidden();
     await expect(page.locator('#storyPanel')).toBeVisible();
     await expect(page.locator('#storyTitle')).toHaveText(
-      (await page.evaluate(() => FR().storyFor('01-meadows-edge', 'pre')!))!.title,
+      (await page.evaluate(() => (window as unknown as { fr: FrApi }).fr.storyFor('01-meadows-edge', 'pre')!))!.title,
     );
     // Replay walks pre → post (this level is not yet cleared, so only pre shows);
     // continuing closes it and returns focus to the level's node.
@@ -125,9 +124,9 @@ test.describe('Optional story, tutorials, and audio controls (issue #33)', () =>
     }
 
     // Muting music silences music but leaves effects audible (independence).
-    await page.evaluate(() => FR().audioMute('music'));
-    expect(await page.evaluate(() => FR().audioEffective('music'))).toBe(0);
-    expect(await page.evaluate(() => FR().audioEffective('effects'))).toBeGreaterThan(0);
+    await page.evaluate(() => (window as unknown as { fr: FrApi }).fr.audioMute('music'));
+    expect(await page.evaluate(() => (window as unknown as { fr: FrApi }).fr.audioEffective('music'))).toBe(0);
+    expect(await page.evaluate(() => (window as unknown as { fr: FrApi }).fr.audioEffective('effects'))).toBeGreaterThan(0);
     // The mute state is reflected on the control (shape, not colour alone).
     await expect(page.locator('.audio__channel[data-channel="music"] .audio__mute')).toHaveAttribute(
       'aria-pressed',
@@ -135,8 +134,8 @@ test.describe('Optional story, tutorials, and audio controls (issue #33)', () =>
     );
 
     // Set a distinct effects level; it does not change music's stored level.
-    await page.evaluate(() => FR().audioSet('effects', 0.3));
-    const settings = await page.evaluate(() => FR().audioSettings());
+    await page.evaluate(() => (window as unknown as { fr: FrApi }).fr.audioSet('effects', 0.3));
+    const settings = await page.evaluate(() => (window as unknown as { fr: FrApi }).fr.audioSettings());
     expect(settings.effects).toBeCloseTo(0.3, 5);
     expect(settings.music).toBe(0);
 
@@ -146,7 +145,7 @@ test.describe('Optional story, tutorials, and audio controls (issue #33)', () =>
     // Preferences persist across reload (localStorage-backed).
     await page.reload();
     await fr(page);
-    const reloaded = await page.evaluate(() => FR().audioSettings());
+    const reloaded = await page.evaluate(() => (window as unknown as { fr: FrApi }).fr.audioSettings());
     expect(reloaded.effects).toBeCloseTo(0.3, 5);
     expect(reloaded.music).toBe(0);
   });

@@ -5,4 +5,12 @@ export function createBattlefieldRenderer(
   level: CompiledLevel,
   assets: typeof catalog,
   options: { images: Record<string, { img: CanvasImageSource; ready: boolean }> },
-): { render(ctx: CanvasRenderingContext2D, width: number, height: number): unknown };
+): {
+  render(ctx: CanvasRenderingContext2D, width: number, height: number): unknown;
+  renderRegion(
+    ctx: CanvasRenderingContext2D,
+    width: number,
+    height: number,
+    bounds: { x: number; y: number; width: number; height: number },
+  ): void;
+};

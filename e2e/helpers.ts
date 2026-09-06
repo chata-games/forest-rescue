@@ -49,6 +49,7 @@ export interface FrApi {
   ringIds(): string[];
   ringCenters(): { id: string; x: number; y: number }[];
   // Sideways seam (RP-eqbawv): rotated-frame state + toggle.
+  battleViewport(): { zoom: number; offsetX: number; offsetY: number; width: number; height: number };
   sideways(): boolean;
   setSideways(on: boolean): void;
   // Darkness / light seam (issue #36 AC6): the level's darkness flag + live glow.

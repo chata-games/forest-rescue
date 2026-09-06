@@ -90,134 +90,6 @@ body[data-sideways="true"] .sheet {
   transform: rotate(90deg) translateY(-100%);
 }
 
-/* --- Short landscape frame (RP-eqbawv) ---
-   A phone held sideways (or the Sideways frame, which is only as tall as the
-   phone is wide) is about 320-430px tall, and height is the scarce axis: the
-   battlefield is a 3:2 world under FIT scaling, so every row above or below it
-   costs 1.5x that in width. The shell marks such frames body[data-frame="short"]
-   and the layout hands the stage the FULL frame height: the HUD, Defender tools,
-   spells, and start row all move into a right-hand rail. The stage column is
-   sized to the canvas the FIT scaler will produce — 1.5x the frame height,
-   capped so the rail keeps 240px (room for two tools side by side) — and the
-   rail absorbs whatever width is left, so no letterbox band is wasted beside the
-   canvas. Controls keep their 48px targets; the author-only level picker, the
-   Layout button (also in pause Settings), and the title (already the overlay
-   heading) go. Safe-area padding keeps the rail and the Heart tree out from
-   under a notch. */
-body[data-frame="short"][data-layout="landscape"] .app-root {
-  padding-left: env(safe-area-inset-left);
-  padding-right: env(safe-area-inset-right);
-  grid-template-columns: min(150dvh, calc(100% - 240px)) minmax(240px, 1fr);
-  grid-template-rows: auto minmax(0, 1fr) auto auto;
-  grid-template-areas:
-    "stage hud"
-    "stage tools"
-    "stage spells"
-    "stage start";
-}
-/* The Sideways frame is laid out viewport-height wide and viewport-width tall. */
-body[data-sideways="true"][data-frame="short"][data-layout="landscape"] .app-root {
-  grid-template-columns: min(150vw, calc(100% - 240px)) minmax(240px, 1fr);
-}
-body[data-frame="short"][data-layout="landscape"] .hud {
-  grid-area: hud;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding: 8px;
-  border-bottom: 0;
-  border-left: 1px solid #1d5a4055;
-}
-body[data-frame="short"][data-layout="landscape"] .hud__title,
-body[data-frame="short"][data-layout="landscape"] .hud__picker,
-body[data-frame="short"][data-layout="landscape"] #layoutBtn {
-  display: none;
-}
-body[data-frame="short"][data-layout="landscape"] .hud__badge {
-  margin-right: 0;
-}
-body[data-frame="short"][data-layout="landscape"] .hud__stat {
-  flex: 1 1 auto;
-  flex-direction: row;
-  align-items: baseline;
-  gap: 6px;
-  padding: 4px 8px;
-  min-width: 0;
-}
-body[data-frame="short"][data-layout="landscape"] .hud .hud__btn {
-  flex: 1 1 40%;
-  order: 2;
-  padding: 6px 10px;
-}
-/* A zero-height full-width item between the stats and the buttons: the stats
-   pack their own rows and Pause + Audio always share one below them. */
-body[data-frame="short"][data-layout="landscape"] .hud::after {
-  content: "";
-  flex-basis: 100%;
-  height: 0;
-  order: 1;
-  margin-top: -6px;
-}
-body[data-frame="short"][data-layout="landscape"] .stage-wrap {
-  grid-area: stage;
-}
-body[data-frame="short"][data-layout="landscape"] .toolbar {
-  grid-area: tools;
-  flex-wrap: wrap;
-  align-items: stretch;
-  align-content: flex-start;
-  justify-content: flex-start;
-  overflow-y: auto;
-  min-height: 0;
-  padding: 8px;
-  border-top: 0;
-  border-left: 1px solid #1d5a4055;
-}
-body[data-frame="short"][data-layout="landscape"] .tool {
-  flex: 1 1 100px;
-  min-width: 0;
-}
-body[data-frame="short"][data-layout="landscape"] .spellbar {
-  grid-area: spells;
-  justify-content: flex-start;
-  padding: 6px 8px;
-  border-left: 1px solid #1d5a4055;
-}
-body[data-frame="short"][data-layout="landscape"] .spell {
-  flex: 1 1 100px;
-  min-width: 0;
-}
-body[data-frame="short"][data-layout="landscape"] .start-row {
-  grid-area: start;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding: 8px;
-  border-left: 1px solid #1d5a4055;
-}
-body[data-frame="short"][data-layout="landscape"] .start-row .primary-btn {
-  flex: 1 1 100px;
-  padding: 12px 10px;
-}
-body[data-frame="short"][data-layout="landscape"] .start-row .hud__btn {
-  flex: 1 1 auto;
-  padding: 6px 10px;
-}
-/* No blank line reserved for an absent hint: the rail's height is precious. */
-body[data-frame="short"][data-layout="landscape"] .hint:empty {
-  display: none;
-}
-/* Modal panels (pause menu, outcome, story, audio) can be taller than a short
-   frame: anchor them to the top and let the surface scroll instead of clipping
-   the actions at both ends. */
-body[data-frame="short"] .overlay,
-body[data-frame="short"] .sheet {
-  align-items: start;
-  overflow-y: auto;
-  padding: 8px 0;
-}
-body[data-frame="short"] .overlay__panel {
-  margin: auto 0;
-}
-
 /* Author layout simulation: force a phone aspect so the FIT-scaled battlefield
    demonstrates the Compact portrait (or Preferred landscape) presentation on a
    desktop without resizing the window. */
@@ -791,25 +663,6 @@ body[data-layout="portrait"] .preview {
 
 body.force-portrait .preview {
   display: none;
-}
-
-/* Portrait reflow (issue #24 AC1): the FIT-scaled battlefield shrinks uniformly
-   to fit the taller viewport, while the HUD reflows to full-size controls — they
-   keep their 48px targets, just wrap. Keyed off the effective layout so the
-   `?layout=portrait` override and a real portrait device behave identically. */
-body[data-layout="portrait"] .hud {
-  flex-wrap: wrap;
-  gap: 6px;
-}
-body[data-layout="portrait"] .hud__title {
-  width: 100%;
-  margin-right: 0;
-}
-body[data-layout="portrait"] .stage canvas {
-  /* The complete battlefield scales to the available width; the FIT scaler keeps
-     it whole rather than cropping. */
-  width: 100%;
-  height: auto;
 }
 
 /* --- Trail campaign map --- */
@@ -1787,3 +1640,249 @@ body[data-layout="portrait"] .tutorial {
 }
 
 .defender-art { width: 48px; height: 48px; object-fit: contain; float: left; margin-right: 8px; pointer-events: none; }
+
+
+/* Battle controls sit above a canvas that fills the visible browser area. */
+.app-root {
+  --battle-edge: 12px;
+  position: relative;
+  display: block;
+  width: var(--visible-width, 100vw);
+  height: var(--visible-height, 100dvh);
+  overflow: hidden;
+  font-family: Georgia, "Times New Roman", serif;
+  color: #fff0c7;
+}
+body[data-sideways="true"] .app-root,
+body[data-sideways="true"] .sheet {
+  width: var(--visible-height, 100dvh);
+  height: var(--visible-width, 100vw);
+}
+.app-root .stage-wrap { position: absolute; inset: 0; display: block; }
+.app-root .stage {
+  position: absolute;
+  inset: 0;
+  --battle-map-top: 76px;
+  --battle-map-bottom: 124px;
+  --battle-map-left: max(12px, env(safe-area-inset-left));
+  --battle-map-right: max(12px, env(safe-area-inset-right));
+}
+.app-root .stage canvas { border-radius: 0; box-shadow: none; }
+.app-root .hud {
+  position: absolute;
+  top: max(var(--battle-edge), env(safe-area-inset-top));
+  left: max(var(--battle-edge), env(safe-area-inset-left));
+  right: max(var(--battle-edge), env(safe-area-inset-right));
+  padding: 0;
+  gap: 8px;
+  background: none;
+  border: 0;
+  pointer-events: none;
+}
+.app-root .hud > * { pointer-events: auto; }
+.app-root .hud__title {
+  margin-right: auto;
+  padding: 12px 20px;
+  color: #f3dc99;
+  font-size: clamp(14px, 1.5vw, 22px);
+  font-weight: 400;
+  text-shadow: 0 2px 3px #000;
+}
+.app-root .hud__title,
+.app-root .hud__stat,
+.app-root .hud__btn,
+.app-root .context-panel,
+.app-root #wavePreview,
+.app-root .tutorial,
+.app-root .overlay__panel,
+.sheet__panel {
+  border: 1px solid #ad8747;
+  border-radius: 9px;
+  background: #172019 url("../assets/ui/battle-panel.png") center / 100% 100% no-repeat;
+  box-shadow: 0 3px 12px #0008, inset 0 0 0 1px #d0b46733;
+  color: #fff0c7;
+}
+.app-root .hud__stat { min-width: 68px; padding: 9px 14px; gap: 3px; }
+.app-root .hud__label { color: #d0bf93; font-size: 9px; }
+.app-root #manaValue { color: #7eeaf1; }
+.app-root .hud__btn { min-width: 48px; min-height: 48px; font-family: inherit; }
+.app-root .primary-btn {
+  background: #d3a641 url("../assets/ui/battle-action.png") center / 100% 100% no-repeat;
+  border: 1px solid #edce76;
+  border-radius: 9px;
+  color: #251c0d;
+  font-family: inherit;
+  text-shadow: 0 1px #fff1b1;
+  box-shadow: 0 3px 10px #0008;
+}
+.app-root .battle-deck {
+  position: absolute;
+  z-index: 4;
+  bottom: max(var(--battle-edge), env(safe-area-inset-bottom));
+  left: max(var(--battle-edge), env(safe-area-inset-left));
+  max-width: calc(100% - 240px);
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: #ab8747 #12251b;
+}
+.app-root .toolbar,
+.app-root .spellbar { flex-wrap: nowrap; padding: 0; border: 0; background: none; gap: 6px; overflow: visible; }
+.app-root .tool,
+.app-root .spell {
+  flex: 0 0 92px;
+  width: 92px;
+  min-width: 92px;
+  height: 104px;
+  padding: 8px;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border: 1px solid #b18e4e;
+  border-radius: 8px;
+  background: #13231d url("../assets/ui/loadout-card.png") center / 100% 100% no-repeat;
+  font-family: inherit;
+  text-align: center;
+  text-shadow: 0 1px 3px #000;
+}
+.app-root .tool .defender-art { width: 40px; height: 40px; float: none; margin: 0; }
+.app-root .tool__name, .app-root .spell__name { font-size: 12px; line-height: 1.1; font-weight: 400; }
+.app-root .tool__cost, .app-root .spell__cost { font-size: 11px; color: #80e6ee; }
+.app-root .spell__state { font-size: 10px; }
+.app-root .tool[aria-pressed="true"], .app-root .spell[aria-pressed="true"] { border-color: #9af8ef; box-shadow: 0 0 0 2px #5bdcd6, inset 0 0 18px #2ad6c444; }
+.app-root .start-row {
+  position: absolute;
+  right: max(var(--battle-edge), env(safe-area-inset-right));
+  bottom: max(var(--battle-edge), env(safe-area-inset-bottom));
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  width: 200px;
+  padding: 0;
+  border: 0;
+  gap: 6px;
+  background: none;
+}
+.app-root #startBtn { grid-column: 1 / -1; min-height: 54px; padding: 8px 12px; font-size: 17px; }
+.app-root .hint { position: absolute; right: 0; bottom: calc(100% + 8px); width: 220px; padding: 5px 8px; background: #10251be8; border-radius: 6px; font: 12px/1.3 system-ui, sans-serif; pointer-events: none; }
+.app-root .hint:empty { display: none; }
+.app-root #wavePreview { top: 76px; left: max(var(--battle-edge), env(safe-area-inset-left)); width: 224px; padding: 0; max-height: calc(100% - 205px); overflow-y: auto; }
+.app-root .wave-preview__title { margin: 0; min-height: 48px; padding: 15px 14px; cursor: pointer; font-size: 12px; color: #f1d991; }
+.app-root .wave-preview__title span { float: right; }
+.app-root .wave-preview__body { padding: 0 8px 8px; font-family: system-ui, sans-serif; }
+.app-root .context-panel { top: 76px; right: max(var(--battle-edge), env(safe-area-inset-right)); width: 280px; max-height: calc(100% - 205px); overflow-y: auto; padding: 8px 12px; font-family: system-ui, sans-serif; font-size: 12px; }
+.app-root .context-panel__title { font-family: Georgia, serif; color: #f1d991; }
+.app-root .context-panel__stats { gap: 3px 12px; }
+.app-root .context-panel__block { margin-bottom: 5px; }
+.app-root .context-panel__action { min-height: 48px; border-color: #ad874777; }
+.app-root .tutorial { top: 76px; bottom: auto; right: max(var(--battle-edge), env(safe-area-inset-right)); width: 300px; max-height: calc(100% - 205px); overflow-y: auto; font-family: system-ui, sans-serif; }
+.app-root .tutorial__title { color: #f1d991; font-family: Georgia, serif; }
+.app-root .tutorial__close { min-width: 48px; min-height: 48px; }
+.app-root .tutorial__body { font-size: 12px; }
+.app-root .overlay { padding: 12px; overflow: auto; }
+.app-root .overlay__panel { max-width: min(520px, 100%); max-height: 100%; overflow: auto; padding: 20px; }
+.sheet__panel { max-height: calc(var(--visible-height, 100dvh) - 24px); font-family: Georgia, serif; }
+.sheet__title { color: #f1d991; }
+.app-root .preview { position: absolute; top: 76px; right: 12px; width: 300px; max-height: calc(100% - 205px); z-index: 5; }
+body[data-frame="short"] .app-root { --battle-edge: 6px; }
+body[data-frame="short"] .app-root .stage { --battle-map-top: 60px; --battle-map-bottom: 90px; }
+body[data-frame="short"] .app-root .hud { gap: 5px; }
+body[data-frame="short"] .app-root .hud__title { padding: 10px; font-size: 13px; }
+body[data-frame="short"] .app-root .hud__stat { padding: 6px 10px; min-width: 56px; }
+body[data-frame="short"] .app-root .hud__picker { display: none; }
+body[data-frame="short"] .app-root .tool,
+body[data-frame="short"] .app-root .spell { width: 78px; min-width: 78px; flex-basis: 78px; height: 76px; padding: 5px; }
+body[data-frame="short"] .app-root .tool .defender-art { width: 27px; height: 27px; }
+body[data-frame="short"] .app-root .tool__name,
+body[data-frame="short"] .app-root .spell__name { font-size: 10px; }
+body[data-frame="short"] .app-root .battle-deck { max-width: calc(100% - 246px); }
+body[data-frame="short"] .app-root .start-row { width: 224px; grid-template-columns: 1fr 48px 48px; }
+body[data-frame="short"] .app-root #startBtn { grid-column: auto; min-height: 54px; font-size: 14px; }
+body[data-frame="short"] .app-root .start-row .hud__btn { padding: 6px; font-size: 12px; }
+body[data-frame="short"] .app-root #wavePreview,
+:is(body[data-frame="short"], body[data-layout="portrait"]) .app-root .context-panel,
+body[data-frame="short"] .app-root .tutorial { top: 62px; max-height: calc(100% - 150px); }
+body[data-frame="short"] .app-root #wavePreview { width: 182px; }
+:is(body[data-frame="short"], body[data-layout="portrait"]) .app-root .context-panel { width: 264px; }
+body[data-frame="short"] .sheet__panel { max-height: calc(var(--visible-height, 100dvh) - 16px); padding: 16px 24px; }
+body[data-sideways="true"] .sheet__panel { max-height: calc(var(--visible-width, 100vw) - 16px); }
+body[data-layout="portrait"] .app-root .hud { flex-wrap: wrap; gap: 5px; }
+body[data-layout="portrait"] .app-root .hud__title { width: auto; flex: 1 1 100%; margin: 0; padding: 9px 14px; font-size: 16px; }
+body[data-layout="portrait"] .app-root .hud__picker,
+body[data-layout="portrait"] .app-root #layoutBtn { display: none; }
+body[data-layout="portrait"] .app-root .hud__stat { flex: 1; min-width: 0; padding: 6px 9px; }
+body[data-layout="portrait"] .app-root .hud__btn { padding: 6px 9px; }
+body[data-layout="portrait"] .app-root .stage { --battle-map-top: 116px; --battle-map-bottom: 190px; }
+body[data-layout="portrait"] .app-root .battle-deck { right: max(var(--battle-edge), env(safe-area-inset-right)); max-width: none; bottom: max(80px, calc(env(safe-area-inset-bottom) + 68px)); }
+body[data-layout="portrait"] .app-root .tool,
+body[data-layout="portrait"] .app-root .spell { width: 82px; min-width: 82px; flex-basis: 82px; height: 94px; }
+body[data-layout="portrait"] .app-root .start-row { width: auto; left: max(var(--battle-edge), env(safe-area-inset-left)); grid-template-columns: 1fr 64px 64px; }
+body[data-layout="portrait"] .app-root #startBtn { grid-column: auto; }
+body[data-layout="portrait"] .app-root .hint { width: 100%; bottom: 170px; }
+body[data-layout="portrait"] .app-root #wavePreview { top: 116px; width: 190px; max-height: calc(100% - 315px); }
+body[data-layout="portrait"] .app-root .tutorial,
+body[data-layout="portrait"] .app-root .context-panel { top: 170px; width: min(300px, calc(100% - 24px)); max-height: calc(100% - 366px); }
+
+.app-root,
+body[data-sideways="true"] .app-root,
+body[data-sideways="true"] .sheet {
+  top: var(--visible-top, 0px);
+  left: var(--visible-left, 0px);
+}
+/* The author can leave a forced layout through the same preview control. */
+@media (min-width: 700px) {
+  body.force-portrait .app-root #layoutBtn { display: block; }
+}
+
+.context-panel__more > summary { min-height: 48px; padding: 14px 8px; cursor: pointer; color: #edd293; }
+body[data-frame="short"] .app-root .hud__title,
+body[data-frame="short"] .app-root #layoutBtn,
+body[data-frame="short"] .app-root #audioBtn { display: none; }
+body[data-frame="short"] .app-root .hud { justify-content: flex-end; }
+body[data-frame="short"] .app-root .stage { --battle-map-top: 56px; --battle-map-bottom: 74px; }
+body[data-frame="short"] .app-root .tool,
+body[data-frame="short"] .app-root .spell { width: 64px; min-width: 64px; flex-basis: 64px; height: 64px; padding: 4px; }
+body[data-frame="short"] .app-root .tool .defender-art { width: 23px; height: 23px; }
+body[data-frame="short"] .app-root .tool__name,
+body[data-frame="short"] .app-root .spell__name { font-size: 9px; }
+body[data-frame="short"] .app-root .tool__cost,
+body[data-frame="short"] .app-root .spell__cost { font-size: 10px; }
+:is(body[data-frame="short"], body[data-layout="portrait"]) .app-root .context-panel { width: min(480px, calc(100% - 24px)); right: 12px; padding: 4px 10px; max-height: calc(100% - 138px); }
+:is(body[data-frame="short"], body[data-layout="portrait"]) .app-root .context-panel__title { max-width: calc(100% - 115px); }
+:is(body[data-frame="short"], body[data-layout="portrait"]) .app-root .context-panel__more > summary { position: absolute; right: 56px; top: 4px; }
+:is(body[data-frame="short"], body[data-layout="portrait"]) .app-root .context-panel__commands { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+:is(body[data-frame="short"], body[data-layout="portrait"]) .app-root .context-panel__line { font-size: 11px; }
+:is(body[data-frame="short"], body[data-layout="portrait"]) .app-root .context-panel__block { display: flex; flex-direction: column; justify-content: flex-end; }
+
+body:not([data-author-preview="true"]) .app-root .hud__picker,
+body:not([data-author-preview="true"]) .app-root #layoutBtn { display: none; }
+
+/* In a short frame the closed inspector is a two-row action strip. */
+:is(body[data-frame="short"], body[data-layout="portrait"]) .app-root .context-panel {
+  width: min(350px, calc(100% - 24px));
+  padding: 3px 8px;
+}
+:is(body[data-frame="short"], body[data-layout="portrait"]) .app-root .context-panel__head { min-height: 48px; align-items: center; }
+:is(body[data-frame="short"], body[data-layout="portrait"]) .app-root .context-panel__title { font-size: 14px; }
+:is(body[data-frame="short"], body[data-layout="portrait"]) .app-root .context-panel__block { margin: 0; }
+:is(body[data-frame="short"], body[data-layout="portrait"]) .app-root .context-panel__commands { gap: 6px; }
+:is(body[data-frame="short"], body[data-layout="portrait"]) .app-root .context-panel__action { padding: 6px; }
+:is(body[data-frame="short"], body[data-layout="portrait"]) .app-root .context-panel__more[open] { padding-bottom: 6px; }
+
+/* The portrait inspector grows upward from the cards, leaving the trail visible. */
+body[data-layout="portrait"] .app-root .context-panel {
+  top: auto;
+  bottom: max(184px, calc(env(safe-area-inset-bottom) + 174px));
+  right: max(var(--battle-edge), env(safe-area-inset-right));
+  width: min(350px, calc(100% - 24px));
+  max-height: min(320px, calc(100% - 310px));
+}
+
+body[data-frame="short"] .app-root .context-panel:has(#cpConfirm:not([hidden])) {
+  max-height: calc(100% - 76px);
+}
+:is(body[data-frame="short"], body[data-layout="portrait"]) .app-root .context-panel:has(#cpConfirm:not([hidden])) .context-panel__commands {
+  grid-template-columns: 1fr;
+}

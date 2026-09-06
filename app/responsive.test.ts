@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   effectiveLayout,
+  fitBattlefield,
+  fitBattlefieldOptions,
   frameDensity,
   frameViewport,
   loadFullscreenPreference,
@@ -83,7 +85,7 @@ describe('Sideways mode (RP-eqbawv)', () => {
     expect(sidewaysActive(false, 390, 844)).toBe(false);
   });
 
-  it('marks phone-height landscape frames short so the toolbars move into a rail', () => {
+  it('marks phone-height landscape frames short for compact floating controls', () => {
     expect(frameDensity(414)).toBe('short'); // iPhone 11 sideways
     expect(frameDensity(390)).toBe('short');
     expect(frameDensity(520)).toBe('short');
@@ -127,5 +129,52 @@ describe('Sideways mode (RP-eqbawv)', () => {
     expect(unrotatePagePoint(box, 50, 100)).toEqual({ x: 50, y: 300 });
     // The centre maps to the centre.
     expect(unrotatePagePoint(box, 150, 250)).toEqual({ x: 200, y: 200 });
+  });
+});
+
+
+describe('battlefield camera fit', () => {
+  it.each([[1920, 1080], [844, 280], [390, 700], [768, 768]])(
+    'keeps the whole field inside the control insets at %sx%s', (width, height) => {
+      const insets = { top: 56, right: 12, bottom: 90, left: 12 };
+      const fit = fitBattlefield(width, height, 1536, 1024, insets);
+      expect(fit.offsetX).toBeGreaterThanOrEqual(insets.left);
+      expect(fit.offsetY).toBeGreaterThanOrEqual(insets.top);
+      expect(fit.offsetX + 1536 * fit.zoom).toBeLessThanOrEqual(width - insets.right + 0.001);
+      expect(fit.offsetY + 1024 * fit.zoom).toBeLessThanOrEqual(height - insets.bottom + 0.001);
+      // Both corners map back to the original world, even after a resize.
+      for (const [x, y] of [[0, 0], [1536, 1024], [512, 300]]) {
+        expect((fit.offsetX + x * fit.zoom - fit.offsetX) / fit.zoom).toBeCloseTo(x);
+        expect((fit.offsetY + y * fit.zoom - fit.offsetY) / fit.zoom).toBeCloseTo(y);
+      }
+    },
+  );
+
+  it('uses the new available height when browser controls open', () => {
+    const insets = { top: 56, right: 12, bottom: 90, left: 12 };
+    const open = fitBattlefield(844, 280, 1536, 1024, insets);
+    const closed = fitBattlefield(844, 390, 1536, 1024, insets);
+    expect(open.zoom).toBeLessThan(closed.zoom);
+    expect(open.offsetY + 1024 * open.zoom).toBeCloseTo(190);
+  });
+});
+
+
+describe('floating corner control fit', () => {
+  it('uses the taller clear centre on a short phone without hiding field edges', () => {
+    const bands = { top: 56, right: 12, bottom: 74, left: 12 };
+    const corridor = { top: 56, right: 238, bottom: 8, left: 198 };
+    const fit = fitBattlefieldOptions(844, 280, 1584, 1024, [bands, corridor]);
+    expect(fit.zoom).toBeGreaterThan(fitBattlefield(844, 280, 1584, 1024, bands).zoom);
+    expect(fit.offsetX).toBeGreaterThanOrEqual(corridor.left);
+    expect(fit.offsetX + 1584 * fit.zoom).toBeLessThanOrEqual(844 - corridor.right);
+    expect(fit.offsetY + 1024 * fit.zoom).toBeLessThanOrEqual(272);
+  });
+
+  it('uses the full width above controls when a large deck fills the bottom', () => {
+    const bands = { top: 56, right: 12, bottom: 74, left: 12 };
+    const corridor = { top: 56, right: 238, bottom: 8, left: 510 };
+    expect(fitBattlefieldOptions(844, 280, 1584, 1024, [bands, corridor]))
+      .toEqual(fitBattlefield(844, 280, 1584, 1024, bands));
   });
 });

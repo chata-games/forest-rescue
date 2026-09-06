@@ -12,14 +12,20 @@ import { TURBO, enterFromTrail, place, type FrApi } from './helpers';
 test.describe('Preview waves and plan while paused (issue #32)', () => {
   test('shows the wave preview while planning, before Start (AC1)', async ({ page }) => {
     await enterFromTrail(page, `?god=1&turbo=${TURBO}`);
-    // Before Start, the corner wave-preview panel is visible with wave 1.
+    if (await page.locator('#storyPanel').isVisible()) await page.click('#storySkip');
+    if (await page.locator('#tutorialHint').isVisible()) await page.click('#tutorialSkip');
+    // Before Start, the compact control opens the current and next wave.
     await expect(page.locator('#wavePreview')).toBeVisible();
+    await page.locator('#wavePreviewDetails summary').click();
+    await expect(page.locator('#wavePreviewBody')).toBeVisible();
     await expect(page.locator('#wavePreviewBody')).toContainText(/Wave 1/);
     await expect(page.locator('#wavePreviewBody')).toContainText(/Logger/);
   });
 
   test('pause opens the menu, freezes the battle, and offers Resume (AC2/AC5)', async ({ page }) => {
     await enterFromTrail(page, `?god=1&turbo=${TURBO}`);
+    if (await page.locator('#storyPanel').isVisible()) await page.click('#storySkip');
+    if (await page.locator('#tutorialHint').isVisible()) await page.click('#tutorialSkip');
     await page.evaluate(() => (window as unknown as { fr: FrApi }).fr.start());
     // Let the wave run a moment, then pause through the real control.
     await page.waitForTimeout(200);
@@ -40,7 +46,20 @@ test.describe('Preview waves and plan while paused (issue #32)', () => {
   });
 
   test('spells and Mana flowers stay locked while paused (AC4)', async ({ page }) => {
-    await enterFromTrail(page, `?god=1&turbo=${TURBO}&level=05-sawmill-clearing`);
+    await page.goto(`/?god=1&turbo=${TURBO}&level=05-sawmill-clearing`);
+    await expect(page.locator('#loadoutScreen')).toBeVisible();
+    await page.evaluate(() => {
+      const api = (window as unknown as { fr: FrApi }).fr;
+      if (!api.loadoutSlots().some((slot) => slot?.id === 'root-snare')) {
+        api.loadoutClear(api.loadoutCapacity() - 1);
+        api.loadoutFill('root-snare');
+      }
+    });
+    await expect.poll(() => page.evaluate(() => (window as unknown as { fr: FrApi }).fr.loadoutSlots().some((slot) => slot?.id === 'root-snare'))).toBe(true);
+    await page.click('#loadoutStart');
+    await expect(page.locator('#battleRoot')).toBeVisible();
+    if (await page.locator('#storyPanel').isVisible()) await page.click('#storySkip');
+    if (await page.locator('#tutorialHint').isVisible()) await page.click('#tutorialSkip');
     await page.evaluate(() => (window as unknown as { fr: FrApi }).fr.start());
     await page.waitForTimeout(200);
     await page.click('#pauseBtn');
@@ -61,6 +80,8 @@ test.describe('Preview waves and plan while paused (issue #32)', () => {
 
   test('Restart and Exit each require confirmation (AC5)', async ({ page }) => {
     await enterFromTrail(page, `?god=1&turbo=${TURBO}`);
+    if (await page.locator('#storyPanel').isVisible()) await page.click('#storySkip');
+    if (await page.locator('#tutorialHint').isVisible()) await page.click('#tutorialSkip');
     await page.evaluate(() => (window as unknown as { fr: FrApi }).fr.start());
     await page.waitForTimeout(200);
     await page.click('#pauseBtn');
@@ -84,6 +105,8 @@ test.describe('Preview waves and plan while paused (issue #32)', () => {
     const ringIds = await page.evaluate(() => (window as unknown as { fr: FrApi }).fr.ringIds());
     const ring = ringIds.find((id) => !id.includes('onpath'))!;
     await place(page, ring, 'sprig-sentinel');
+    if (await page.locator('#storyPanel').isVisible()) await page.click('#storySkip');
+    if (await page.locator('#tutorialHint').isVisible()) await page.click('#tutorialSkip');
     await page.evaluate(() => (window as unknown as { fr: FrApi }).fr.start());
     await page.waitForTimeout(200);
     await page.click('#pauseBtn');

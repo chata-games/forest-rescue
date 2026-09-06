@@ -35,3 +35,27 @@ test("range previews stay inside the scaled battlefield", () => {
   assert.equal(isInsideWorld({ x: -1, y: 512 }), false);
   assert.equal(isInsideWorld({ x: 1537, y: 512 }), false);
 });
+
+test("extended forest covers the visible world and entrances continue beyond it", async () => {
+  const { createBattlefieldRenderer } = await import("../../src/rendering/battlefield.js");
+  const calls = [];
+  const ctx = new Proxy({}, {
+    get: (target, key) => key in target ? target[key] : (...args) => calls.push([key, ...args]),
+  });
+  const previousDocument = globalThis.document;
+  globalThis.document = { createElement: () => ({ getContext: () => ctx }) };
+  try {
+    const renderer = createBattlefieldRenderer({
+      biome: "meadow-edge",
+      paths: [{ controlPoints: [[1456, 512], [45, 512]], width: 60 }],
+    }, { assets: [] });
+    const bounds = { x: -3000, y: -1000, width: 7500, height: 3000 };
+    renderer.renderRegion(ctx, 1500, 600, bounds);
+    assert.ok(calls.some(([name, ...args]) => name === "fillRect" && args.join() === "-3000,-1000,7500,3000"));
+    assert.ok(calls.some(([name, x, y]) => name === "translate" && x === 3000 && y === 1000));
+    assert.ok(calls.some(([name, x]) => name === "moveTo" && x > bounds.x + bounds.width));
+    assert.ok(calls.some(([name, x, y]) => name === "lineTo" && x === 45 && y === 512));
+  } finally {
+    globalThis.document = previousDocument;
+  }
+});

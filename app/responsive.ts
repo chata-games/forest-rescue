@@ -105,7 +105,7 @@ export const SHORT_FRAME_MAX_HEIGHT = 520;
 /**
  * A landscape phone (or the Sideways frame, which is only as tall as the phone
  * is wide) leaves no room for a two-row HUD and a bottom toolbar: the compact
- * layout moves the toolbars into a side rail so the battlefield keeps the height.
+ * layout uses compact floating controls above the full-page battlefield.
  */
 export function frameDensity(frameHeight: number): FrameDensity {
   return frameHeight <= SHORT_FRAME_MAX_HEIGHT ? 'short' : 'regular';
@@ -145,6 +145,46 @@ export interface ScreenBox {
   top: number;
   width: number;
   height: number;
+}
+
+/** CSS-pixel space kept clear for the floating battle controls. */
+export interface BattlefieldInsets {
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
+}
+
+/** Uniform world-to-stage transform. The scenery can continue outside the field. */
+export function fitBattlefield(
+  width: number,
+  height: number,
+  fieldWidth: number,
+  fieldHeight: number,
+  insets: BattlefieldInsets,
+): { width: number; height: number; zoom: number; offsetX: number; offsetY: number } {
+  const availableWidth = Math.max(1, width - insets.left - insets.right);
+  const availableHeight = Math.max(1, height - insets.top - insets.bottom);
+  const zoom = Math.min(availableWidth / fieldWidth, availableHeight / fieldHeight);
+  return {
+    width,
+    height,
+    zoom,
+    offsetX: insets.left + (availableWidth - fieldWidth * zoom) / 2,
+    offsetY: insets.top + (availableHeight - fieldHeight * zoom) / 2,
+  };
+}
+
+/** Use the largest safe field among horizontal controls and corner controls. */
+export function fitBattlefieldOptions(
+  width: number,
+  height: number,
+  fieldWidth: number,
+  fieldHeight: number,
+  options: readonly BattlefieldInsets[],
+): ReturnType<typeof fitBattlefield> {
+  return options.map((insets) => fitBattlefield(width, height, fieldWidth, fieldHeight, insets))
+    .reduce((best, fit) => fit.zoom > best.zoom ? fit : best);
 }
 
 /**

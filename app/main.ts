@@ -271,6 +271,7 @@ function readOptions(): QueryOptions {
 }
 
 const options = readOptions();
+document.body.dataset.authorPreview = String(options.preview || options.layout !== 'auto');
 
 // --- Save (issue #27: persist, migrate, recover) --------------------------
 // localStorage is the browser IO; the engine-independent save module owns every
@@ -712,18 +713,21 @@ function renderStoryBeat(beat: StoryQueueEntry): void {
   storyPrimaryBtn.textContent = view.primaryAction;
   storySkipBtn.textContent = view.skipAction;
   storyPanel.hidden = false;
+  tutorialHint.hidden = true;
   storyPrimaryBtn.focus();
 }
 
 /** Advance the story queue; when it empties, close the panel and reveal a
  *  deferred outcome overlay (post-victory) or restore focus (replay). */
 function advanceStory(): void {
-  const next = storyQueue.shift();
+  storyQueue.shift();
+  const next = storyQueue[0];
   if (next) {
     renderStoryBeat(next);
     return;
   }
   storyPanel.hidden = true;
+  lastSync = '';
   const wasDeferring = deferOutcome;
   deferOutcome = false;
   if (wasDeferring) {
@@ -776,7 +780,7 @@ let currentSteps: TutorialStep[] = [];
 
 function refreshTutorial(): void {
   const step = currentTutorialStep(currentSteps, tutorialDismissed);
-  if (!step) {
+  if (!step || !storyPanel.hidden || !portraitAdviceOverlay.hidden || !pauseOverlay.hidden || !audioPanel.hidden || !contextPanel.hidden) {
     tutorialHint.hidden = true;
     return;
   }
@@ -861,7 +865,7 @@ function persistSideways(): void {
 }
 
 function sidewaysNow(): boolean {
-  return sidewaysActive(sidewaysPref, window.innerWidth, window.innerHeight);
+  return sidewaysActive(sidewaysPref, visibleViewport().width, visibleViewport().height);
 }
 
 function setSideways(on: boolean): void {
@@ -923,8 +927,15 @@ function installSidewaysInput(g: Phaser.Game): void {
   };
 }
 
+function visibleViewport(): { width: number; height: number } {
+  const viewport = window.visualViewport;
+  const scale = viewport?.scale ?? 1;
+  return { width: viewport ? viewport.width * scale : window.innerWidth, height: viewport ? viewport.height * scale : window.innerHeight };
+}
+
 function effectiveLayoutNow(): LayoutMode {
-  const vp = frameViewport(sidewaysNow(), window.innerWidth, window.innerHeight);
+  const viewport = visibleViewport();
+  const vp = frameViewport(sidewaysNow(), viewport.width, viewport.height);
   return effectiveLayout(layoutOverride, vp.width, vp.height);
 }
 
@@ -1032,6 +1043,13 @@ for (const type of ['fullscreenchange', 'webkitfullscreenchange']) {
 syncFullscreenToggle();
 
 function refreshLayout(): void {
+  const viewport = visibleViewport();
+  document.documentElement.style.setProperty('--visible-width', `${viewport.width}px`);
+  document.documentElement.style.setProperty('--visible-height', `${viewport.height}px`);
+  const visual = window.visualViewport;
+  const trackOffset = !visual || visual.scale === 1;
+  document.documentElement.style.setProperty('--visible-top', `${trackOffset ? visual?.offsetTop ?? 0 : 0}px`);
+  document.documentElement.style.setProperty('--visible-left', `${trackOffset ? visual?.offsetLeft ?? 0 : 0}px`);
   const sideways = sidewaysNow();
   document.body.dataset.sideways = String(sideways);
   pauseSidewaysBtn.textContent = `Sideways: ${sidewaysPref ? 'On' : 'Off'}`;
@@ -1042,10 +1060,19 @@ function refreshLayout(): void {
   );
   const effective = effectiveLayoutNow();
   document.body.dataset.layout = effective;
-  // Short landscape frames (a phone held sideways, or the Sideways frame) get the
-  // compact rail layout; CSS keys off body[data-frame].
-  const vp = frameViewport(sideways, window.innerWidth, window.innerHeight);
+  // Short landscape frames use smaller floating cards; CSS keys off body[data-frame].
+  const vp = frameViewport(sideways, viewport.width, viewport.height);
   document.body.dataset.frame = frameDensity(vp.height);
+  // On mobile layouts, keep explanations in Stats and leave only actions below.
+  const compactContext = frameDensity(vp.height) === 'short' || effective === 'portrait';
+  const more = contextPanel.querySelector('.context-panel__more')!;
+  const blocks = contextPanel.querySelectorAll('.context-panel__block');
+  for (const [id, blockIndex] of [['cpUpgradeSummary', 0], ['cpUpgradeDetail', 0], ['cpRemoveSummary', 1]] as const) {
+    const line = document.getElementById(id)!;
+    if (compactContext) more.append(line);
+    else blocks[blockIndex].insertBefore(line, blocks[blockIndex].querySelector('button, .context-panel__confirm'));
+  }
+
   // The force-classes drive the author preview's simulated phone/landscape frame.
   document.body.classList.toggle('force-portrait', layoutOverride === 'portrait');
   document.body.classList.toggle('force-landscape', layoutOverride === 'landscape');
@@ -1093,6 +1120,8 @@ refreshLayout();
 // in real time (window resize on desktop, rotation on a device — see the
 // orientationchange handler below for the rotation pause).
 window.addEventListener('resize', refreshLayout);
+window.visualViewport?.addEventListener('resize', refreshLayout);
+window.visualViewport?.addEventListener('scroll', refreshLayout);
 
 // --- Save recovery notice (issue #27 AC3/AC4) -----------------------------
 /**
@@ -1845,7 +1874,7 @@ function syncHud(snap: BattleSnapshot): void {
     else syncContextPanel();
   }
 
-  const key = `${snap.phase}|${snap.mana}|${snap.hearts}|${snap.waveNumber}|${snap.paused}`;
+  const key = `${snap.phase}|${snap.mana}|${snap.hearts}|${snap.waveNumber}|${snap.paused}|${storyPanel.hidden}|${portraitAdviceOverlay.hidden}|${audioPanel.hidden}|${contextPanel.hidden}`;
   if (key === lastSync) {
     if (hintTimer > 0) hintTimer -= 1 / 60;
     return;
@@ -1917,10 +1946,10 @@ function bootBattleScene(): void {
   game = new Phaser.Game({
     type: Phaser.AUTO,
     parent: 'game-root',
-    width: 1536,
-    height: 1024,
+    width: document.getElementById('game-root')!.clientWidth,
+    height: document.getElementById('game-root')!.clientHeight,
     backgroundColor: '#143d2c',
-    scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
+    scale: { mode: Phaser.Scale.RESIZE, autoCenter: Phaser.Scale.NO_CENTER },
     render: { antialias: true },
     scene: [BattleScene],
   });
@@ -2106,6 +2135,7 @@ function enterLevel(levelId: string, loadout: Loadout): void {
   if (!level) return;
   currentLevelId = levelId;
   currentLoadout = loadout;
+  $<HTMLDetailsElement>('wavePreviewDetails').open = false;
 
   // Fresh battle for this level. Destroy any prior Phaser game so the scene
   // recompiles terrain for the new trail/rings.
@@ -2226,6 +2256,7 @@ function makeDebugApi(): ForestRescueDebug {
     start: () => battle?.start(),
     pause: () => togglePause(true),
     resume: () => togglePause(false),
+    battleViewport: () => game?.registry.get('battleViewport') ?? null,
     wavePreview: () => (battle ? battle.wavePreview() : null),
     ringIds: () => (battle ? battle.rings.map((r) => r.id) : []),
     ringCenters: () => (battle ? battle.rings.map((r) => ({ id: r.id, x: r.x, y: r.y })) : []),
@@ -2353,6 +2384,7 @@ export interface ForestRescueDebug {
   start(): void;
   pause(): void;
   resume(): void;
+  battleViewport(): { zoom: number; offsetX: number; offsetY: number; width: number; height: number } | null;
   wavePreview(): WavePreview | null;
   ringIds(): string[];
   /** Ring centres in world (1536x1024) coordinates, for coordinate-mapping journeys. */

@@ -3,7 +3,7 @@
 
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#13391f" />
   <title>Forest Rescue: Heartwood — The Trail</title>
   <link rel="stylesheet" href="./styles.css" />
@@ -145,12 +145,16 @@
           <h3 id="cpTitle" class="context-panel__title"></h3>
           <button id="cpClose" class="context-panel__close" type="button" aria-label="Close context panel">×</button>
         </div>
-        <p id="cpTier" class="context-panel__tier"></p>
-        <ul id="cpStats" class="context-panel__stats"></ul>
+        <details class="context-panel__more">
+          <summary>Stats</summary>
+          <p id="cpTier" class="context-panel__tier"></p>
+          <ul id="cpStats" class="context-panel__stats"></ul>
+        </details>
+        <div class="context-panel__commands">
         <div class="context-panel__block">
           <p id="cpUpgradeSummary" class="context-panel__line"></p>
           <p id="cpUpgradeDetail" class="context-panel__line context-panel__detail" hidden></p>
-          <button id="cpUpgradeBtn" class="context-panel__action" type="button">Upgrade</button>
+          <button id="cpUpgradeBtn" aria-describedby="cpUpgradeSummary cpUpgradeDetail" class="context-panel__action" type="button">Upgrade</button>
         </div>
         <div class="context-panel__block">
           <p id="cpRemoveSummary" class="context-panel__line"></p>
@@ -161,7 +165,8 @@
               <button id="cpCancelBtn" class="context-panel__action" type="button">Cancel</button>
             </div>
           </div>
-          <button id="cpRemoveBtn" class="context-panel__action context-panel__action--danger" type="button">Remove</button>
+          <button id="cpRemoveBtn" aria-describedby="cpRemoveSummary" class="context-panel__action context-panel__action--danger" type="button">Remove</button>
+        </div>
         </div>
       </section>
 
@@ -169,8 +174,10 @@
            inspect the current + upcoming wave before pressing Start. A second
            copy lives inside the pause overlay for mid-battle planning. -->
       <section id="wavePreview" class="wave-preview" role="region" aria-label="Wave preview" hidden>
-        <h3 class="wave-preview__title">Incoming Waves</h3>
-        <div id="wavePreviewBody" class="wave-preview__body"></div>
+        <details id="wavePreviewDetails">
+          <summary class="wave-preview__title">Incoming waves <span aria-hidden="true">⌄</span></summary>
+          <div id="wavePreviewBody" class="wave-preview__body"></div>
+        </details>
       </section>
 
       <!-- Tutorial tip (issue #33 AC2): a dismissible, non-modal prompt shown in
@@ -190,6 +197,7 @@
       </section>
     </div>
 
+    <div class="battle-deck">
     <nav id="toolbar" class="toolbar" aria-label="Defender selection" hidden>
       <!-- Defender tools are built per battle from the chosen Loadout (issue #21). -->
     </nav>
@@ -198,6 +206,8 @@
          Built per level from the unlocked spells; buttons are disabled and
          explain themselves while on cooldown or unaffordable. -->
     <nav id="spellbar" class="spellbar" aria-label="Guardian spells" hidden></nav>
+
+    </div>
 
     <div class="start-row">
       <button id="startBtn" class="primary-btn" type="button">Start Wave</button>

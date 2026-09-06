@@ -13,6 +13,8 @@ async function mana(page: import('@playwright/test').Page): Promise<number> {
 test.describe('Inspect / upgrade / remove modelessly (issue #30)', () => {
   test('inspecting an occupied ring opens the panel and keeps the tool selected (AC1)', async ({ page }) => {
     await enterFromTrail(page, `?god=1&turbo=${TURBO}`);
+    if (await page.locator('#storyPanel').isVisible()) await page.click('#storySkip');
+    if (await page.locator('#tutorialHint').isVisible()) await page.click('#tutorialSkip');
     const ringIds = await page.evaluate(() => (window as unknown as { fr: FrApi }).fr.ringIds());
     const ring = ringIds.find((id) => !id.includes('onpath'))!;
     await place(page, ring, 'sprig-sentinel');
@@ -32,6 +34,8 @@ test.describe('Inspect / upgrade / remove modelessly (issue #30)', () => {
 
   test('upgrade previews the cost and commits through a dedicated action (AC3)', async ({ page }) => {
     await enterFromTrail(page, `?god=1&turbo=${TURBO}`);
+    if (await page.locator('#storyPanel').isVisible()) await page.click('#storySkip');
+    if (await page.locator('#tutorialHint').isVisible()) await page.click('#tutorialSkip');
     const ringIds = await page.evaluate(() => (window as unknown as { fr: FrApi }).fr.ringIds());
     const ring = ringIds.find((id) => !id.includes('onpath'))!;
     await place(page, ring, 'sprig-sentinel');
@@ -51,6 +55,8 @@ test.describe('Inspect / upgrade / remove modelessly (issue #30)', () => {
 
   test('remove requires inline confirmation, shows the refund, and frees the ring (AC4)', async ({ page }) => {
     await enterFromTrail(page, `?god=1&turbo=${TURBO}`);
+    if (await page.locator('#storyPanel').isVisible()) await page.click('#storySkip');
+    if (await page.locator('#tutorialHint').isVisible()) await page.click('#tutorialSkip');
     const ringIds = await page.evaluate(() => (window as unknown as { fr: FrApi }).fr.ringIds());
     const ring = ringIds.find((id) => !id.includes('onpath'))!;
     await place(page, ring, 'sprig-sentinel'); // 50 mana -> refund round(50*0.7)=35
@@ -71,6 +77,8 @@ test.describe('Inspect / upgrade / remove modelessly (issue #30)', () => {
 
   test('undo restores a removed Defender through the real control (AC5)', async ({ page }) => {
     await enterFromTrail(page, `?god=1&turbo=${TURBO}`);
+    if (await page.locator('#storyPanel').isVisible()) await page.click('#storySkip');
+    if (await page.locator('#tutorialHint').isVisible()) await page.click('#tutorialSkip');
     const ringIds = await page.evaluate(() => (window as unknown as { fr: FrApi }).fr.ringIds());
     const ring = ringIds.find((id) => !id.includes('onpath'))!;
     await place(page, ring, 'sprig-sentinel');

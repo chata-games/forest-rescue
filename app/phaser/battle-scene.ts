@@ -9,6 +9,7 @@ import { getDefender, getEnemy, getSpell } from '../domain/content';
 import { inGlow, type GlowSource } from '../domain/light';
 import type { Ring } from '../domain/types';
 import type { PreviewSummary } from '../domain/preview';
+import { fitBattlefieldOptions, type BattlefieldInsets } from '../responsive';
 
 export interface BattleSceneApi {
   battle: BattleState;
@@ -102,6 +103,9 @@ export class BattleScene extends Phaser.Scene {
   private night!: Phaser.GameObjects.Graphics;
   private art = new Map<string | object, Phaser.GameObjects.Image>();
   private visibleArt = new Set<string | object>();
+  private scenery!: ReturnType<typeof createBattlefieldRenderer>;
+  private sceneryImage!: Phaser.GameObjects.Image;
+  private visibleWorld = { x: 0, y: 0, width: FIELD_WIDTH, height: FIELD_HEIGHT };
 
   private accumulator = 0;
   private timeScale = 1;
@@ -155,6 +159,15 @@ export class BattleScene extends Phaser.Scene {
     this.night = this.add.graphics().setDepth(2);
     this.dynamic = this.add.graphics().setDepth(5);
     this.drawTerrain();
+    this.resizeBattlefield();
+    this.scale.on(Phaser.Scale.Events.RESIZE, this.resizeBattlefield, this);
+    const controls = document.querySelectorAll('.app-root .battle-deck, .app-root .start-row, .app-root .hud');
+    const observer = new ResizeObserver(() => this.resizeBattlefield());
+    controls.forEach((element) => observer.observe(element));
+    this.events.once('shutdown', () => {
+      this.scale.off(Phaser.Scale.Events.RESIZE, this.resizeBattlefield, this);
+      observer.disconnect();
+    });
     if (this.preview) this.drawPreviewOverlay();
 
     // Tap-tap placement (issue #22). A second pointer is allowed so two thumbs
@@ -203,9 +216,13 @@ export class BattleScene extends Phaser.Scene {
   // --- Tap gestures: place, collect, or cast ---------------------------
 
   private onPointerDown(p: Phaser.Input.Pointer): void {
+    p.updateWorldPoint(this.cameras.main);
     // While a spell is armed, targeting owns every battlefield tap — it never
     // places a Defender or collects a flower (issue #31 AC6).
     if (this.battle.armedSpell) {
+      // The outer forest is scenery, not a new spell target area. Flower hit
+      // circles can extend into it so their full touch target stays available.
+      if (p.worldX < 0 || p.worldY < 0 || p.worldX > FIELD_WIDTH || p.worldY > FIELD_HEIGHT) return;
       const typeId = this.battle.armedSpell;
       this.gestures.set(p.id, {
         kind: 'cast',
@@ -245,6 +262,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private onPointerMove(p: Phaser.Input.Pointer): void {
+    p.updateWorldPoint(this.cameras.main);
     const g = this.gestures.get(p.id);
     if (!g) return;
     if (g.kind === 'cast') {
@@ -261,6 +279,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private onPointerUp(p: Phaser.Input.Pointer, cancelled: boolean): void {
+    p.updateWorldPoint(this.cameras.main);
     const g = this.gestures.get(p.id);
     if (!g) return;
     this.gestures.delete(p.id);
@@ -296,7 +315,7 @@ export class BattleScene extends Phaser.Scene {
   /** World-unit flower radius that renders (and hit-tests) as >=48 CSS pixels. */
   private flowerHitRadius(): number {
     const cssWidth = this.game.canvas.clientWidth;
-    const cssToWorld = cssWidth > 0 ? FIELD_WIDTH / cssWidth : 1;
+    const cssToWorld = cssWidth > 0 ? this.scale.width / cssWidth / this.cameras.main.zoom : 1;
     return Math.max(MIN_FLOWER_CSS_RADIUS, MIN_FLOWER_CSS_RADIUS * cssToWorld);
   }
 
@@ -322,12 +341,77 @@ export class BattleScene extends Phaser.Scene {
       img: this.textures.get(asset.id).getSourceImage() as HTMLImageElement,
       ready: this.textures.exists(asset.id),
     }]));
-    const texture = this.textures.createCanvas('battlefield-art', FIELD_WIDTH, FIELD_HEIGHT);
+    const texture = this.textures.createCanvas('battlefield-art', 1, 1);
     if (!texture) throw new Error('Cannot create battlefield texture');
-    createBattlefieldRenderer(this.battle.level, catalog, { images })
-      .render(texture.context, FIELD_WIDTH, FIELD_HEIGHT);
+    this.scenery = createBattlefieldRenderer(this.battle.level, catalog, { images });
+    this.sceneryImage = this.add.image(0, 0, 'battlefield-art').setOrigin(0).setDepth(0);
+  }
+
+  private resizeBattlefield(): void {
+    const width = Math.max(1, this.scale.width);
+    const height = Math.max(1, this.scale.height);
+    const parent = this.game.canvas.parentElement;
+    const style = parent ? getComputedStyle(parent) : null;
+    const inset = (side: string, fallback: number): number => {
+      const value = style?.getPropertyValue(`--battle-map-${side}`).trim();
+      if (!value || !parent) return fallback;
+      // Custom properties retain max()/env() text. Resolve them as a CSS length.
+      const measure = document.createElement('div');
+      measure.style.cssText = `position:absolute;visibility:hidden;pointer-events:none;height:0;width:${value}`;
+      parent.append(measure);
+      const pixels = Number.parseFloat(getComputedStyle(measure).width);
+      measure.remove();
+      return Number.isFinite(pixels) ? Math.max(0, pixels) : fallback;
+    };
+    const standard: BattlefieldInsets = {
+      top: inset('top', 64), right: inset('right', 12),
+      bottom: inset('bottom', 110), left: inset('left', 12),
+    };
+    const options = [standard];
+    if (width > height && height <= 520 && parent) {
+      const stageBox = parent.getBoundingClientRect();
+      const sideways = document.body.dataset.sideways === 'true';
+      const box = (selector: string): { left: number; right: number; bottom: number } | null => {
+        const element = document.querySelector<HTMLElement>(selector);
+        if (!element || element.offsetWidth === 0 || element.offsetHeight === 0) return null;
+        const rect = element.getBoundingClientRect();
+        return sideways
+          ? { left: rect.top - stageBox.top, right: rect.bottom - stageBox.top, bottom: stageBox.right - rect.left }
+          : { left: rect.left - stageBox.left, right: rect.right - stageBox.left, bottom: rect.bottom - stageBox.top };
+      };
+      const deck = box('.app-root .battle-deck');
+      const actions = box('.app-root .start-row');
+      const waves = box('#wavePreview');
+      if (deck && actions) {
+        const left = Math.max(standard.left, deck.right + 8, (waves?.right ?? 0) + 8);
+        const right = Math.max(standard.right, width - actions.left + 8);
+        if (left + right < width) options.push({ top: standard.top, right, bottom: 8, left });
+      }
+    }
+    // Heartwood art reaches 48 units left of the compiled field. Include it.
+    const heartwood = catalog.assets.find((asset) => asset.id === 'landmark-heartwood-gate');
+    const fieldLeft = Math.min(0, 72 - (heartwood?.drawSize[0] ?? 0) * (heartwood?.anchor[0] ?? 0));
+    const fit = fitBattlefieldOptions(width, height, FIELD_WIDTH - fieldLeft, FIELD_HEIGHT, options);
+    fit.offsetX -= fieldLeft * fit.zoom;
+    this.registry.set('battleViewport', fit);
+    const camera = this.cameras.main;
+    camera.setViewport(0, 0, width, height).setZoom(fit.zoom);
+    camera.centerOn((width / 2 - fit.offsetX) / fit.zoom, (height / 2 - fit.offsetY) / fit.zoom);
+    this.visibleWorld = {
+      x: -fit.offsetX / fit.zoom,
+      y: -fit.offsetY / fit.zoom,
+      width: width / fit.zoom,
+      height: height / fit.zoom,
+    };
+    const texture = this.textures.get('battlefield-art') as Phaser.Textures.CanvasTexture;
+    texture.setSize(Math.ceil(width), Math.ceil(height));
+    texture.context.clearRect(0, 0, texture.width, texture.height);
+    this.scenery.renderRegion(texture.context, texture.width, texture.height, this.visibleWorld);
     texture.refresh();
-    this.add.image(0, 0, 'battlefield-art').setOrigin(0).setDepth(0);
+    this.sceneryImage.setPosition(this.visibleWorld.x, this.visibleWorld.y)
+      .setDisplaySize(this.visibleWorld.width, this.visibleWorld.height);
+    // A resize changes every hit target's screen position.
+    this.gestures.clear();
   }
 
   /**
@@ -520,7 +604,7 @@ export class BattleScene extends Phaser.Scene {
    */
   private drawDarkness(g: Phaser.GameObjects.Graphics, glow: GlowSource[]): void {
     g.fillStyle(COLOR.night, 0.62);
-    g.fillRect(0, 0, FIELD_WIDTH, FIELD_HEIGHT);
+    g.fillRect(this.visibleWorld.x, this.visibleWorld.y, this.visibleWorld.width, this.visibleWorld.height);
     for (const s of glow) {
       g.fillStyle(COLOR.glow, 0.10);
       g.fillCircle(s.x, s.y, s.r);
