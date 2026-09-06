@@ -73,12 +73,12 @@ test.describe('Loadout assembly (issue #21)', () => {
     expect(ids).toContain('root-snare'); // a Guardian spell
     expect(pool.map((p) => p.kind)).toEqual(expect.arrayContaining(['defender', 'spell']));
 
-    // Loading the spell places it in a slot. The L5 starter already slots
-    // root-snare, so clear it first — otherwise loadoutFill toggles it back out.
+    // Free a slot before adding the spell. The starter can fill every slot
+    // with Defenders; it does not have to include Root Snare.
     await page.evaluate(() => {
       const api = (window as unknown as { fr: FrApi }).fr;
       const idx = api.loadoutSlots().findIndex((s) => s?.id === 'root-snare');
-      if (idx >= 0) api.loadoutClear(idx);
+      api.loadoutClear(idx >= 0 ? idx : 0);
     });
     await page.evaluate(() => (window as unknown as { fr: FrApi }).fr.loadoutFill('root-snare'));
     const slots = await page.evaluate(() => (window as unknown as { fr: FrApi }).fr.loadoutSlots());
@@ -110,8 +110,10 @@ test.describe('Loadout assembly (issue #21)', () => {
     expect(slotsAfter).toEqual(slotsBefore);
   });
 
-  test('the largest pool and four slots fit common mobile ratios', async ({ page }) => {
+  test('cards keep their proportions and actions fit desktop and mobile screens', async ({ page }) => {
     for (const viewport of [
+      { width: 1915, height: 930 },
+      { width: 1672, height: 941 },
       { width: 568, height: 320 },
       { width: 932, height: 430 },
       { width: 390, height: 844 },
@@ -122,6 +124,10 @@ test.describe('Loadout assembly (issue #21)', () => {
       await expect(page.locator('.loadout__pool-item')).toHaveCount(9);
       await expect(page.locator('.loadout__slot')).toHaveCount(4);
       await expect(page.locator('#loadoutStart')).toBeInViewport();
+      const card = await page.locator('.loadout__pool-item').first().boundingBox();
+      expect(card).not.toBeNull();
+      expect(card!.height / card!.width).toBeGreaterThan(1.4);
+      expect(card!.height / card!.width).toBeLessThan(1.6);
       const overflows = await page.locator('#loadoutScreen').evaluate((screen) => ({
         horizontal: screen.scrollWidth > screen.clientWidth,
         actionsBelowViewport: screen.querySelector('.loadout__actions')!.getBoundingClientRect().bottom > innerHeight + 1,

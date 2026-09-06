@@ -2001,7 +2001,7 @@ function renderLoadout(): void {
     btn.setAttribute('aria-pressed', String(slotted));
     btn.innerHTML = loadoutItemIcon(item.id) +
       `<span class="loadout__pool-name">${item.name}</span>` +
-      `<span class="loadout__pool-kind"><span>${item.kind === 'defender' ? 'Defender' : 'Spell'}</span><span class="loadout__mana">◆ ${item.cost}</span></span>`;
+      `<span class="loadout__pool-kind"><span>${item.kind === 'defender' ? 'Defender' : 'Spell'}</span><span class="loadout__mana">${item.cost}</span></span>`;
     btn.addEventListener('click', () => togglePoolItem(item));
     loadoutPool.append(btn);
   }
