@@ -34,10 +34,10 @@ export interface DetailElements {
   enterBtn: { disabled: boolean; textContent: string | null };
 }
 
-/** Percent string for a 0..1 coordinate, clamped and rounded. */
+/** Percent string for a 0..1 coordinate, preserving painted disc centres. */
 function percent(v: number): string {
   const clamped = Math.max(0, Math.min(1, v));
-  return `${Math.round(clamped * 100)}%`;
+  return `${clamped * 100}%`;
 }
 
 /** Accessible label combining the level name and its derived state description. */
@@ -48,7 +48,7 @@ export function nodeAriaLabel(node: TrailNode): string {
 /** SVG polyline points string joining node centers, in campaign order. */
 export function routePoints(nodes: TrailNode[]): string {
   return nodes
-    .map((n) => `${Math.round(n.position.x * 100)},${Math.round(n.position.y * 100)}`)
+    .map((n) => `${n.position.x * 100},${n.position.y * 100}`)
     .join(' ');
 }
 
