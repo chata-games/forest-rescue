@@ -1,4 +1,4 @@
-import { defenderIcon } from './art';
+import { defenderIcon, loadoutItemIcon } from './art';
 // Production entry point. The campaign starts on the Trail — a semantic DOM/CSS
 // map whose route, nodes, state, labels, and hit regions are all derived from
 // the campaign manifest (generated art supplies scenery only). Entering a level
@@ -398,10 +398,12 @@ const battleRoot = $<HTMLElement>('battleRoot');
 const loadoutScreen = $<HTMLElement>('loadoutScreen');
 const loadoutTitle = $<HTMLHeadingElement>('loadoutTitle');
 const loadoutPool = $<HTMLElement>('loadoutPool');
+const loadoutFilters = $<HTMLElement>('loadoutFilters');
 const loadoutSlots = $<HTMLElement>('loadoutSlots');
 const loadoutAdviceEl = $<HTMLElement>('loadoutAdvice');
 const loadoutStartBtn = $<HTMLButtonElement>('loadoutStart');
 const loadoutBackBtn = $<HTMLButtonElement>('loadoutBack');
+let loadoutFilter: 'all' | AvailableItem['kind'] = 'all';
 
 const levelName = $<HTMLElement>('levelName');
 const darknessBadge = $<HTMLElement>('darknessBadge');
@@ -1964,7 +1966,7 @@ function openLoadout(levelId: string): void {
   const verdict = restored ? validateLoadout(restored, currentLoadoutCtx) : null;
   currentLoadout =
     verdict && verdict.valid && verdict.canStart && restored ? restored : starterLoadout(currentLoadoutCtx);
-  loadoutTitle.textContent = `Loadout — ${level.name}`;
+  loadoutTitle.textContent = level.name;
   closeDetail();
   trailScreen.hidden = true;
   battleRoot.hidden = true;
@@ -1980,9 +1982,14 @@ function renderLoadout(): void {
   if (!currentLoadoutCtx) return;
   const view = buildLoadoutView(currentLoadout, currentLoadoutCtx);
 
+  for (const filter of loadoutFilters.querySelectorAll<HTMLButtonElement>('.loadout__filter')) {
+    filter.setAttribute('aria-pressed', String(filter.dataset.filter === loadoutFilter));
+  }
+
   // Pool chooser buttons: tap to toggle an item in/out of the Loadout.
   loadoutPool.innerHTML = '';
-  for (const item of view.pool) {
+  const visiblePool = view.pool.filter((item) => loadoutFilter === 'all' || item.kind === loadoutFilter);
+  for (const item of visiblePool) {
     const slotted = currentLoadout.some(
       (slot) => slot !== null && slot.kind === item.kind && slot.id === item.id,
     );
@@ -1992,24 +1999,33 @@ function renderLoadout(): void {
     btn.dataset.kind = item.kind;
     btn.dataset.id = item.id;
     btn.setAttribute('aria-pressed', String(slotted));
-    btn.innerHTML = defenderIcon(item.id) +
+    btn.innerHTML = loadoutItemIcon(item.id) +
       `<span class="loadout__pool-name">${item.name}</span>` +
-      `<span class="loadout__pool-kind">${item.kind === 'defender' ? 'Defender' : 'Spell'} · ${item.cost} mana</span>`;
+      `<span class="loadout__pool-kind"><span>${item.kind === 'defender' ? 'Defender' : 'Spell'}</span><span class="loadout__mana">◆ ${item.cost}</span></span>`;
     btn.addEventListener('click', () => togglePoolItem(item));
     loadoutPool.append(btn);
+  }
+  if (visiblePool.length === 0) {
+    loadoutPool.innerHTML = `<p class="loadout__empty">No ${loadoutFilter === 'spell' ? 'spells' : loadoutFilter === 'defender' ? 'Defenders' : 'items'} available yet.</p>`;
   }
   loadoutPool.hidden = view.pool.length === 0;
 
   // Slots: tap a filled slot to clear it.
   loadoutSlots.innerHTML = '';
   loadoutSlots.style.setProperty('--slots', String(view.capacity));
+  loadoutSlots.dataset.capacity = String(view.capacity);
   for (const slot of view.slots) {
+    const item = currentLoadout[slot.index];
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'loadout__slot' + (slot.filled ? ' loadout__slot--filled' : '');
     btn.dataset.index = String(slot.index);
     btn.setAttribute('aria-label', slot.label);
-    btn.textContent = slot.label;
+    btn.innerHTML = item
+      ? loadoutItemIcon(item.id) +
+        `<span class="loadout__slot-name">${item.name}</span>` +
+        `<span class="loadout__slot-kind">${item.kind === 'defender' ? 'Defender' : 'Spell'}</span>`
+      : `<span class="loadout__slot-empty" aria-hidden="true">+</span><span>Empty slot</span>`;
     if (slot.filled) btn.addEventListener('click', () => clearLoadoutSlot(slot.index));
     loadoutSlots.append(btn);
   }
@@ -2054,6 +2070,14 @@ function startBattle(): void {
 }
 
 loadoutStartBtn.addEventListener('click', startBattle);
+loadoutFilters.addEventListener('click', (event) => {
+  const target = (event.target as HTMLElement).closest<HTMLButtonElement>('.loadout__filter');
+  if (!target) return;
+  const next = target.dataset.filter;
+  if (next !== 'all' && next !== 'defender' && next !== 'spell') return;
+  loadoutFilter = next;
+  renderLoadout();
+});
 loadoutBackBtn.addEventListener('click', () => {
   loadoutScreen.hidden = true;
   trailScreen.hidden = false;

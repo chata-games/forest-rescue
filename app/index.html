@@ -74,7 +74,14 @@
     </header>
     <div class="loadout__body">
       <div class="loadout__col">
-        <h3 class="loadout__heading">Available</h3>
+        <div class="loadout__section-head">
+          <h3 class="loadout__heading">Available</h3>
+          <div id="loadoutFilters" class="loadout__filters" role="group" aria-label="Filter available items">
+            <button class="loadout__filter" type="button" data-filter="all" aria-pressed="true">All</button>
+            <button class="loadout__filter" type="button" data-filter="defender" aria-pressed="false">Defenders</button>
+            <button class="loadout__filter" type="button" data-filter="spell" aria-pressed="false">Spells</button>
+          </div>
+        </div>
         <div id="loadoutPool" class="loadout__pool" role="group" aria-label="Available Defenders and spells"></div>
       </div>
       <div class="loadout__col">

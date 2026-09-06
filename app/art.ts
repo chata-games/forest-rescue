@@ -1,4 +1,6 @@
 import catalogData from '../assets/catalog.json';
+import cleansingRainArt from '../assets/ui/cleansing-rain.png?url';
+import rootSnareArt from '../assets/ui/root-snare.png?url';
 
 export const catalog = catalogData;
 const files = import.meta.glob('../assets/{sprites,materials,landmarks,decorations}/**/*.png', {
@@ -17,4 +19,16 @@ export function defenderIcon(id: string): string {
   const assetId = `${id}-idle`;
   return catalog.assets.some((asset) => asset.id === assetId)
     ? `<img class="defender-art" src="${assetUrl(assetId)}" alt="" />` : '';
+}
+
+const SPELL_ART: Record<string, string> = {
+  'root-snare': rootSnareArt,
+  'cleansing-rain': cleansingRainArt,
+};
+
+/** Card and slot art for either loadout kind. UI text remains code-native. */
+export function loadoutItemIcon(id: string): string {
+  const spellUrl = SPELL_ART[id];
+  if (spellUrl) return `<img class="defender-art defender-art--spell" src="${spellUrl}" alt="" />`;
+  return defenderIcon(id);
 }

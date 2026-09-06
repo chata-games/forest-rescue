@@ -94,6 +94,42 @@ test.describe('Loadout assembly (issue #21)', () => {
     expect(pool.map((p) => p.id)).toContain('root-snare');
   });
 
+  test('the growing pool filters by kind without changing the loadout', async ({ page }) => {
+    await page.goto('/?level=07-boulder-pass');
+    await fr(page);
+    const slotsBefore = await page.evaluate(() => (window as unknown as { fr: FrApi }).fr.loadoutSlots());
+
+    await page.locator('[data-filter="spell"]').click();
+    await expect(page.locator('[data-filter="spell"]')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('.loadout__pool-item')).toHaveCount(2);
+    await expect(page.locator('.loadout__pool-item[data-kind="spell"]')).toHaveCount(2);
+
+    await page.locator('[data-filter="all"]').click();
+    await expect(page.locator('.loadout__pool-item')).toHaveCount(9);
+    const slotsAfter = await page.evaluate(() => (window as unknown as { fr: FrApi }).fr.loadoutSlots());
+    expect(slotsAfter).toEqual(slotsBefore);
+  });
+
+  test('the largest pool and four slots fit common mobile ratios', async ({ page }) => {
+    for (const viewport of [
+      { width: 568, height: 320 },
+      { width: 932, height: 430 },
+      { width: 390, height: 844 },
+    ]) {
+      await page.setViewportSize(viewport);
+      await page.goto('/?level=07-boulder-pass');
+      await fr(page);
+      await expect(page.locator('.loadout__pool-item')).toHaveCount(9);
+      await expect(page.locator('.loadout__slot')).toHaveCount(4);
+      await expect(page.locator('#loadoutStart')).toBeInViewport();
+      const overflows = await page.locator('#loadoutScreen').evaluate((screen) => ({
+        horizontal: screen.scrollWidth > screen.clientWidth,
+        actionsBelowViewport: screen.querySelector('.loadout__actions')!.getBoundingClientRect().bottom > innerHeight + 1,
+      }));
+      expect(overflows).toEqual({ horizontal: false, actionsBelowViewport: false });
+    }
+  });
+
   test('advice is explanatory and never blocks Start (AC5)', async ({ page }) => {
     await page.goto('/?level=01-meadows-edge');
     await fr(page);
