@@ -125,10 +125,12 @@
         <span class="hud__value" id="waveValue" aria-live="polite">1 / 8</span>
       </div>
 
+      <button id="mapZoomBtn" class="hud__btn" type="button" hidden>Full map</button>
       <button id="pauseBtn" class="hud__btn" type="button" aria-pressed="false" aria-label="Pause battle">Pause</button>
       <button id="audioBtn" class="hud__btn" type="button" aria-label="Audio controls">Audio</button>
     </header>
 
+    <span id="mapDragHint" hidden>Drag empty ground to move</span>
     <div class="stage-wrap">
       <!-- The production Phaser battlefield mounts here. -->
       <main class="stage" id="game-root" role="img" aria-label="Forest Rescue battlefield"></main>

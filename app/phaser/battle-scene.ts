@@ -50,6 +50,7 @@ const COLOR = {
  * (issue #31 AC6).
  */
 type PointerGesture =
+  | { kind: 'pan'; downX: number; downY: number; centerX: number; centerY: number }
   | {
       kind: 'place';
       ringId: string;
@@ -107,6 +108,10 @@ export class BattleScene extends Phaser.Scene {
   private sceneryImage!: Phaser.GameObjects.Image;
   private visibleWorld = { x: 0, y: 0, width: FIELD_WIDTH, height: FIELD_HEIGHT };
 
+  private closeView: boolean | null = null;
+  private overview!: ReturnType<typeof fitBattlefieldOptions>;
+  private viewCenter: { x: number; y: number } | null = null;
+
   private accumulator = 0;
   private timeScale = 1;
   private preview = false;
@@ -159,11 +164,20 @@ export class BattleScene extends Phaser.Scene {
     this.night = this.add.graphics().setDepth(2);
     this.dynamic = this.add.graphics().setDepth(5);
     this.drawTerrain();
+    const zoomButton = document.querySelector<HTMLButtonElement>('#mapZoomBtn');
+    const toggleZoom = (): void => {
+      this.closeView = !this.isCloseView();
+      this.viewCenter = null;
+      this.resizeBattlefield();
+    };
+    zoomButton?.addEventListener('click', toggleZoom);
+    this.events.once('shutdown', () => zoomButton?.removeEventListener('click', toggleZoom));
     this.resizeBattlefield();
     this.scale.on(Phaser.Scale.Events.RESIZE, this.resizeBattlefield, this);
     const controls = document.querySelectorAll('.app-root .battle-deck, .app-root .start-row, .app-root .hud');
     const observer = new ResizeObserver(() => this.resizeBattlefield());
     controls.forEach((element) => observer.observe(element));
+    this.events.once('destroy', () => observer.disconnect());
     this.events.once('shutdown', () => {
       this.scale.off(Phaser.Scale.Events.RESIZE, this.resizeBattlefield, this);
       observer.disconnect();
@@ -244,7 +258,14 @@ export class BattleScene extends Phaser.Scene {
 
     // Otherwise a tap on a fairy ring begins a placement gesture.
     const ringId = this.ringAt(p.worldX, p.worldY);
-    if (!ringId) return; // empty ground: nothing to start
+    if (!ringId) {
+      if (this.isCloseView() && ![...this.gestures.values()].some((g) => g.kind === 'pan')) {
+        const camera = this.cameras.main;
+        this.gestures.set(p.id, { kind: 'pan', downX: p.x, downY: p.y,
+          centerX: camera.scrollX + camera.width / 2, centerY: camera.scrollY + camera.height / 2 });
+      }
+      return;
+    }
     const typeId = this.battle.selectedDefenderType;
     // An occupied ring is an inspect target (issue #30), not a placement one —
     // the shell branches on occupancy at commit, and this drives the visual.
@@ -265,6 +286,17 @@ export class BattleScene extends Phaser.Scene {
     p.updateWorldPoint(this.cameras.main);
     const g = this.gestures.get(p.id);
     if (!g) return;
+    if (g.kind === 'pan') {
+      if (Math.hypot(p.x - g.downX, p.y - g.downY) <= MOVE_THRESHOLD_PX) return;
+      // Moving the map cancels other fingers' pending purchases or casts.
+      for (const id of this.gestures.keys()) if (id !== p.id) this.gestures.delete(id);
+      this.viewCenter = {
+        x: Phaser.Math.Clamp(g.centerX - (p.x - g.downX) / this.cameras.main.zoom, 0, FIELD_WIDTH),
+        y: Phaser.Math.Clamp(g.centerY - (p.y - g.downY) / this.cameras.main.zoom, 0, FIELD_HEIGHT),
+      };
+      this.applyMapView();
+      return;
+    }
     if (g.kind === 'cast') {
       // Aiming: the reticle follows the pointer. Movement is the interaction, so
       // it never cancels a cast — only leaving the battlefield does (AC2).
@@ -286,7 +318,7 @@ export class BattleScene extends Phaser.Scene {
     // Cancellation / excessive movement / a release off-target all return to the
     // pre-gesture state and spend nothing (issue #22 AC2/AC4, #31 AC2). A cancelled
     // cast just drops the aim — the spell stays armed so the Guardian can re-aim.
-    if (cancelled) return;
+    if (cancelled || g.kind === 'pan') return;
     if (g.kind === 'place') {
       if (g.movedTooFar) return;
       if (this.ringAt(p.worldX, p.worldY) !== g.ringId) return;
@@ -348,6 +380,8 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private resizeBattlefield(): void {
+    // A queued DOM resize can arrive after Phaser destroys the camera.
+    if (!this.cameras?.main) return;
     const width = Math.max(1, this.scale.width);
     const height = Math.max(1, this.scale.height);
     const parent = this.game.canvas.parentElement;
@@ -393,18 +427,31 @@ export class BattleScene extends Phaser.Scene {
     const fieldLeft = Math.min(0, 72 - (heartwood?.drawSize[0] ?? 0) * (heartwood?.anchor[0] ?? 0));
     const fit = fitBattlefieldOptions(width, height, FIELD_WIDTH - fieldLeft, FIELD_HEIGHT, options);
     fit.offsetX -= fieldLeft * fit.zoom;
-    this.registry.set('battleViewport', fit);
-    const camera = this.cameras.main;
-    camera.setViewport(0, 0, width, height).setZoom(fit.zoom);
-    camera.centerOn((width / 2 - fit.offsetX) / fit.zoom, (height / 2 - fit.offsetY) / fit.zoom);
+    this.overview = fit;
+    const zoomButton = document.querySelector<HTMLButtonElement>('#mapZoomBtn');
+    if (zoomButton) {
+      zoomButton.hidden = !(width > height && height <= 520);
+      zoomButton.textContent = this.isCloseView() ? 'Full map' : 'Zoom in';
+      zoomButton.setAttribute('aria-label', this.isCloseView() ? 'Show full map' : 'Zoom in on map');
+    }
+    const hint = document.querySelector<HTMLElement>('#mapDragHint');
+    if (hint) hint.hidden = !this.isCloseView();
+    this.applyMapView();
+    // Cache enough forest for every pan position. Dragging only moves the camera.
+    const zoom = this.cameras.main.zoom;
     this.visibleWorld = {
-      x: -fit.offsetX / fit.zoom,
-      y: -fit.offsetY / fit.zoom,
-      width: width / fit.zoom,
-      height: height / fit.zoom,
+      x: Math.min(-fit.offsetX / fit.zoom, -width / zoom / 2),
+      y: Math.min(-fit.offsetY / fit.zoom, -height / zoom / 2),
+      width: 0, height: 0,
     };
+    this.visibleWorld.width = FIELD_WIDTH - 2 * this.visibleWorld.x;
+    this.visibleWorld.height = FIELD_HEIGHT - 2 * this.visibleWorld.y;
+    if (!this.isCloseView()) {
+      this.visibleWorld = { x: -fit.offsetX / fit.zoom, y: -fit.offsetY / fit.zoom,
+        width: width / fit.zoom, height: height / fit.zoom };
+    }
     const texture = this.textures.get('battlefield-art') as Phaser.Textures.CanvasTexture;
-    texture.setSize(Math.ceil(width), Math.ceil(height));
+    texture.setSize(Math.ceil(this.visibleWorld.width * zoom), Math.ceil(this.visibleWorld.height * zoom));
     texture.context.clearRect(0, 0, texture.width, texture.height);
     this.scenery.renderRegion(texture.context, texture.width, texture.height, this.visibleWorld);
     texture.refresh();
@@ -412,6 +459,26 @@ export class BattleScene extends Phaser.Scene {
       .setDisplaySize(this.visibleWorld.width, this.visibleWorld.height);
     // A resize changes every hit target's screen position.
     this.gestures.clear();
+  }
+
+  private isCloseView(): boolean {
+    return this.scale.width > this.scale.height && this.scale.height <= 520 && (this.closeView ?? true);
+  }
+
+  private applyMapView(): void {
+    const fit = { ...this.overview };
+    if (this.isCloseView()) {
+      fit.zoom *= 2;
+      const center = this.viewCenter ?? {
+        x: this.rings.reduce((sum, ring) => sum + ring.x, 0) / (this.rings.length || 1),
+        y: this.rings.reduce((sum, ring) => sum + ring.y, 0) / (this.rings.length || 1),
+      };
+      fit.offsetX = fit.width / 2 - center.x * fit.zoom;
+      fit.offsetY = fit.height / 2 - center.y * fit.zoom;
+    }
+    this.registry.set('battleViewport', fit);
+    this.cameras.main.setViewport(0, 0, fit.width, fit.height).setZoom(fit.zoom)
+      .centerOn((fit.width / 2 - fit.offsetX) / fit.zoom, (fit.height / 2 - fit.offsetY) / fit.zoom);
   }
 
   /**
@@ -577,7 +644,7 @@ export class BattleScene extends Phaser.Scene {
         if (!flower) continue;
         g.lineStyle(3, COLOR.flowerCore, 1);
         g.strokeCircle(flower.x, flower.y, flowerR + 6);
-      } else {
+      } else if (gesture.kind === 'cast') {
         // kind === 'cast': area preview (the spell radius) + a reticle at the
         // landing point, tinted by whether the cast would commit (issue #31 AC1).
         const colour = gesture.valid ? COLOR.spellReady : COLOR.invalid;

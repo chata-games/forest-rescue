@@ -1888,3 +1888,15 @@ body[data-frame="short"] .app-root .context-panel:has(#cpConfirm:not([hidden])) 
 :is(body[data-frame="short"], body[data-layout="portrait"]) .app-root .context-panel:has(#cpConfirm:not([hidden])) .context-panel__commands {
   grid-template-columns: 1fr;
 }
+
+#mapDragHint {
+  position: absolute;
+  left: max(8px, env(safe-area-inset-left));
+  top: 8px;
+  z-index: 4;
+  max-width: 115px;
+  font-size: 11px;
+  color: #fff0c7;
+  text-shadow: 0 1px 3px #000;
+  pointer-events: none;
+}

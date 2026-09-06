@@ -15,6 +15,8 @@ for (const viewport of [
     if (await page.locator('#portraitAdvice').isVisible()) await page.click('#portraitAdviceKeep');
     if (await page.locator('#tutorialHint').isVisible()) await page.click('#tutorialSkip');
 
+    if (viewport.width > viewport.height && viewport.height <= 520) await page.click('#mapZoomBtn');
+
     const canvas = page.locator('#game-root canvas');
     await expect.poll(async () => {
       const r = await canvas.boundingBox();
@@ -85,3 +87,56 @@ for (const viewport of [
     }).toEqual({ width: viewport.width + 30, height: viewport.height + 40 });
   });
 }
+
+test('phone close view pans without spending mana and can restore the full map', async ({ page }, testInfo) => {
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await page.setViewportSize({ width: 844, height: 330 });
+  await enterFromTrail(page, '?level=02-old-stump-crossroads');
+  await page.click('#storySkip');
+  if (await page.locator('#tutorialHint').isVisible()) await page.click('#tutorialSkip');
+  const view = () => page.evaluate(() => (window as unknown as { fr: FrApi }).fr.battleViewport());
+  await expect(page.locator('#mapZoomBtn')).toHaveText('Full map');
+  const close = await view();
+  await page.click('#mapZoomBtn');
+  const full = await view();
+  expect(close.zoom).toBeCloseTo(full.zoom * 2);
+  await page.click('#mapZoomBtn');
+  // Find empty ground, with room for a horizontal drag, away from ring hit areas.
+  const ground = await page.evaluate(() => {
+    const api = (window as unknown as { fr: FrApi }).fr;
+    const c = api.battleViewport();
+    const rings = api.ringCenters();
+    for (let y = 90; y < 230; y += 20) for (let x = 250; x < 550; x += 20) {
+      if (document.elementFromPoint(x, y)?.tagName !== 'CANVAS') continue;
+      if (rings.every((r) => Math.hypot(r.x * c.zoom + c.offsetX - x, r.y * c.zoom + c.offsetY - y) > 60)) return { x, y };
+    }
+    throw new Error('No empty ground for pan');
+  });
+  const mana = await page.locator('#manaValue').textContent();
+  await page.mouse.move(ground.x, ground.y);
+  await page.mouse.down();
+  await page.mouse.move(ground.x + 100, ground.y, { steps: 10 });
+  await page.mouse.up();
+  const moved = await view();
+  expect(moved.offsetX).toBeGreaterThan(close.offsetX + 80);
+  expect(moved.zoom).toBeCloseTo(close.zoom);
+  await expect(page.locator('#manaValue')).toHaveText(mana!);
+  const target = await page.evaluate(() => {
+    const api = (window as unknown as { fr: FrApi }).fr;
+    const c = api.battleViewport();
+    return api.ringCenters().filter((r) => !r.id.includes('onpath')).map((r) => ({
+      x: r.x * c.zoom + c.offsetX, y: r.y * c.zoom + c.offsetY,
+    })).find((r) => document.elementFromPoint(r.x, r.y)?.tagName === 'CANVAS');
+  });
+  expect(target).toBeDefined();
+  await page.mouse.click(target!.x, target!.y);
+  await expect(page.locator('#manaValue')).toHaveText(String(Number(mana) - 50));
+  await page.screenshot({ path: testInfo.outputPath('phone-zoom.png') });
+  await page.click('#mapZoomBtn');
+  expect(await view()).toEqual(full);
+  await page.setViewportSize({ width: 390, height: 700 });
+  await expect(page.locator('#mapZoomBtn')).toBeHidden();
+  await expect(page.locator('#mapDragHint')).toBeHidden();
+  expect(errors).toEqual([]);
+});

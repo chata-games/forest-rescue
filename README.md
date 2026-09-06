@@ -28,6 +28,8 @@ The deploy workflow builds the Phaser app and publishes `dist/app/` as the site 
 
 iPhone browsers do not rotate while **Portrait Orientation Lock** is on. A web page cannot change this setting. Use **Rotate the screen** in the "Best played sideways" tip or **Sideways** under Pause → Settings. The app remembers the setting and uses it when the viewport is in portrait orientation.
 
+On short landscape screens, the map starts at twice the full-map scale. Drag empty ground to move the view. Select **Full map** to see the whole field, or **Zoom in** to return to the closer view. While a spell is selected, dragging aims the spell. Clear the spell selection before moving the map.
+
 ## Level pipeline
 
 Levels are authored as **LevelIntent** (creative brief) and compiled to **CompiledLevel** (geometry, rings, waves):

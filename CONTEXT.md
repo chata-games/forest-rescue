@@ -33,7 +33,7 @@
 | **Preferred battle layout** | The landscape presentation optimized for two-thumb play; recommended but never required |
 | **Compact portrait layout** | The fully playable portrait presentation: the complete battlefield scales down uniformly to fit while the HUD reflows with full-size controls |
 | **Sideways mode** | A player-chosen 90-degree rotation of the game frame inside a browser that stays portrait (iPhone with Portrait Orientation Lock on); the frame is laid out landscape, so the Preferred battle layout applies. Active only while the viewport is physically portrait |
-| **Short frame** | A landscape view with little vertical space, such as a phone held sideways. The forest fills the view, compact controls sit over its edges, and the complete trail and Fairy rings remain visible |
+| **Short frame** | A landscape view with little vertical space, such as a phone held sideways. The forest fills the view with compact controls at its edges. The map starts in a closer view. The Guardian can drag empty ground to move the view or select Full map to see the complete field |
 | **Immersive battle** | Fullscreen plus a landscape orientation lock, requested when a battle is entered on a phone-sized touch screen. Best effort: browsers that refuse either (iPhone) fall back to the page layout; the pause Settings toggle also records the player's opt-out |
 
 ## Architecture boundaries
